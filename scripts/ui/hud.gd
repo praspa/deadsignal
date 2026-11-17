@@ -177,7 +177,7 @@ func _draw_hud() -> void:
 	_draw_stim(Rect2(ax + 3 * 66, by + 8, 56, 56))
 	# --- level / points
 	var lx := vs.x - 450.0
-	_text(Vector2(lx, by + 26), "LEVEL %d  %s" % [GameState.level, GameState.CLASS_NAME.to_upper()], 15, UiTheme.BRASS)
+	_text(Vector2(lx, by + 26), "LEVEL %d  %s" % [GameState.level, GameState.class_title().to_upper()], 15, UiTheme.BRASS)
 	_text(Vector2(lx, by + 46), "XP %d / %d" % [GameState.xp, GameState.xp_to_next()], 13, UiTheme.TEXT_DIM)
 	if GameState.attr_points > 0:
 		var a := 0.6 + 0.4 * sin(Time.get_ticks_msec() * 0.006)

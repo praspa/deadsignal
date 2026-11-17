@@ -201,6 +201,20 @@ Narrative delivery should primarily use environmental storytelling, logs, termin
 
 11. User Interface
 
+Start screen 
+Continue
+New Game
+Controls
+Quit
+
+New Game:
+Brings you to a character creation Screen.
+You choose a Name
+Class (right now only Combat Specialist is available)
+There will be , say 5 classes to hover over with class descriptions. 
+Combat specialist is the only one with details now (the rest grayed out).
+
+
 Required HUD:
 
 Health bar.

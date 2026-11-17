@@ -51,7 +51,7 @@ func _on_stats_changed() -> void:
 func refresh() -> void:
 	var focus := get_viewport().gui_get_focus_owner()
 	var fidx := focus.get_index() if focus != null and focus.get_parent() == rows else 0
-	header.text = "Level %d %s     Attribute points: %d" % [GameState.level, GameState.CLASS_NAME, GameState.attr_points]
+	header.text = "%s  —  Level %d %s     Attribute points: %d" % [GameState.player_name, GameState.level, GameState.class_title(), GameState.attr_points]
 	for c in rows.get_children():
 		rows.remove_child(c)
 		c.queue_free()

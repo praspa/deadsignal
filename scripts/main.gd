@@ -39,6 +39,20 @@ func show_menu() -> void:
 	current = menu
 
 
+func show_character_creation() -> void:
+	_clear()
+	var cc := CharacterCreation.new()
+	cc.begin.connect(_on_creation_begin)
+	cc.back.connect(func() -> void: show_menu.call_deferred())
+	add_child(cc)
+	current = cc
+
+
+func _on_creation_begin(player_name: String, class_id: String) -> void:
+	GameState.new_game(player_name, class_id)
+	start_game.call_deferred()
+
+
 func start_game() -> void:
 	_clear()
 	var game := Game.new()
@@ -50,8 +64,7 @@ func start_game() -> void:
 func _on_menu_action(id: String) -> void:
 	match id:
 		"new":
-			GameState.new_game()
-			start_game.call_deferred()
+			show_character_creation.call_deferred()
 		"continue":
 			if GameState.load_game():
 				start_game.call_deferred()
