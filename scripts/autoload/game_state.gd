@@ -7,8 +7,22 @@ const SLOTS := ["primary", "secondary", "head", "body", "gloves", "boots", "util
 const ATTRS := ["str", "dex", "int", "wil"]
 const POINTS_PER_LEVEL := 3
 const MAX_INVENTORY := 30
-const CLASS_NAME := "Combat Specialist"
+const DEFAULT_NAME := "Operative"
+const NAME_MAX := 16
+## Playable classes, in the order the character creation screen lists them.
+## Only "available" classes can be picked; the rest show as locked.
+const CLASSES := [
+	{"id": "combat_specialist", "name": "Combat Specialist", "available": true,
+		"skills": ["Firearms", "Heavy Weapons", "Armor", "Melee", "Brute Force"],
+		"description": "A burly, battle-hardened space marine. Trained to hold a corridor against anything that comes through it, and to walk out carrying the wounded.\n\nStarts with an assault rifle, a power maul, flak carapace armour and a shotgun in reserve."},
+	{"id": "field_technician", "name": "Field Technician", "available": false},
+	{"id": "psionic_adept", "name": "Psionic Adept", "available": false},
+	{"id": "infiltrator", "name": "Infiltrator", "available": false},
+	{"id": "combat_medic", "name": "Combat Medic", "available": false},
+]
 
+var player_name := DEFAULT_NAME
+var class_id := "combat_specialist"
 var level := 1
 var xp := 0
 var attr_points := 0
@@ -41,7 +55,9 @@ func next_uid() -> int:
 	return _uid
 
 
-func new_game() -> void:
+func new_game(p_name: String = DEFAULT_NAME, p_class: String = "combat_specialist") -> void:
+	player_name = clean_name(p_name)
+	class_id = p_class if is_class_available(p_class) else "combat_specialist"
 	level = 1
 	xp = 0
 	attr_points = 0
@@ -67,6 +83,33 @@ func new_game() -> void:
 	inventory.append(ItemDB.generate("shotgun", 0, 1))
 	hp = max_hp()
 	energy = max_energy()
+
+
+# ---------------------------------------------------------------- identity
+
+## Trims the name, drops control characters and caps the length; blank means DEFAULT_NAME.
+func clean_name(n: String) -> String:
+	var out := ""
+	for ch in n.strip_edges():
+		if ch.unicode_at(0) >= 32:
+			out += ch
+	out = out.strip_edges().left(NAME_MAX)
+	return out if out != "" else DEFAULT_NAME
+
+
+func class_info(id: String) -> Dictionary:
+	for c in CLASSES:
+		if c["id"] == id:
+			return c
+	return {}
+
+
+func is_class_available(id: String) -> bool:
+	return bool(class_info(id).get("available", false))
+
+
+func class_title() -> String:
+	return String(class_info(class_id).get("name", "Combat Specialist"))
 
 
 # ---------------------------------------------------------------- flags
@@ -336,6 +379,7 @@ func save_game(pos: Vector2) -> bool:
 	player_pos = pos
 	var d := {
 		"version": 1,
+		"player_name": player_name, "class_id": class_id,
 		"level": level, "xp": xp, "attr_points": attr_points,
 		"attributes": attributes, "hp": hp, "energy": energy,
 		"inventory": inventory, "equipment": equipment,
@@ -362,6 +406,10 @@ func load_game() -> bool:
 	var d = JSON.parse_string(f.get_as_text())
 	if not (d is Dictionary):
 		return false
+	player_name = clean_name(String(d.get("player_name", DEFAULT_NAME)))   # older saves: no name
+	class_id = String(d.get("class_id", "combat_specialist"))
+	if not is_class_available(class_id):
+		class_id = "combat_specialist"
 	level = int(d.get("level", 1))
 	xp = int(d.get("xp", 0))
 	attr_points = int(d.get("attr_points", 0))

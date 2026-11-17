@@ -36,6 +36,7 @@ func _ready() -> void:
 	if FileAccess.file_exists(GameState.save_path):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(GameState.save_path))
 	await frames(2)
+	await _character_creation_test()
 	await run()
 	print("\nSMOKE TEST: %d passed, %d failed" % [passes, fails])
 	get_tree().quit(fails)
@@ -82,6 +83,59 @@ func _controller_menu_test() -> void:
 	check(has_cancel, "B / Circle bound to menu back")
 	layer.queue_free()
 	await get_tree().process_frame
+
+
+func _key(code: Key) -> void:
+	for p in [true, false]:
+		var k := InputEventKey.new()
+		k.keycode = code
+		k.physical_keycode = code
+		k.pressed = p
+		Input.parse_input_event(k)
+		await get_tree().process_frame
+
+
+## New Game -> character creation -> game, plus Back, locked classes and the
+## name surviving a save / load.
+func _character_creation_test() -> void:
+	print("== character creation")
+	check(GameState.clean_name("   ") == GameState.DEFAULT_NAME, "blank name falls back to the default")
+	check(GameState.clean_name("  Voss\n ") == "Voss", "name is trimmed and control characters dropped")
+	check(GameState.clean_name("x".repeat(40)).length() == GameState.NAME_MAX, "name is capped at %d characters" % GameState.NAME_MAX)
+	main.call("_on_menu_action", "new")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var cc := main.get("current") as CharacterCreation
+	check(cc != null, "New Game opens the character creation screen")
+	if cc == null:
+		return
+	await get_tree().process_frame
+	check(cc.class_buttons.size() == 5, "five classes listed")
+	var enabled := cc.class_buttons.filter(func(b: Button) -> bool: return not b.disabled)
+	check(enabled.size() == 1 and String(enabled[0].get_meta("class_id")) == "combat_specialist", "only Combat Specialist is selectable")
+	check(get_viewport().gui_get_focus_owner() == cc.name_edit, "name field has focus on open")
+	await _key(KEY_DOWN)
+	check(get_viewport().gui_get_focus_owner() == cc.class_buttons[0], "down arrow leaves the name field for the class list")
+	await _key(KEY_DOWN)
+	check(cc.detail_status.text == "LOCKED", "focusing a locked class shows it as locked")
+	check(cc.selected_id == "combat_specialist", "locked class cannot be selected")
+	await _key(KEY_ESCAPE)
+	await get_tree().process_frame
+	check(main.get("current") is MainMenu, "Esc / B returns to the main menu")
+	main.call("_on_menu_action", "new")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	cc = main.get("current") as CharacterCreation
+	cc.name_edit.text = "  Voss "
+	cc.begin_btn.pressed.emit()
+	await frames(6)
+	check(main.get("current") is Game, "Begin Mission starts the game")
+	check(GameState.player_name == "Voss" and GameState.class_title() == "Combat Specialist", "name and class carried into the game")
+	GameState.save_game(Vector2.ZERO)
+	GameState.player_name = "changed"
+	GameState.load_game()
+	check(GameState.player_name == "Voss", "operative name survives save / load")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(GameState.save_path))
 
 
 func start() -> void:

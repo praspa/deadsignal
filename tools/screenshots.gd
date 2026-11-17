@@ -1,7 +1,7 @@
 extends Node
 ## Captures one gameplay screenshot per run for visual review (needs a display).
 ##   godot --path . -- --shots <output_dir> <scene>
-## scenes: menu landing atrium generator powered labs xenolab boss inventory character terminal cutaway loot [aim: down|up|left|right] overview
+## scenes: menu creation landing atrium generator powered labs xenolab boss inventory character terminal cutaway loot [aim: down|up|left|right] overview
 ## add --variant N to pick a layout
 
 var main: Node
@@ -32,6 +32,12 @@ func _ready() -> void:
 	GameState.save_path = "user://shots_save.json"
 	await frames(3)
 	if scene == "menu":
+		await frames(30)
+		await _shot()
+		get_tree().quit()
+		return
+	if scene == "creation":
+		main.call("show_character_creation")
 		await frames(30)
 		await _shot()
 		get_tree().quit()
