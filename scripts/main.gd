@@ -48,8 +48,8 @@ func show_character_creation() -> void:
 	current = cc
 
 
-func _on_creation_begin(player_name: String, class_id: String) -> void:
-	GameState.new_game(player_name, class_id)
+func _on_creation_begin(player_name: String, class_id: String, race_id: String) -> void:
+	GameState.new_game(player_name, class_id, race_id)
 	start_game.call_deferred()
 
 

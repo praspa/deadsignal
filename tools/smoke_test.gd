@@ -95,46 +95,74 @@ func _key(code: Key) -> void:
 		await get_tree().process_frame
 
 
-## New Game -> character creation -> game, plus Back, locked classes and the
-## name surviving a save / load.
+## New Game -> character creation -> game, plus Back, races, locked classes,
+## keyboard navigation, and name / race surviving a save / load.
 func _character_creation_test() -> void:
 	print("== character creation")
 	check(GameState.clean_name("   ") == GameState.DEFAULT_NAME, "blank name falls back to the default")
-	check(GameState.clean_name("  Voss\n ") == "Voss", "name is trimmed and control characters dropped")
+	check(GameState.clean_name("  Vo\tss ") == "Voss", "name is trimmed and control characters dropped")
 	check(GameState.clean_name("x".repeat(40)).length() == GameState.NAME_MAX, "name is capped at %d characters" % GameState.NAME_MAX)
+	var names_ok := true
+	for i in 50:
+		var n := GameState.random_name()
+		names_ok = names_ok and n.length() <= GameState.NAME_MAX and GameState.clean_name(n) == n
+	check(names_ok, "random names fit the name rules")
 	main.call("_on_menu_action", "new")
-	await get_tree().process_frame
-	await get_tree().process_frame
+	await frames(3)
 	var cc := main.get("current") as CharacterCreation
 	check(cc != null, "New Game opens the character creation screen")
 	if cc == null:
 		return
-	await get_tree().process_frame
 	check(cc.class_buttons.size() == 5, "five classes listed")
 	var enabled := cc.class_buttons.filter(func(b: Button) -> bool: return not b.disabled)
 	check(enabled.size() == 1 and String(enabled[0].get_meta("class_id")) == "combat_specialist", "only Combat Specialist is selectable")
+	check(cc.race_buttons.size() == GameState.RACES.size() and cc.race_buttons.all(func(b: Button) -> bool: return not b.disabled), "all %d races listed and selectable" % GameState.RACES.size())
+	check(cc.name_edit.text != "" and cc.name_edit.text != GameState.DEFAULT_NAME, "name field starts with a random name (%s)" % cc.name_edit.text)
+	var first_name := cc.name_edit.text
+	for i in 10:
+		cc.dice_btn.pressed.emit()
+		if cc.name_edit.text != first_name:
+			break
+	check(cc.name_edit.text != first_name, "Random rerolls the name")
 	check(get_viewport().gui_get_focus_owner() == cc.name_edit, "name field has focus on open")
 	await _key(KEY_DOWN)
-	check(get_viewport().gui_get_focus_owner() == cc.class_buttons[0], "down arrow leaves the name field for the class list")
+	check(get_viewport().gui_get_focus_owner() == cc.race_buttons[0], "down arrow leaves the name field for the race list")
+	await _key(KEY_RIGHT)
 	await _key(KEY_DOWN)
-	check(cc.detail_status.text == "LOCKED", "focusing a locked class shows it as locked")
-	check(cc.selected_id == "combat_specialist", "locked class cannot be selected")
-	await _key(KEY_ESCAPE)
+	check(cc.detail_status.text.contains("LOCKED"), "focusing a locked class shows it as locked")
+	check(cc.selected_class == "combat_specialist", "locked class cannot be selected")
+	await _key(KEY_RIGHT)
 	await get_tree().process_frame
+	check(get_viewport().gui_get_focus_owner() == cc.begin_btn and not cc.detail_status.text.contains("LOCKED"), "details panel leaves the locked class when focus moves to Begin")
+	for b in cc.race_buttons:
+		b.pressed.emit()
+		await frames(2)   # preview draws each race's art
+	check(cc.preview_view.position == CharacterCreation.PREVIEW_FEET, "operative preview stays in its frame")
+	check(cc.selected_race == GameState.RACES[GameState.RACES.size() - 1]["id"], "clicking a race selects it")
+	await _key(KEY_ESCAPE)
+	await frames(2)
 	check(main.get("current") is MainMenu, "Esc / B returns to the main menu")
 	main.call("_on_menu_action", "new")
-	await get_tree().process_frame
-	await get_tree().process_frame
+	await frames(3)
 	cc = main.get("current") as CharacterCreation
 	cc.name_edit.text = "  Voss "
+	cc.race_buttons[GameState.RACES.find(GameState.race_info("zessk"))].pressed.emit()
+	var begins := [0]
+	cc.begin.connect(func(_n: String, _c: String, _r: String) -> void: begins[0] += 1)
 	cc.begin_btn.pressed.emit()
+	cc.begin_btn.pressed.emit()   # double click / Enter + A in one frame
+	await _key(KEY_ESCAPE)        # and Esc right after Begin
 	await frames(6)
-	check(main.get("current") is Game, "Begin Mission starts the game")
-	check(GameState.player_name == "Voss" and GameState.class_title() == "Combat Specialist", "name and class carried into the game")
+	check(begins[0] == 1, "Begin Mission fires once, however many times it is pressed")
+	check(main.get("current") is Game, "Begin Mission starts the game (and a late Esc does not undo it)")
+	check(GameState.player_name == "Voss" and GameState.class_title() == "Combat Specialist" and GameState.race_id == "zessk", "name, class and race carried into the game")
+	var g := main.get("current") as Game
+	check(g != null and g.player.race == "zessk", "the in-game operative is drawn as the chosen race")
 	GameState.save_game(Vector2.ZERO)
 	GameState.player_name = "changed"
+	GameState.race_id = "human"
 	GameState.load_game()
-	check(GameState.player_name == "Voss", "operative name survives save / load")
+	check(GameState.player_name == "Voss" and GameState.race_id == "zessk", "name and race survive save / load")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(GameState.save_path))
 
 

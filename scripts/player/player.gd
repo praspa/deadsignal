@@ -41,6 +41,7 @@ var _body_light: PointLight2D  # same lights for walls / actors (no shadows)
 var _body_cone: PointLight2D
 var _last_hint_t := 0.0
 var aim_override: Variant = null
+var race := GameState.DEFAULT_RACE   # which RACE_LOOK to draw
 var input_grace := 0.0             # ignore actions briefly after a menu closes   # Vector2 to force aim (automated tests)
 
 
@@ -98,6 +99,7 @@ func _on_leveled_up(_lv: int) -> void:
 
 
 func sync_from_state() -> void:
+	race = GameState.race_id
 	max_hp = GameState.max_hp()
 	hp = clampf(GameState.hp, 1.0, max_hp)
 	armor = GameState.armor()
@@ -658,6 +660,24 @@ const C_METAL := Color(0.09, 0.09, 0.1)
 const C_SKIN := Color(0.6, 0.47, 0.39)
 const C_SKIN_SH := Color(0.42, 0.31, 0.26)
 const C_HAIR := Color(0.13, 0.11, 0.1)
+const C_GLOW := Color(0.35, 0.9, 1.0)        # cybernetic / suit status light
+
+## How each race looks inside the suit. `scale` is applied to the whole body
+## (x, y) from the feet; `head_r` is the head radius under the glass helmet;
+## `hair` is hair, crest, mane or implant metal depending on the race;
+## `visor` tints the helmet glass.
+const RACE_LOOK := {
+	"human":   {"scale": Vector2(1.0, 1.0),   "head_r": 5.5, "skin": Color(0.6, 0.47, 0.39),  "skin_sh": Color(0.42, 0.31, 0.26), "hair": Color(0.13, 0.11, 0.1),  "visor": Color(0.55, 0.8, 0.95, 0.14)},
+	"ossari":  {"scale": Vector2(0.86, 1.03), "head_r": 6.2, "skin": Color(0.74, 0.76, 0.8),  "skin_sh": Color(0.52, 0.55, 0.6),  "hair": Color(0.52, 0.55, 0.6),  "visor": Color(0.6, 0.75, 1.0, 0.14)},
+	"halvex":  {"scale": Vector2(1.0, 1.0),   "head_r": 5.5, "skin": Color(0.55, 0.58, 0.66), "skin_sh": Color(0.38, 0.4, 0.48),  "hair": Color(0.3, 0.32, 0.35),  "visor": Color(0.4, 0.9, 1.0, 0.16)},
+	"nyxari":  {"scale": Vector2(0.95, 1.0),  "head_r": 5.3, "skin": Color(0.32, 0.26, 0.35), "skin_sh": Color(0.2, 0.16, 0.23),  "hair": Color(0.14, 0.11, 0.16), "visor": Color(0.18, 0.08, 0.22, 0.55)},
+	"zessk":   {"scale": Vector2(0.8, 0.8),   "head_r": 5.0, "skin": Color(0.38, 0.56, 0.3),  "skin_sh": Color(0.24, 0.38, 0.2),  "hair": Color(0.62, 0.52, 0.2),  "visor": Color(0.6, 0.9, 0.7, 0.14)},
+	"ursathi": {"scale": Vector2(1.18, 1.18), "head_r": 5.8, "skin": Color(0.52, 0.37, 0.22), "skin_sh": Color(0.34, 0.23, 0.13), "hair": Color(0.22, 0.14, 0.08), "visor": Color(0.85, 0.75, 0.6, 0.12)},
+}
+
+
+func _look() -> Dictionary:
+	return RACE_LOOK.get(race, RACE_LOOK["human"])
 
 
 func _tint(c: Color) -> Color:
@@ -708,10 +728,13 @@ func _render_body() -> void:
 		cv.draw_set_transform(Vector2(0, -12), f * TAU * (1.0 if aim_dir.x >= 0.0 else -1.0), Vector2(0.75, 0.75))
 		cv.draw_circle(Vector2.ZERO, 12.0, _tint(C_ARMOR))
 		cv.draw_arc(Vector2.ZERO, 12.0, 0.0, PI, 10, _tint(C_RED), 5.0)
-		cv.draw_circle(Vector2(0, -6), 5.0, _tint(C_SKIN))
+		cv.draw_circle(Vector2(0, -6), 5.0, _tint(_look()["skin"]))
+		cv.draw_circle(Vector2(0, -6), 6.5, Color(0.55, 0.8, 0.95, 0.18))   # helmet glass
 		cv.draw_set_transform(Vector2.ZERO)
 	else:
+		cv.draw_set_transform(Vector2.ZERO, 0.0, _look()["scale"])
 		_draw_marine()
+		cv.draw_set_transform(Vector2.ZERO)
 	# reload indicator
 	for s in ["primary", "secondary"]:
 		if is_reloading(s):
@@ -722,8 +745,9 @@ func _render_body() -> void:
 			cv.draw_rect(Rect2(-16, -64, 32 * rp, 4), Color(0.9, 0.75, 0.3))
 
 
-## A burly, battle-hardened human marine in heavy power armour, drawn upright
-## for the isometric camera. `aim_dir` is in screen space here (see _render):
+## A marine in heavy power armour with a glass helmet, drawn upright for the
+## isometric camera. The race (RACE_LOOK) sets body proportions, what shows
+## through the helmet glass, and extras such as wings, a tail or claws. `aim_dir` is in screen space here (see _render):
 ## the body turns to face it (left/right, toward or away from the camera).
 func _draw_marine() -> void:
 	var d := aim_dir
@@ -733,6 +757,11 @@ func _draw_marine() -> void:
 	var bob := absf(stride) * 1.2
 	var breathe := sin(Time.get_ticks_msec() * 0.003) * 0.6 if not moving else 0.0
 	var up := Vector2(0, -bob + breathe)
+
+	if race == "zessk" and not away:
+		_draw_tail(fx, up)
+	if race == "nyxari" and not away:
+		_draw_wings(up, false)
 
 	# legs: armoured greaves, knee guards, heavy boots
 	for side in [-1.0, 1.0]:
@@ -746,6 +775,8 @@ func _draw_marine() -> void:
 		cv.draw_rect(Rect2(knee + Vector2(-3.5, -2.5), Vector2(7, 5)), _tint(C_ARMOR_HI.darkened(0.25)))
 		Shade.poly(cv, PackedVector2Array([foot + Vector2(-4.5, -5), foot + Vector2(4.5, -5), foot + Vector2(4.5 + fx * 3.0, 1), foot + Vector2(-4.5, 1)]), _tint(C_METAL.lightened(0.08)))
 
+	if race == "zessk" and away:
+		_draw_tail(fx, up)
 	if away:
 		_draw_arms_and_weapon(d, fx, up)
 
@@ -773,34 +804,21 @@ func _draw_marine() -> void:
 		for ex in [-8.0, 5.0]:
 			cv.draw_rect(Rect2(Vector2(ex, -56) + up, Vector2(3, 7)), _tint(C_ARMOR_HI))
 			cv.draw_circle(Vector2(ex + 1.5, -57) + up, 1.5, Color(0.9, 0.35, 0.1, 0.8))
+		if race == "nyxari":
+			_draw_wings(up, true)
 	else:
-		# moulded pectoral plates and a brass aquila across the chest
+		# moulded pectoral plates, brass trim and a life-support panel
 		cv.draw_line(Vector2(-9, -36) + up, Vector2(-1, -33) + up, _tint(C_ARMOR_HI), 1.5)
 		cv.draw_line(Vector2(9, -36) + up, Vector2(1, -33) + up, _tint(C_ARMOR_HI), 1.5)
-		cv.draw_line(Vector2(-8, -40) + up, Vector2(0, -37) + up, _tint(C_TRIM), 2.0)
-		cv.draw_line(Vector2(8, -40) + up, Vector2(0, -37) + up, _tint(C_TRIM), 2.0)
-		cv.draw_circle(Vector2(0, -37) + up, 2.0, _tint(C_TRIM))
-		# purity seal
-		cv.draw_circle(Vector2(-6 * fx, -30) + up, 2.0, _tint(C_RED))
-		cv.draw_line(Vector2(-6 * fx, -29) + up, Vector2(-6.5 * fx, -24) + up, Color(0.75, 0.7, 0.55), 1.5)
+		cv.draw_line(Vector2(-10, -42) + up, Vector2(10, -42) + up, _tint(C_TRIM), 1.5)
+		cv.draw_rect(Rect2(Vector2(-4, -40) + up, Vector2(8, 5)), _tint(C_METAL))
+		var blink := 0.6 + 0.4 * sin(Time.get_ticks_msec() * 0.004)
+		cv.draw_circle(Vector2(-1.8, -37.5) + up, 0.9, Color(C_GLOW.r, C_GLOW.g, C_GLOW.b, blink))
+		cv.draw_circle(Vector2(1.8, -37.5) + up, 0.9, Color(0.4, 1.0, 0.45, 0.85))
+		# hose from the pack to the helmet collar
+		cv.draw_line(Vector2(-6 * fx, -44) + up, Vector2(-7 * fx, -30) + up, _tint(C_METAL.lightened(0.1)), 2.0)
 
-	# gorget and head: bare-headed veteran, cropped hair, scarred, heavy jaw
-	cv.draw_rect(Rect2(Vector2(-6, -49) + up, Vector2(12, 5)), _tint(C_ARMOR_HI))
-	var head := Vector2(fx * 1.0, -54) + up
-	if away:
-		cv.draw_circle(head, 5.5, _tint(C_SKIN_SH))
-		cv.draw_circle(head + Vector2(0, -1), 5.3, _tint(C_HAIR))
-		cv.draw_rect(Rect2(head + Vector2(-3, 2), Vector2(6, 3)), _tint(C_SKIN_SH))   # neck
-	else:
-		cv.draw_rect(Rect2(head + Vector2(-4.5, 0), Vector2(9, 5)), _tint(C_SKIN_SH))  # jaw
-		Shade.ball(cv, head, 5.5, _tint(C_SKIN))
-		cv.draw_colored_polygon(PackedVector2Array([head + Vector2(-5.6, -0.5), head + Vector2(-4.5, -4.5), head + Vector2(0, -6.2), head + Vector2(4.5, -4.5), head + Vector2(5.6, -0.5), head + Vector2(0, -3.0)]), _tint(C_HAIR))
-		var eye := head + Vector2(fx * 2.3, -0.5)
-		var glint := Color(1.0, 0.25, 0.1) if overcharge_t > 0.0 else Color(0.08, 0.06, 0.05)
-		cv.draw_rect(Rect2(eye + Vector2(-1.2, -0.6), Vector2(2.4, 1.4)), glint)
-		cv.draw_rect(Rect2(eye + Vector2(-3.8 * fx - 1.0, -0.6), Vector2(2.0, 1.4)), glint)
-		cv.draw_line(head + Vector2(-1.5 * fx, -3.5), head + Vector2(2.5 * fx, 2.5), Color(0.55, 0.25, 0.22), 1.0)   # scar
-		cv.draw_line(head + Vector2(-1.5 * fx, 4.2), head + Vector2(3.5 * fx, 4.2), C_SKIN_SH.darkened(0.3), 1.0)    # set mouth
+	_draw_head(fx, up, away)
 
 	# massive pauldrons in chapter crimson with brass rims
 	for side in [-1.0, 1.0]:
@@ -815,8 +833,9 @@ func _draw_marine() -> void:
 		pts.append(pc + Vector2(-8, 5))
 		Shade.poly(cv, pts, _tint(col))
 		cv.draw_polyline(pts.slice(0, 11), _tint(C_TRIM.darkened(0.15)), 1.0)   # worn brass rim
-		if not away:
-			cv.draw_circle(pc + Vector2(0, -1), 2.2, _tint(Color(0.7, 0.66, 0.56)))   # skull stud
+		if not away and near:
+			# unit chevron stencilled on the near pauldron
+			cv.draw_polyline(PackedVector2Array([pc + Vector2(-3, -3), pc + Vector2(0, 0), pc + Vector2(3, -3)]), _tint(Color(0.75, 0.72, 0.62)), 1.2)
 
 	if not away:
 		_draw_arms_and_weapon(d, fx, up)
@@ -864,6 +883,10 @@ func _draw_arms_and_weapon(d: Vector2, fx: float, up: Vector2) -> void:
 		Shade.limb(cv, s0, elbow, 6.5, _tint(C_ARMOR))
 		Shade.limb(cv, elbow, h, 6.0, _tint(C_ARMOR))
 		Shade.ball(cv, h, 3.4, _tint(C_ARMOR_HI))   # gauntlet
+		if race == "ursathi":
+			for k in [-0.5, 0.0, 0.5]:
+				var cd := d.rotated(k)
+				cv.draw_line(h + cd * 2.5, h + cd * 6.0, Color(0.85, 0.8, 0.68), 1.2)   # claws through the glove tips
 	if muzzle_t > 0.0:
 		var mc := Color(1.0, 0.85, 0.4) if t != "energy" else Color(0.6, 0.9, 1.0)
 		var n := Vector2(-d.y, d.x)
@@ -901,8 +924,152 @@ func _draw_corpse() -> void:
 	cv.draw_rect(Rect2(1, -2, 5, 14), C_ARMOR_SH)
 	cv.draw_circle(Vector2(-9, -20), 6.0, C_RED)                  # pauldrons
 	cv.draw_circle(Vector2(10, -20), 6.0, C_RED)
-	cv.draw_circle(Vector2(0, -27), 5.0, C_SKIN_SH)               # head
+	cv.draw_circle(Vector2(0, -27), 5.0, _look()["skin_sh"])     # head
+	cv.draw_circle(Vector2(0, -27), 7.0, Color(0.55, 0.8, 0.95, 0.15))   # cracked helmet glass
+	cv.draw_line(Vector2(-3, -31), Vector2(2, -25), Color(0.85, 0.95, 1.0, 0.5), 1.0)
 	cv.draw_set_transform(Vector2.ZERO)
 	Iso.ground(cv)
 	cv.draw_circle(Vector2(4, 4), 16.0 * t, Color(0.35, 0.0, 0.0, 0.5))
 	cv.draw_set_transform(Vector2.ZERO)
+
+
+## Ellipse outline as a polygon (no draw transforms: the body scale is one).
+static func _ellipse(c: Vector2, rx: float, ry: float, n: int = 16) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	for i in n:
+		var a := TAU * float(i) / float(n)
+		pts.append(c + Vector2(cos(a) * rx, sin(a) * ry))
+	return pts
+
+
+## Head under a glass helmet: collar, the inside of the dome, the race's head,
+## then the glass on top (tint, rim, glint).
+func _draw_head(fx: float, up: Vector2, away: bool) -> void:
+	var lk := _look()
+	var r: float = lk["head_r"]
+	var skin: Color = _tint(lk["skin"])
+	var sk_sh: Color = _tint(lk["skin_sh"])
+	var hair: Color = _tint(lk["hair"])
+	cv.draw_rect(Rect2(Vector2(-7, -49) + up, Vector2(14, 5)), _tint(C_ARMOR_HI))   # helmet collar ring
+	var head := Vector2(fx * 1.0, -48.5 - r * 0.9) + up
+	var dome_r := r + 3.0 + (1.8 if race == "ursathi" else 0.0)
+	var dome := head + Vector2(0, -0.5)
+	cv.draw_circle(dome, dome_r, Color(0.04, 0.06, 0.08, 0.6))   # inside of the dome
+	var eye_col := Color(1.0, 0.25, 0.1) if overcharge_t > 0.0 else Color(0.08, 0.06, 0.05)
+	match race:
+		"ossari":
+			var cran := head + Vector2(0, -1.2)
+			if away:
+				Shade.poly(cv, _ellipse(cran, r * 0.9, r * 1.1), sk_sh)
+			else:
+				cv.draw_colored_polygon(PackedVector2Array([head + Vector2(-3.2, 1.5), head + Vector2(3.2, 1.5), head + Vector2(fx * 0.8, 6.0)]), sk_sh)   # narrow chin
+				Shade.poly(cv, _ellipse(cran, r * 0.9, r * 1.1), skin)
+				var big := Color(0.02, 0.02, 0.04) if overcharge_t <= 0.0 else eye_col
+				for e in [[head + Vector2(fx * 2.4, 0.6), 2.2], [head + Vector2(-fx * 1.9, 0.6), 1.5]]:
+					var c: Vector2 = e[0]
+					var w: float = e[1]
+					cv.draw_colored_polygon(PackedVector2Array([c + Vector2(-w * fx, 0.6), c + Vector2(-w * 0.2 * fx, -1.3), c + Vector2(w * fx, -1.0), c + Vector2(w * 0.3 * fx, 1.3)]), big)
+					cv.draw_circle(c + Vector2(-0.4, -0.5), 0.45, Color(1, 1, 1, 0.6))
+		"halvex":
+			if away:
+				Shade.ball(cv, head, r, sk_sh)
+				cv.draw_colored_polygon(_ellipse(head + Vector2(0, -0.5), r * 0.85, r * 0.7, 10), hair)   # cortical plate
+				cv.draw_line(head + Vector2(-3, -0.5), head + Vector2(3, -0.5), C_GLOW, 1.0)
+			else:
+				cv.draw_rect(Rect2(head + Vector2(-4.0, 0), Vector2(8, 4.5)), sk_sh)
+				Shade.ball(cv, head, r, skin)
+				# implant plate over the far side of the skull, with a glowing seam
+				cv.draw_colored_polygon(PackedVector2Array([head + Vector2(-fx * 5.6, -1.0), head + Vector2(-fx * 3.5, -5.2), head + Vector2(fx * 1.0, -5.8), head + Vector2(-fx * 0.5, -2.0), head + Vector2(-fx * 2.5, 1.5)]), hair)
+				cv.draw_polyline(PackedVector2Array([head + Vector2(fx * 0.5, -5.0), head + Vector2(-fx * 1.0, -2.2), head + Vector2(-fx * 3.0, 1.0)]), C_GLOW, 0.9)
+				cv.draw_circle(head + Vector2(fx * 2.3, -0.4), 1.3, C_GLOW if overcharge_t <= 0.0 else eye_col)   # optic implant
+				cv.draw_rect(Rect2(head + Vector2(-1.6 * fx - 1.0, -0.9), Vector2(2.0, 1.3)), eye_col)
+		"nyxari":
+			var eyes := Color(1.0, 0.62, 0.15) if overcharge_t <= 0.0 else eye_col
+			if away:
+				Shade.ball(cv, head, r, sk_sh)
+				for i in 3:
+					cv.draw_circle(head + Vector2(-2.5 + i * 2.5, -1.0 + absf(i - 1) * 0.7), 0.75, eyes)
+			else:
+				cv.draw_colored_polygon(PackedVector2Array([head + Vector2(-3.5, 2), head + Vector2(3.5, 2), head + Vector2(fx * 1.5, 5.5)]), sk_sh)   # pointed jaw
+				Shade.ball(cv, head, r, skin)
+				# a ring of eight small eyes: five face the camera
+				for i in 5:
+					cv.draw_circle(head + Vector2(fx * 0.6 - 4.2 + i * 2.1, -0.8 + absf(i - 2) * 0.6), 0.85, eyes)
+		"zessk":
+			if away:
+				Shade.ball(cv, head, r, sk_sh)
+			else:
+				Shade.poly(cv, PackedVector2Array([head + Vector2(fx * 1.0, -2.0), head + Vector2(fx * 7.0, 0.5), head + Vector2(fx * 6.5, 2.6), head + Vector2(fx * 0.5, 3.5)]), sk_sh)   # snout
+				Shade.ball(cv, head, r, skin)
+				var ey := head + Vector2(fx * 2.4, -0.8)
+				cv.draw_circle(ey, 1.4, Color(0.95, 0.8, 0.2) if overcharge_t <= 0.0 else eye_col)
+				cv.draw_line(ey + Vector2(0, -1.1), ey + Vector2(0, 1.1), Color(0.05, 0.05, 0.02), 0.7)   # slit pupil
+			for i in 3:   # crest spines and a few dark scales
+				var b := head + Vector2(-2.5 + i * 2.5, -r + 0.6)
+				cv.draw_colored_polygon(PackedVector2Array([b + Vector2(-1.0, 0.5), b + Vector2(1.0, 0.5), b + Vector2(-fx * 0.8, -2.4)]), hair)
+				cv.draw_circle(head + Vector2(-2.0 + i * 1.8, 1.5 + (i % 2)), 0.5, sk_sh.darkened(0.3))
+		"ursathi":
+			Shade.ball(cv, head, r + 2.0, hair)   # mane
+			for i in 9:
+				var a := PI * 0.9 + PI * 1.2 * float(i) / 8.0
+				cv.draw_colored_polygon(PackedVector2Array([head + Vector2.from_angle(a - 0.25) * (r + 1.5), head + Vector2.from_angle(a + 0.25) * (r + 1.5), head + Vector2.from_angle(a) * (r + 3.6)]), hair)
+			for side in [-1.0, 1.0]:   # ears
+				var e: Vector2 = head + Vector2(side * 3.8, -r + 0.5)
+				cv.draw_colored_polygon(PackedVector2Array([e + Vector2(-1.4, 0.8), e + Vector2(1.4, 0.8), e + Vector2(side * 0.6, -2.2)]), sk_sh)
+			if not away:
+				Shade.ball(cv, head, r * 0.85, skin)
+				cv.draw_colored_polygon(_ellipse(head + Vector2(fx * 2.2, 2.0), 2.8, 2.0, 10), skin.lightened(0.25))   # muzzle
+				cv.draw_circle(head + Vector2(fx * 3.8, 1.2), 0.9, Color(0.08, 0.05, 0.04))   # nose
+				var amber := Color(0.95, 0.65, 0.15) if overcharge_t <= 0.0 else eye_col
+				cv.draw_circle(head + Vector2(fx * 1.8, -1.4), 0.8, amber)
+				cv.draw_circle(head + Vector2(-fx * 1.6, -1.4), 0.7, amber)
+		_:   # human: cropped hair, scarred, heavy jaw
+			if away:
+				cv.draw_circle(head, r, sk_sh)
+				cv.draw_circle(head + Vector2(0, -1), r - 0.2, hair)
+			else:
+				cv.draw_rect(Rect2(head + Vector2(-4.5, 0), Vector2(9, 5)), sk_sh)  # jaw
+				Shade.ball(cv, head, r, skin)
+				cv.draw_colored_polygon(PackedVector2Array([head + Vector2(-5.6, -0.5), head + Vector2(-4.5, -4.5), head + Vector2(0, -6.2), head + Vector2(4.5, -4.5), head + Vector2(5.6, -0.5), head + Vector2(0, -3.0)]), hair)
+				var eye := head + Vector2(fx * 2.3, -0.5)
+				cv.draw_rect(Rect2(eye + Vector2(-1.2, -0.6), Vector2(2.4, 1.4)), eye_col)
+				cv.draw_rect(Rect2(eye + Vector2(-3.8 * fx - 1.0, -0.6), Vector2(2.0, 1.4)), eye_col)
+				cv.draw_line(head + Vector2(-1.5 * fx, -3.5), head + Vector2(2.5 * fx, 2.5), Color(0.55, 0.25, 0.22), 1.0)   # scar
+				cv.draw_line(head + Vector2(-1.5 * fx, 4.2), head + Vector2(3.5 * fx, 4.2), C_SKIN_SH.darkened(0.3), 1.0)    # set mouth
+	# the glass: tint, metal rim, and a glint toward the key light
+	cv.draw_circle(dome, dome_r, lk["visor"])
+	cv.draw_arc(dome, dome_r, 0.0, TAU, 28, _tint(C_ARMOR_HI.lightened(0.1)), 1.2)
+	if not away:
+		cv.draw_arc(dome, dome_r - 1.8, PI * 1.08, PI * 1.42, 8, Color(1, 1, 1, 0.5), 1.3)
+		cv.draw_circle(dome + Vector2(dome_r * 0.35, -dome_r * 0.55), 0.8, Color(1, 1, 1, 0.55))
+
+
+## Nyxari wings, folded and rising behind the shoulders. `front` = drawn over
+## the back (camera behind the operative).
+func _draw_wings(up: Vector2, front: bool) -> void:
+	var mem := _tint(_look()["skin_sh"])
+	var bone := _tint(_look()["skin"])
+	for side in [-1.0, 1.0]:
+		var base := Vector2(side * 6.0, -44) + up
+		var tip := Vector2(side * 15.0, -68) + up
+		var pts := PackedVector2Array([base, tip, Vector2(side * 21.0, -52) + up, Vector2(side * 12.0, -36) + up])
+		Shade.poly(cv, pts, mem if front else mem.darkened(0.15))
+		cv.draw_line(base, tip, bone, 1.6)
+		cv.draw_line(tip, Vector2(side * 21.0, -52) + up, bone, 1.0)
+		cv.draw_circle(tip, 1.3, bone)
+
+
+## Zessk tail, curving to the ground behind the operative.
+func _draw_tail(fx: float, up: Vector2) -> void:
+	var col := _tint(_look()["skin"])
+	var a := Vector2(-fx * 5.0, -22) + up
+	var b := Vector2(-fx * 15.0, -15)
+	var c := Vector2(-fx * 24.0, -6)
+	var e := Vector2(-fx * 31.0, -4)
+	Shade.limb(cv, a, b, 9.0, col)
+	Shade.limb(cv, b, c, 7.0, col)
+	Shade.limb(cv, c, e, 4.5, col)
+	cv.draw_circle(e, 2.2, col)
+	for k in 3:   # dark bands along the tail
+		var m := b.lerp(c, 0.25 + 0.3 * k)
+		cv.draw_line(m + Vector2(0, -3), m + Vector2(0, 3), _look()["skin_sh"], 1.5)
