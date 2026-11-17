@@ -457,7 +457,7 @@ func start_reload(slot: String) -> void:
 		return
 	reload_t[slot] = float(w["reload"]) * (0.75 if overcharge_t > 0.0 else 1.0)
 	reload_uid[slot] = int(item.get("uid", -1))
-	Audio.play("reload", global_position, 1.0 if float(w["reload"]) > 1.6 else 1.15)
+	_reload_sound(String(w["type"]), "start")
 
 
 func _finish_reload(slot: String) -> void:
@@ -466,12 +466,29 @@ func _finish_reload(slot: String) -> void:
 	if item.is_empty() or not item["weapon"].has("mag") or int(item.get("uid", -2)) != int(reload_uid[slot]):
 		return
 	var w: Dictionary = item["weapon"]
+	_reload_sound(String(w["type"]), "finish")
 	var ammo_type: String = w["ammo"]
 	var need := int(w["mag"]) - int(item.get("loaded", 0))
 	var have := int(GameState.ammo.get(ammo_type, 0))
 	var take := mini(need, have)
 	item["loaded"] = int(item.get("loaded", 0)) + take
 	GameState.ammo[ammo_type] = have - take
+
+
+## Reload sounds come in two halves so they line up with any reload time:
+## rifle mag out -> mag in + charging handle; shotgun shells in -> pump.
+## Other weapon types fall back to the generic click at the start.
+const RELOAD_SFX := {
+	"rifle": {"start": "reload_rifle_out", "finish": "reload_rifle_in"},
+	"shotgun": {"start": "reload_shotgun_load", "finish": "reload_shotgun_pump"},
+}
+
+
+func _reload_sound(weapon_type: String, phase: String) -> void:
+	if RELOAD_SFX.has(weapon_type):
+		Audio.play(RELOAD_SFX[weapon_type][phase], global_position)
+	elif phase == "start":
+		Audio.play("reload", global_position)
 
 
 func is_reloading(slot: String) -> bool:

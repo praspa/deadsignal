@@ -10,6 +10,7 @@ var world: Node2D
 var player: Player
 var camera: Camera2D
 var hud: Hud
+var minimap: Minimap
 var ui_layer: CanvasLayer
 var inventory_ui: InventoryUI
 var character_ui: CharacterUI
@@ -113,6 +114,9 @@ func _ready() -> void:
 	hud = Hud.new()
 	hud.player = player
 	add_child(hud)
+	minimap = Minimap.new()
+	minimap.setup(level, player)
+	hud.add_child(minimap)
 
 	ui_layer = CanvasLayer.new()
 	ui_layer.layer = 20

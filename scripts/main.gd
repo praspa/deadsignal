@@ -32,7 +32,7 @@ func _clear() -> void:
 
 func show_menu() -> void:
 	_clear()
-	Audio.music("level")
+	Audio.music("menu")
 	var menu := MainMenu.new()
 	menu.action.connect(_on_menu_action)
 	add_child(menu)

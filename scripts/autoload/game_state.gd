@@ -58,6 +58,7 @@ var ground_items: Array = []
 var player_pos: Variant = null
 var map_variant := 1               # which outpost layout (data/maps/outpost_<n>.txt)
 var map_info: Dictionary = {}      # that layout's metadata (name, rooms, compass directions)
+var explored := PackedByteArray()   # minimap fog of war: 1 per seen tile (row-major, map width)
 
 const MAP_VARIANTS := 6
 var play_time := 0.0
@@ -93,6 +94,7 @@ func new_game(p_name: String = DEFAULT_NAME, p_class: String = "combat_specialis
 	ground_items = []
 	player_pos = null
 	map_variant = _pick_variant()
+	explored = PackedByteArray()
 	play_time = 0.0
 	_uid = 1
 	loaded_from_save = false
@@ -428,6 +430,8 @@ func save_game(pos: Vector2) -> bool:
 		"ground_items": ground_items,
 		"player_pos": [pos.x, pos.y],
 		"map_variant": map_variant,
+		"explored": Marshalls.raw_to_base64(explored.compress(FileAccess.COMPRESSION_DEFLATE)),
+		"explored_size": explored.size(),
 		"play_time": play_time, "uid": _uid,
 	}
 	var f := FileAccess.open(save_path, FileAccess.WRITE)
@@ -477,6 +481,10 @@ func load_game() -> bool:
 	player_pos = Vector2(float(pp[0]), float(pp[1])) if pp.size() == 2 else null
 	play_time = float(d.get("play_time", 0.0))
 	map_variant = clampi(int(d.get("map_variant", 1)), 1, MAP_VARIANTS)   # older saves: original layout
+	explored = PackedByteArray()   # older saves: no minimap yet, start blank
+	var ex_size := int(d.get("explored_size", 0))
+	if ex_size > 0:
+		explored = Marshalls.base64_to_raw(String(d.get("explored", ""))).decompress(ex_size, FileAccess.COMPRESSION_DEFLATE)
 	_uid = int(d.get("uid", 1000))
 	hp = clampf(float(d.get("hp", 100)), 1.0, max_hp())
 	energy = clampf(float(d.get("energy", 50)), 0.0, max_energy())

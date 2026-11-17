@@ -41,6 +41,10 @@ const SFX := {
 	"stim": [1, -6.0, 1, 0.2],
 	"dodge": [1, -6.0, 1, 0.1],
 	"reload": [1, -6.0, 1, 0.2],
+	"reload_rifle_out": [1, -5.0, 1, 0.2],
+	"reload_rifle_in": [1, -4.0, 1, 0.2],
+	"reload_shotgun_load": [1, -5.0, 1, 0.2],
+	"reload_shotgun_pump": [1, -3.0, 1, 0.2],
 	"pickup": [1, -8.0, 2, 0.08],
 	"door": [1, -4.0, 2, 0.2],
 	"crate": [1, -4.0, 2, 0.2],
@@ -76,7 +80,7 @@ func _ready() -> void:
 			if s != null:
 				arr.append(s)
 		_streams[sname] = arr
-	for t in ["level", "boss"]:
+	for t in ["menu", "level", "boss"]:
 		var w := load("res://audio/music/%s.wav" % t) as AudioStreamWAV
 		if w != null:
 			w.loop_mode = AudioStreamWAV.LOOP_FORWARD
@@ -109,7 +113,7 @@ func all_loaded() -> bool:
 	for sname in SFX:
 		if (_streams.get(sname, []) as Array).size() != int(SFX[sname][0]):
 			return false
-	return _tracks.size() == 2
+	return _tracks.size() == 3
 
 
 func _allowed(sname: String) -> bool:

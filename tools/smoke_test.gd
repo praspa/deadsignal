@@ -142,6 +142,7 @@ func _character_creation_test() -> void:
 	await _key(KEY_ESCAPE)
 	await frames(2)
 	check(main.get("current") is MainMenu, "Esc / B returns to the main menu")
+	check(Audio.get("_music_name") == "menu", "title screen plays the menu track")
 	main.call("_on_menu_action", "new")
 	await frames(3)
 	cc = main.get("current") as CharacterCreation
@@ -187,6 +188,58 @@ func run() -> void:
 	check(enemy_count >= 25, "enemies spawned (%d)" % enemy_count)
 	check(get_tree().get_nodes_in_group("boss").size() == 1, "boss spawned")
 	check(not GameState.equipment["primary"].is_empty(), "starting primary weapon equipped")
+	check(Audio.get("_music_name") == "level", "game switches to the level track")
+
+	print("== minimap")
+	var mm := game.minimap
+	check(mm != null and mm.is_visible_in_tree(), "minimap on the HUD")
+	await frames(2)
+	var seen := mm.explored_count()
+	check(seen > 0 and mm.wall_segs.size() > 0, "start area explored and drawn as line art (%d tiles, %d wall edges)" % [seen, mm.wall_segs.size() / 2])
+	var boss_cell := level.world_to_cell((get_tree().get_first_node_in_group("boss") as Node2D).global_position)
+	check(not mm.is_explored(boss_cell.x, boss_cell.y), "unexplored areas stay blank (boss room)")
+	# two floor tiles in a straight line with wall between them (any thickness):
+	# the far one must not be visible from the near one
+	var pair := []
+	for y in range(level.h):
+		for x in range(level.w):
+			if not pair.is_empty() or not level.is_floor(x, y):
+				continue
+			for dv in [Vector2i(1, 0), Vector2i(0, 1)]:
+				var d: Vector2i = dv
+				var a := Vector2i(x, y)
+				if not pair.is_empty() or not level.is_wall((a + d).x, (a + d).y):
+					continue
+				for k in range(2, Minimap.SIGHT):
+					var b := a + d * k
+					if level.is_floor(b.x, b.y):
+						pair = [a, b, d]
+						break
+	check(not pair.is_empty(), "layout has a wall between two floor tiles to test sight against")
+	if not pair.is_empty():
+		check(not mm._visible(pair[0], pair[1]) and mm._visible(pair[0] - pair[2], pair[0]), "walls block the minimap's line of sight")
+	mm.reveal_around(boss_cell)
+	check(mm.is_explored(boss_cell.x, boss_cell.y) and mm.explored_count() > seen, "exploring reveals new map")
+	var explored_now := mm.explored_count()
+	GameState.save_game(player.global_position)
+	GameState.explored = PackedByteArray()
+	GameState.load_game()
+	check(GameState.explored.count(1) == explored_now, "explored map survives save / load")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(GameState.save_path))
+
+	print("== reload sounds")
+	var rifle := player.weapon("primary")
+	rifle["loaded"] = 0
+	var heard: Dictionary = Audio.get("_last")
+	heard.erase("reload_rifle_out")
+	heard.erase("reload_rifle_in")
+	player.start_reload("primary")
+	check(heard.has("reload_rifle_out"), "rifle reload starts with the magazine coming out")
+	for i in 200:
+		if not player.is_reloading("primary"):
+			break
+		await frames(1)
+	check(heard.has("reload_rifle_in") and int(rifle["loaded"]) > 0, "rifle reload ends with mag in + charging handle")
 
 	print("== movement (8 directions, screen-relative in the isometric view)")
 	var dirs := {"right": Vector2.RIGHT, "left": Vector2.LEFT, "up": Vector2.UP, "down": Vector2.DOWN}
@@ -394,12 +447,16 @@ func run() -> void:
 			break
 	check(boss.active, "boss activates when player enters the arena")
 	var seen_patterns := {}
-	for i in 900:
+	# patterns are random (never the same twice in a row), so watch for up to
+	# 30 s and stop as soon as three different ones have shown up
+	for i in 1800:
 		player.hp = player.max_hp
 		player.statuses.clear()
 		if boss.pattern != "":
 			seen_patterns[boss.pattern] = true
-		if i % 30 == 0 and i > 0:
+		if seen_patterns.size() >= 3:
+			break
+		if i % 30 == 0 and i > 0 and i <= 900:
 			boss.take_hit(Combat.make_hit(45, player))
 		await get_tree().physics_frame
 	check(seen_patterns.size() >= 3, "boss uses multiple attack patterns %s" % str(seen_patterns.keys()))
