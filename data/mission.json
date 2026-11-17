@@ -1,0 +1,19 @@
+{
+  "title": "Operation: Dead Signal",
+  "objectives": [
+    {"flag": "entered",  "text": "Enter Kharon Outpost",
+     "comms": ["[OVERWATCH] Operative, Kharon Outpost has been silent for nine days. Get inside and find out why.",
+               "[OVERWATCH] Facility security AI is designated WARDEN. It is not answering our hails."]},
+    {"flag": "power",    "text": "Restore power in the Generator Hall ({gen_dir} wing)",
+     "comms": ["[OVERWATCH] Main power is down and the bulkheads are mag-locked. The generator hall is {gen_dir} of the atrium."]},
+    {"flag": "research", "text": "Access the research terminal (Research Labs, {labs_dir})",
+     "comms": ["[OVERWATCH] Power is up. Bulkheads are opening. Get into the research wing and pull their archives."]},
+    {"flag": "cause",    "text": "Discover the cause of the incident (Xenolab, {xeno_dir})",
+     "comms": ["[OVERWATCH] Project ECHO... we have no record of that. Get to the Xenolab and find Dr. Varrow's data."]},
+    {"flag": "boss",     "text": "Destroy WARDEN in the Security Core ({core_dir})",
+     "comms": ["[OVERWATCH] ...God's teeth. All right, Operative. WARDEN is the threat. Take it offline.",
+               "[OVERWATCH] Be advised: expect heavy resistance in the Security Core."]},
+    {"flag": "escape",   "text": "Reach the Containment Vault and extract",
+     "comms": ["[OVERWATCH] WARDEN signature is gone. Vault bulkhead is open to the {vault_dir} of the core. Secure the recording and extract."]}
+  ]
+}

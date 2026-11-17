@@ -1,0 +1,86 @@
+{
+ "variant": 6,
+ "name": "Ossuary Plan Vex",
+ "rooms": {
+  "pad": [
+   62,
+   81,
+   80,
+   92
+  ],
+  "atrium": [
+   63,
+   52,
+   79,
+   66
+  ],
+  "generator": [
+   87,
+   51,
+   107,
+   67
+  ],
+  "labs": [
+   59,
+   31,
+   80,
+   42
+  ],
+  "xenolab": [
+   59,
+   5,
+   79,
+   18
+  ],
+  "arena": [
+   98,
+   5,
+   135,
+   20
+  ],
+  "containment": [
+   92,
+   27,
+   106,
+   39
+  ],
+  "medbay": [
+   123,
+   57,
+   136,
+   68
+  ],
+  "barracks": [
+   32,
+   11,
+   41,
+   20
+  ],
+  "cargo": [
+   33,
+   30,
+   48,
+   39
+  ],
+  "chapel": [
+   87,
+   77,
+   98,
+   88
+  ],
+  "storage": [
+   35,
+   56,
+   46,
+   66
+  ]
+ },
+ "dirs": {
+  "gen_dir": "south-east",
+  "labs_dir": "north-east",
+  "xeno_dir": "north-east",
+  "core_dir": "south-east",
+  "core_parent": "Xenolab",
+  "vault_dir": "west"
+ }
+}

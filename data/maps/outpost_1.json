@@ -1,0 +1,128 @@
+{
+ "variant": 1,
+ "name": "Survey Plan Aleph",
+ "rooms": {
+  "pad": [
+   40,
+   76,
+   69,
+   87
+  ],
+  "entrance": [
+   53,
+   70,
+   56,
+   75
+  ],
+  "atrium": [
+   42,
+   54,
+   67,
+   69
+  ],
+  "west_corr": [
+   26,
+   60,
+   41,
+   62
+  ],
+  "generator": [
+   6,
+   46,
+   25,
+   68
+  ],
+  "barracks_con": [
+   32,
+   63,
+   33,
+   64
+  ],
+  "barracks": [
+   28,
+   65,
+   38,
+   74
+  ],
+  "east_corr": [
+   68,
+   60,
+   83,
+   62
+  ],
+  "medbay": [
+   84,
+   53,
+   97,
+   66
+  ],
+  "north_corr": [
+   53,
+   44,
+   56,
+   53
+  ],
+  "labs": [
+   40,
+   30,
+   69,
+   43
+  ],
+  "storage_con": [
+   38,
+   35,
+   39,
+   37
+  ],
+  "storage": [
+   24,
+   31,
+   37,
+   41
+  ],
+  "xeno_corr": [
+   70,
+   35,
+   79,
+   37
+  ],
+  "xenolab": [
+   80,
+   25,
+   99,
+   45
+  ],
+  "sec_corr": [
+   53,
+   22,
+   56,
+   29
+  ],
+  "arena": [
+   34,
+   6,
+   75,
+   21
+  ],
+  "vault_corr": [
+   20,
+   12,
+   33,
+   15
+  ],
+  "containment": [
+   4,
+   5,
+   19,
+   22
+  ]
+ },
+ "dirs": {
+  "gen_dir": "north-west",
+  "labs_dir": "north-east",
+  "xeno_dir": "south-east",
+  "core_dir": "north-east",
+  "core_parent": "labs",
+  "vault_dir": "north-west"
+ }
+}

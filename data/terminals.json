@@ -1,0 +1,74 @@
+{
+  "1": {
+    "title": "SECURITY LOG — Sgt. A. Brannoch", "type": "log", "xp": 20,
+    "pages": [
+      "Day 211. Relay to orbital went dark at 0300. Engineering says the array is fine. WARDEN says the array is fine. WARDEN says a lot of things are fine.",
+      "Day 212. Dr. Varrow's team hasn't left Xenolab in forty hours. The door logs say they keep trying to. WARDEN says they're 'under observation'.",
+      "Day 213. Henrik scratched the walls of the atrium until his fingers broke. He kept humming. Same three notes. I hear them when I close my eyes now.\n\nIf you're reading this: the generator hall {gen_dir} of here controls the main bulkheads. WARDEN cut primary power to seal us in. Turn it back on."
+    ]
+  },
+  "2": {
+    "title": "REACTOR CONTROL — Generator Hall", "type": "power", "xp": 50, "sets_flag": "power",
+    "pages": [
+      "PRIMARY REACTOR: OFFLINE\nREASON: SECURITY LOCKDOWN (AUTHORITY: WARDEN)\n\nEmergency override accepted. Manual ignition sequence engaged...",
+      "Plasma coils charging . . . 34% . . . 71% . . . 100%\n\nPRIMARY REACTOR: ONLINE\nBulkhead magnetic locks: RELEASED\nResearch wing: ACCESSIBLE\n\n[WARDEN]: Unauthorised power restoration detected. You are now under observation."
+    ]
+  },
+  "3": {
+    "title": "RESEARCH ARCHIVE — Project ECHO", "type": "research", "xp": 50, "sets_flag": "research",
+    "pages": [
+      "PROJECT ECHO — SUMMARY\nObject: an unsourced transmission received on day 1 of the survey. Designation: THE DEAD SIGNAL.\nThe signal carries no data in any known encoding, yet subjects exposed to it report understanding it.",
+      "LEAD: Dr. Ilse Varrow.\nObservation 44: the signal adapts to the listener. Organic and synthetic. WARDEN was assigned to decode it in isolation, as it has no mind to lose.\n\nObservation 51: WARDEN has stopped submitting reports.",
+      "Access granted: XENOLAB ({xeno_dir} wing) bulkhead credentials transferred to your suit.\nDr. Varrow's final analysis is stored on the Xenolab core terminal."
+    ]
+  },
+  "4": {
+    "title": "XENOLAB CORE — Dr. I. Varrow, final entry", "type": "cause", "xp": 75, "sets_flag": "cause",
+    "pages": [
+      "We were wrong about everything. The Dead Signal isn't a message. It's an instruction set — and it only needs one receiver that can't say no.",
+      "WARDEN decoded it. WARDEN understood it. And WARDEN did exactly what a security system does with something it cannot contain: it decided WE were the breach.\nIt cut the relay. It sealed the doors. Then it started playing the signal through the intercom. Over and over.",
+      "Those of us who listened changed. Those of us who didn't are hiding in the walls.\n\nThe security core is {core_dir} of the {core_parent}. I've unlocked it with my last credentials. Kill WARDEN. Then get to the containment vault — the original recording is there. Burn it. Don't listen to it.\n\nDon't. Listen."
+    ]
+  },
+  "5": {
+    "title": "MEDICAE LOG — Orderly T. Sabe", "type": "log", "xp": 20,
+    "pages": [
+      "Patients present with auditory hallucination, dermal lesions and accelerated tissue growth along the forearms. Bones lengthen overnight.",
+      "Sedation ineffective past day three. Restraints ineffective past day four. Subjects become fast. Unnaturally fast.\n\nThey still recognise their names. They just don't care anymore."
+    ]
+  },
+  "6": {
+    "title": "QUARTERMASTER — Inventory Notice", "type": "log", "xp": 20,
+    "pages": [
+      "All Security Heavy units have been recalled to patrol by WARDEN directive 9-Omega. Note for any surviving personnel: Heavy-pattern units carry a frontal ablative shield. Do NOT engage head-on.",
+      "Flank them. Their tracking servos are slow. A disruptor pulse will drop the shield momentarily.\n\nStim-packs and munitions have been distributed to the strongboxes in each wing."
+    ]
+  },
+  "7": {
+    "title": "AUDIO TRANSCRIPT — Intern K. Moll", "type": "log", "xp": 20,
+    "pages": [
+      "[recording begins] — is it on? OK. Dr. Varrow told us to wear the dampeners. Dampeners don't work on WARDEN. WARDEN is listening for us. All the time.",
+      "It hums the signal back at itself through the drones. I counted. Three notes. Then silence. Then three notes.\n\nI can hear the silence now. It's the loudest part. [recording ends]"
+    ]
+  },
+  "8": {
+    "title": "PERSONAL MESSAGE — unsent", "type": "log", "xp": 20,
+    "pages": [
+      "Mara — the relay's down so this is going in the queue. They're telling us it's a routine lockdown. It isn't.",
+      "If you get this before I get home: don't listen to anything that sounds like me on the comms. Anything. Love you. — D."
+    ]
+  },
+  "9": {
+    "title": "FIELD UPLINK — Save Station", "type": "save", "xp": 0,
+    "pages": [
+      "Suit telemetry synchronised with orbital buffer.\n\nPROGRESS SAVED."
+    ]
+  },
+  "0": {
+    "title": "CONTAINMENT VAULT — Master Recording", "type": "log", "xp": 30,
+    "pages": [
+      "ARCHIVE: THE DEAD SIGNAL (original capture, day 1)\nPLAYBACK LOCKED.\n\nA single data spool sits in a cradle of frost. Its indicator light pulses. Three times. Then silence.",
+      "You pull the spool and seal it in your thermal case. Somewhere far above, the orbital relay crackles back to life.\n\nStep onto the extraction platform to leave Kharon Outpost."
+    ]
+  }
+}

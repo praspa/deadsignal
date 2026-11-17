@@ -1,0 +1,74 @@
+{
+ "variant": 3,
+ "name": "Reliquary Plan Sigma",
+ "rooms": {
+  "pad": [
+   115,
+   82,
+   136,
+   91
+  ],
+  "atrium": [
+   87,
+   76,
+   108,
+   90
+  ],
+  "generator": [
+   59,
+   76,
+   79,
+   92
+  ],
+  "labs": [
+   87,
+   51,
+   108,
+   63
+  ],
+  "xenolab": [
+   59,
+   53,
+   80,
+   67
+  ],
+  "arena": [
+   10,
+   55,
+   44,
+   68
+  ],
+  "containment": [
+   34,
+   28,
+   48,
+   41
+  ],
+  "medbay": [
+   69,
+   30,
+   79,
+   40
+  ],
+  "barracks": [
+   39,
+   83,
+   52,
+   92
+  ],
+  "storage": [
+   88,
+   32,
+   102,
+   41
+  ]
+ },
+ "dirs": {
+  "gen_dir": "north-west",
+  "labs_dir": "north-east",
+  "xeno_dir": "west",
+  "core_dir": "north-west",
+  "core_parent": "Xenolab",
+  "vault_dir": "east"
+ }
+}

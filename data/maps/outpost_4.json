@@ -1,0 +1,74 @@
+{
+ "variant": 4,
+ "name": "Foundry Plan Tau",
+ "rooms": {
+  "pad": [
+   59,
+   82,
+   80,
+   91
+  ],
+  "atrium": [
+   61,
+   52,
+   78,
+   67
+  ],
+  "generator": [
+   61,
+   27,
+   79,
+   44
+  ],
+  "labs": [
+   87,
+   56,
+   105,
+   66
+  ],
+  "xenolab": [
+   91,
+   77,
+   107,
+   92
+  ],
+  "arena": [
+   89,
+   28,
+   129,
+   44
+  ],
+  "containment": [
+   116,
+   4,
+   132,
+   16
+  ],
+  "storage": [
+   31,
+   53,
+   45,
+   63
+  ],
+  "medbay": [
+   115,
+   75,
+   125,
+   87
+  ],
+  "barracks": [
+   38,
+   33,
+   48,
+   43
+  ]
+ },
+ "dirs": {
+  "gen_dir": "north-east",
+  "labs_dir": "south-east",
+  "xeno_dir": "south-west",
+  "core_dir": "east",
+  "core_parent": "labs",
+  "vault_dir": "east"
+ }
+}

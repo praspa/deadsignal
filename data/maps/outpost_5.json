@@ -1,0 +1,74 @@
+{
+ "variant": 5,
+ "name": "Cloister Plan Omicron",
+ "rooms": {
+  "pad": [
+   115,
+   78,
+   136,
+   87
+  ],
+  "atrium": [
+   116,
+   52,
+   135,
+   67
+  ],
+  "generator": [
+   115,
+   29,
+   136,
+   44
+  ],
+  "labs": [
+   87,
+   53,
+   104,
+   67
+  ],
+  "xenolab": [
+   59,
+   52,
+   78,
+   68
+  ],
+  "arena": [
+   65,
+   29,
+   107,
+   44
+  ],
+  "containment": [
+   34,
+   31,
+   51,
+   42
+  ],
+  "medbay": [
+   33,
+   56,
+   44,
+   68
+  ],
+  "storage": [
+   59,
+   77,
+   72,
+   86
+  ],
+  "barracks": [
+   94,
+   82,
+   104,
+   89
+  ]
+ },
+ "dirs": {
+  "gen_dir": "north-east",
+  "labs_dir": "north-west",
+  "xeno_dir": "north-west",
+  "core_dir": "north-east",
+  "core_parent": "labs",
+  "vault_dir": "north-west"
+ }
+}

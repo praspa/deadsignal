@@ -1,0 +1,70 @@
+extends Node
+## Root scene: switches between the main menu and the game.
+
+var current: Node = null
+
+
+func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	if "--smoke" in OS.get_cmdline_user_args():
+		var t: Node = load("res://tools/smoke_test.gd").new()
+		add_child(t)
+		return
+	if "--shots" in OS.get_cmdline_user_args():
+		show_menu()
+		var s: Node = load("res://tools/screenshots.gd").new()
+		add_child(s)
+		return
+	if "--steam-art" in OS.get_cmdline_user_args():
+		add_child(load("res://tools/steam_art.gd").new())
+		return
+	show_menu()
+
+
+func _clear() -> void:
+	if current != null and is_instance_valid(current):
+		current.queue_free()
+		remove_child(current)
+	current = null
+	get_tree().paused = false
+	Audio.stop_all()
+
+
+func show_menu() -> void:
+	_clear()
+	Audio.music("level")
+	var menu := MainMenu.new()
+	menu.action.connect(_on_menu_action)
+	add_child(menu)
+	current = menu
+
+
+func start_game() -> void:
+	_clear()
+	var game := Game.new()
+	game.request.connect(_on_game_request)
+	add_child(game)
+	current = game
+
+
+func _on_menu_action(id: String) -> void:
+	match id:
+		"new":
+			GameState.new_game()
+			start_game.call_deferred()
+		"continue":
+			if GameState.load_game():
+				start_game.call_deferred()
+		"quit":
+			get_tree().quit()
+
+
+func _on_game_request(id: String) -> void:
+	match id:
+		"menu":
+			show_menu.call_deferred()
+		"load":
+			if GameState.load_game():
+				start_game.call_deferred()
+		"quit":
+			get_tree().quit()
