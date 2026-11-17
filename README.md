@@ -7,12 +7,9 @@ All art is drawn procedurally in code (`_draw()`), so the project has no image a
 ## Run
 
 ```bash
-Changes by Jim added import info
-# godot --path .            # play
-# godot -e --path .         # open in the editor
-
-godot --path . --headless --import
-godot --path .
+godot --path . --headless --import   # import assets (first run / after changes)
+godot --path .                       # play
+godot -e --path .                    # open in the editor
 ```
 
 Target is 1280x800 (Steam Deck) at 60 FPS with the GL Compatibility renderer.
