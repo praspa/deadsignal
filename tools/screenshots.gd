@@ -1,7 +1,7 @@
 extends Node
 ## Captures one gameplay screenshot per run for visual review (needs a display).
 ##   godot --path . -- --shots <output_dir> <scene>
-## scenes: menu creation landing atrium generator powered labs xenolab boss inventory character terminal cutaway loot [aim: down|up|left|right] overview
+## scenes: menu creation races landing atrium generator powered labs xenolab boss inventory character terminal cutaway loot [aim: down|up|left|right] overview
 ## add --variant N to pick a layout
 
 var main: Node
@@ -34,6 +34,10 @@ func _ready() -> void:
 	if scene == "menu":
 		await frames(30)
 		await _shot()
+		get_tree().quit()
+		return
+	if scene == "races":
+		await _races_lineup()
 		get_tree().quit()
 		return
 	if scene == "creation":
@@ -226,3 +230,41 @@ func _shot() -> void:
 	var img := get_viewport().get_texture().get_image()
 	img.save_png(out_dir.path_join(scene + ".png"))
 	print("saved ", scene)
+
+
+## Every race in the operative's armour, facing the camera, side-on and from
+## behind, using the real Player art.
+func _races_lineup() -> void:
+	var bg := ColorRect.new()
+	bg.color = Color(0.09, 0.085, 0.09)
+	bg.size = Vector2(1280, 800)
+	var layer := CanvasLayer.new()
+	layer.layer = 50
+	layer.add_child(bg)
+	add_child(layer)
+	var puppets: Array = []
+	var dirs := [Vector2(0.4, 1.0), Vector2(1.0, -0.15), Vector2(-0.3, -1.0)]
+	for i in GameState.RACES.size():
+		var label := Label.new()
+		label.text = String(GameState.RACES[i]["name"])
+		label.position = Vector2(30 + i * 208, 20)
+		label.add_theme_font_size_override("font_size", 20)
+		bg.add_child(label)
+		for k in dirs.size():
+			var p := Player.new()
+			p.race = String(GameState.RACES[i]["id"])
+			p.aim_dir = (dirs[k] as Vector2).normalized()
+			var v := IsoView.new()
+			v.target = p
+			v.position = Vector2(100 + i * 208, 250 + k * 250)
+			v.scale = Vector2(2.6, 2.6)
+			p.cv = v
+			bg.add_child(v)
+			v.set_process(false)   # after add_child, or entering the tree re-enables it
+			puppets.append(p)
+	await frames(10)
+	await _shot()
+	layer.queue_free()
+	await frames(1)
+	for p in puppets:
+		(p as Node).free()

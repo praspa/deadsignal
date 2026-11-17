@@ -3,7 +3,8 @@
 
     python3 tools/gen_audio.py            # everything
     python3 tools/gen_audio.py sfx        # just the effects (fast)
-    python3 tools/gen_audio.py music      # just the two music loops (~1 min)
+    python3 tools/gen_audio.py music      # just the music loops (~1.5 min)
+    python3 tools/gen_audio.py menu       # just the title-screen loop
 
 Deterministic: same files every run. 22.05 kHz mono 16-bit WAV, which suits the
 lo-fi 90s MIDI-rack sound the requirements ask for.
@@ -11,6 +12,7 @@ lo-fi 90s MIDI-rack sound the requirements ask for.
 Music  audio/music/level.wav   100 BPM E-phrygian industrial loop (heartbeat intro,
                                chugging distorted 'MIDI guitar', clanking metal snare)
        audio/music/boss.wav    138 BPM relentless loop for the WARDEN fight
+       audio/music/menu.wav    92 BPM title loop: a heartbeat that quickens into a halftime breakdown
 SFX    audio/sfx/<name>_<n>.wav  (n = variant, picked at random in game)
 """
 import math
@@ -100,6 +102,25 @@ def env_ar(n, attack, release):
 
 
 # ---------------------------------------------------------------- sfx bits ---
+
+def layer(sec, parts):
+    """Places (start_sec, samples, gain) parts on a silent buffer of `sec` seconds."""
+    out = zeros(sec)
+    for at, x, g in parts:
+        i0 = int(at * SR)
+        for i, v in enumerate(x):
+            if i0 + i >= len(out):
+                break
+            out[i0 + i] += v * g
+    return out
+
+
+def scrape(rng, sec, f_from, f_to, rate=8.0):
+    """Metal-on-metal slide: band-passed noise sweeping between two centre frequencies."""
+    n = int(sec * SR)
+    band = svf_bp(noise(rng, n), lambda u: f_from + (f_to - f_from) * u, 0.35)
+    return [v * min(1.0, i / 120) * math.exp(-(i / SR) * rate) * min(1.0, (n - i) / 200) for i, v in enumerate(band)]
+
 
 def thump(sec, f_hi, f_lo, rate, decay):
     n = int(sec * SR)
@@ -407,7 +428,27 @@ def make_sfx():
         for i, v in enumerate(m):
             if int(at * SR) + i < len(rel):
                 rel[int(at * SR) + i] += v
-    out['reload'] = [rel]
+    out['reload'] = [rel]   # generic, for weapons without their own reload sounds
+    # Reloads are two halves: one when the reload starts, one when it completes,
+    # so they line up with any reload time (overcharge, weapon mods).
+    out['reload_rifle_out'] = [layer(0.4, [
+        (0.0, metal(0.05, 2600, [1, 1.7], 70, R(80)), 0.8),              # mag release button
+        (0.05, scrape(R(81), 0.2, 1400, 700), 0.9),                       # magazine slides out
+        (0.24, thump(0.12, 180, 90, 40, 30), 0.35)])]                      # ...into the hand
+    out['reload_rifle_in'] = [layer(0.85, [
+        (0.0, scrape(R(82), 0.1, 700, 1500, 12), 0.7),                    # magazine in
+        (0.09, mix((metal(0.14, 950, [1, 1.6, 2.4], 35, R(83)), 1.0), (thump(0.12, 200, 90, 35, 30), 0.8)), 1.0),  # seated with a slap
+        (0.4, mix((scrape(R(84), 0.12, 900, 1900, 10), 0.8), (metal(0.06, 1500, [1, 2.1], 60, R(85)), 0.5)), 0.9),  # charging handle back
+        (0.56, mix((metal(0.18, 2100, [1, 1.5, 2.3, 3.1], 30, R(86)), 1.0), (thump(0.1, 220, 110, 40, 35), 0.6)), 1.0)])]  # ...and slammed home
+    shells = []
+    for k in range(3):
+        at = 0.06 + k * 0.3
+        shells += [(at, scrape(R(87 + k), 0.08, 600, 1100, 18), 0.6),      # shell pushed into the tube
+                   (at + 0.07, metal(0.06, 3000 + 150 * k, [1, 1.4], 70, R(90 + k)), 0.7)]   # ...clicks past the latch
+    out['reload_shotgun_load'] = [layer(1.0, shells)]
+    out['reload_shotgun_pump'] = [layer(0.5, [
+        (0.0, mix((scrape(R(93), 0.12, 500, 1100, 14), 1.0), (metal(0.08, 700, [1, 1.8], 45, R(94)), 0.7)), 1.0),    # pump back
+        (0.15, mix((scrape(R(95), 0.1, 1100, 600, 16), 0.8), (metal(0.16, 1150, [1, 1.6, 2.5], 32, R(96)), 1.0), (thump(0.1, 210, 100, 40, 35), 0.7)), 1.0)])]   # ...and forward
     pk = zeros(0.3)
     for at, f in [(0.0, 2100), (0.07, 2800)]:
         for i, v in enumerate(metal(0.22, f, [1, 1.5, 2.2], 22)):
@@ -745,6 +786,83 @@ def boss_track():
     return tr.render()
 
 
+class MenuTrack(Track):
+    def heart(self, i0, amp=1.0):
+        """Muffled heartbeat thump: low sine drop, no click, short dull tail."""
+        n = int(0.28 * SR)
+        out = [0.0] * n
+        ph = 0.0
+        for i in range(n):
+            t = i / SR
+            ph += (38 + 62 * math.exp(-t * 22)) / SR
+            out[i] = math.tanh(1.8 * math.sin(TAU * ph) * math.exp(-t * 11) * min(1.0, i / 90))
+        self.put(i0, lp(out, 260), amp, 0.15)
+
+
+def menu_track():
+    """92 BPM title loop. A lone heartbeat (lub-dub) that quickens bar by bar,
+    tension piles on (pulse bass, ticking hats, metal), a snare roll, then a
+    halftime industrial breakdown that collapses back into the heartbeat."""
+    tr = MenuTrack(92, 20, 3)
+    s = tr.s16
+    # heartbeat: lub-dub pairs, the gap between beats shrinking as it races
+    beats_per_bar = [1, 1, 2, 2, 3, 4, 4, 4, 6, 8]          # bars 0-9 (bars 8-9: frantic)
+    for b, k in enumerate(beats_per_bar):
+        for j in range(k):
+            st = round(j * 16 / k)
+            amp = 0.75 + 0.25 * (b / 9)
+            tr.heart(tr.at(b, st), amp)
+            tr.heart(tr.at(b, st) + int(0.17 * SR * (1.0 - b * 0.04)), amp * 0.6)   # the "dub"
+    # flatline beep that tracks the pulse at the start, then drowns
+    for b in range(4):
+        tr.beep(tr.at(b, 0), note('E6'), 0.1 - b * 0.02)
+    # drone and rising tension
+    for b in range(0, 10, 2):
+        tr.pad(tr.at(b, 0), tr.bar * 2 + 0.6, [note('E2'), note('B2'), note('F3')], 0.2 if b < 6 else 0.13)
+    for b in range(2, 10):
+        for st in range(0, 16, 4 if b < 6 else 2):
+            tr.bass(tr.at(b, st), s * 1.1, note('E1'), 0.25 + 0.03 * b, 0.12 + 0.05 * (b - 2))
+    for b in range(4, 10):
+        for st in range(0, 16, 2 if b < 8 else 1):
+            tr.hat(tr.at(b, st), 0.08 + 0.015 * (b - 4))
+        tr.clank(tr.at(b, 10), 0.25 + 0.04 * (b - 4), 170)
+    tr.riser(tr.at(8, 0), tr.bar * 2, 0.3)
+    for st in range(0, 16, 2):                                 # bar 8: snare on the 8ths
+        tr.snare(tr.at(8, st), 0.25 + 0.02 * st, 0.3)
+    for st in range(16):                                       # bar 9: 16th-note roll into the drop
+        tr.snare(tr.at(9, st), 0.3 + 0.04 * st, 0.35)
+    # breakdown: halftime, slow heavy chugs, tritone stabs (bars 10-17)
+    roots = ['E', 'E', 'F', 'E', 'E', 'Bb', 'F', 'E']
+    for k, r in enumerate(roots):
+        b = 10 + k
+        bass_f = note(r + '1') if r != 'Bb' else note('Bb0')
+        gtr_f = note(r + '2') if r != 'Bb' else note('Bb1')
+        tr.kick(tr.at(b, 0), 1.0)
+        tr.kick(tr.at(b, 3), 0.8)
+        tr.kick(tr.at(b, 6), 0.9)
+        tr.kick(tr.at(b, 10), 0.85)
+        tr.snare(tr.at(b, 8), 1.0, 0.55)
+        tr.clank(tr.at(b, 0), 0.5, 140)
+        tr.clank(tr.at(b, 12), 0.35, 230)
+        for st in range(0, 16, 2):
+            tr.hat(tr.at(b, st), 0.14)
+        for st in (0, 1, 3, 6, 7, 10, 12, 13):
+            tr.guitar(tr.at(b, st), s * 1.1, gtr_f, 0.5, True)
+            tr.bass(tr.at(b, st), s * 1.0, bass_f, 0.45, 0.55)
+        tr.guitar(tr.at(b, 14), s * 2, gtr_f * (1.414 if k % 2 else 1.5), 0.32, False)   # tritone / fifth stab
+        tr.pad(tr.at(b, 0), tr.bar + 0.4, [note(x) for x in TRIADS[r]], 0.1)
+    for k, (nm, st, ln) in enumerate([('E5', 0, 12), ('F5', 12, 4), ('E5', 0, 8), ('Bb4', 8, 8)] * 2):
+        tr.lead(tr.at(14 + k // 2, st), s * ln, note(nm), 0.17, 0.4, True)                # siren over the second half
+    # collapse: one last ringing chord, then silence for the heartbeat to return
+    tr.guitar(tr.at(18, 0), tr.bar * 1.5, note('E2'), 0.45, False)
+    tr.bass(tr.at(18, 0), tr.bar, note('E1'), 0.4, 0.3)
+    tr.kick(tr.at(18, 0), 1.0)
+    tr.clank(tr.at(18, 0), 0.6, 120)
+    tr.heart(tr.at(19, 8), 0.6)
+    tr.heart(tr.at(19, 8) + int(0.17 * SR), 0.36)
+    return tr.render()
+
+
 def main():
     which = sys.argv[1] if len(sys.argv) > 1 else 'all'
     if which in ('all', 'sfx'):
@@ -757,6 +875,9 @@ def main():
         print('music level')
         write(os.path.join(ROOT, 'music', 'boss.wav'), boss_track(), 0.8)
         print('music boss')
+    if which in ('all', 'music', 'menu'):
+        write(os.path.join(ROOT, 'music', 'menu.wav'), menu_track(), 0.8)
+        print('music menu')
 
 
 if __name__ == '__main__':

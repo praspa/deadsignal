@@ -20,9 +20,29 @@ const CLASSES := [
 	{"id": "infiltrator", "name": "Infiltrator", "available": false},
 	{"id": "combat_medic", "name": "Combat Medic", "available": false},
 ]
+const DEFAULT_RACE := "human"
+## Playable races. Purely visual for now: each one changes how the operative
+## looks (see Player.RACE_LOOK), not their stats.
+const RACES := [
+	{"id": "human", "name": "Human",
+		"description": "The baseline species: adaptable, stubborn and everywhere. Human colonies and corporate holdings stretch across most of settled space, and so do their wars."},
+	{"id": "ossari", "name": "Ossari",
+		"description": "Slender, pale and large-eyed. The Ossari are a contemplative people who avoid violence where they can, and nearly all of them are born with some measure of psionic talent."},
+	{"id": "halvex", "name": "Halvex",
+		"description": "A humanoid people who graft symbiotic cybernetics into their children from infancy. A grown Halvex can feel a data network the way others feel a breeze, and talk to machines directly."},
+	{"id": "nyxari", "name": "Nyxari",
+		"description": "Nocturnal hunters with leathery wings and a ring of eight small eyes around the head. They come from a low-tech world, glide with ease, and find bright light painful, so their visors run dark."},
+	{"id": "zessk", "name": "Zessk",
+		"description": "Small, quick reptilians with sleek, finely scaled bodies. Endlessly curious, never still and always talking, the Zessk take apart any machine they can reach, and usually put it back together better."},
+	{"id": "ursathi", "name": "Ursathi",
+		"description": "Towering, heavily muscled and covered in fur, with claws and a thick mane. Over two metres tall and from a tribal warrior culture, the Ursathi hold to a strict code of honour."},
+]
+const NAME_FIRST := ["Kade", "Vex", "Juno", "Rhys", "Talon", "Mira", "Orin", "Sable", "Dax", "Nyra", "Corvin", "Ilsa", "Brann", "Tamsin", "Zeke", "Rook", "Anya", "Cassius", "Lio", "Wren", "Thorne", "Yara", "Soren", "Ember"]
+const NAME_LAST := ["Voss", "Kael", "Draven", "Morrow", "Strand", "Halloran", "Rask", "Teague", "Vantor", "Okoro", "Sato", "Kessler", "Varga", "Lindqvist", "Ashgrove", "Calder", "Reyes", "Mbeki", "Dreyfus", "Quill", "Harrow", "Crane"]
 
 var player_name := DEFAULT_NAME
 var class_id := "combat_specialist"
+var race_id := DEFAULT_RACE
 var level := 1
 var xp := 0
 var attr_points := 0
@@ -38,6 +58,7 @@ var ground_items: Array = []
 var player_pos: Variant = null
 var map_variant := 1               # which outpost layout (data/maps/outpost_<n>.txt)
 var map_info: Dictionary = {}      # that layout's metadata (name, rooms, compass directions)
+var explored := PackedByteArray()   # minimap fog of war: 1 per seen tile (row-major, map width)
 
 const MAP_VARIANTS := 6
 var play_time := 0.0
@@ -55,9 +76,10 @@ func next_uid() -> int:
 	return _uid
 
 
-func new_game(p_name: String = DEFAULT_NAME, p_class: String = "combat_specialist") -> void:
+func new_game(p_name: String = DEFAULT_NAME, p_class: String = "combat_specialist", p_race: String = DEFAULT_RACE) -> void:
 	player_name = clean_name(p_name)
 	class_id = p_class if is_class_available(p_class) else "combat_specialist"
+	race_id = p_race if not race_info(p_race).is_empty() else DEFAULT_RACE
 	level = 1
 	xp = 0
 	attr_points = 0
@@ -72,6 +94,7 @@ func new_game(p_name: String = DEFAULT_NAME, p_class: String = "combat_specialis
 	ground_items = []
 	player_pos = null
 	map_variant = _pick_variant()
+	explored = PackedByteArray()
 	play_time = 0.0
 	_uid = 1
 	loaded_from_save = false
@@ -102,6 +125,26 @@ func class_info(id: String) -> Dictionary:
 		if c["id"] == id:
 			return c
 	return {}
+
+
+func race_info(id: String) -> Dictionary:
+	for r in RACES:
+		if r["id"] == id:
+			return r
+	return {}
+
+
+func race_title() -> String:
+	return String(race_info(race_id).get("name", "Human"))
+
+
+## A random sci-fi "First Last" name that fits in NAME_MAX.
+func random_name() -> String:
+	for i in 20:
+		var n := "%s %s" % [NAME_FIRST.pick_random(), NAME_LAST.pick_random()]
+		if n.length() <= NAME_MAX:
+			return n
+	return String(NAME_FIRST.pick_random())
 
 
 func is_class_available(id: String) -> bool:
@@ -378,8 +421,8 @@ func has_save() -> bool:
 func save_game(pos: Vector2) -> bool:
 	player_pos = pos
 	var d := {
-		"version": 1,
-		"player_name": player_name, "class_id": class_id,
+		"version": 2,
+		"player_name": player_name, "class_id": class_id, "race_id": race_id,
 		"level": level, "xp": xp, "attr_points": attr_points,
 		"attributes": attributes, "hp": hp, "energy": energy,
 		"inventory": inventory, "equipment": equipment,
@@ -387,6 +430,8 @@ func save_game(pos: Vector2) -> bool:
 		"ground_items": ground_items,
 		"player_pos": [pos.x, pos.y],
 		"map_variant": map_variant,
+		"explored": Marshalls.raw_to_base64(explored.compress(FileAccess.COMPRESSION_DEFLATE)),
+		"explored_size": explored.size(),
 		"play_time": play_time, "uid": _uid,
 	}
 	var f := FileAccess.open(save_path, FileAccess.WRITE)
@@ -410,6 +455,9 @@ func load_game() -> bool:
 	class_id = String(d.get("class_id", "combat_specialist"))
 	if not is_class_available(class_id):
 		class_id = "combat_specialist"
+	race_id = String(d.get("race_id", DEFAULT_RACE))   # version 1 saves: no race
+	if race_info(race_id).is_empty():
+		race_id = DEFAULT_RACE
 	level = int(d.get("level", 1))
 	xp = int(d.get("xp", 0))
 	attr_points = int(d.get("attr_points", 0))
@@ -433,6 +481,10 @@ func load_game() -> bool:
 	player_pos = Vector2(float(pp[0]), float(pp[1])) if pp.size() == 2 else null
 	play_time = float(d.get("play_time", 0.0))
 	map_variant = clampi(int(d.get("map_variant", 1)), 1, MAP_VARIANTS)   # older saves: original layout
+	explored = PackedByteArray()   # older saves: no minimap yet, start blank
+	var ex_size := int(d.get("explored_size", 0))
+	if ex_size > 0:
+		explored = Marshalls.base64_to_raw(String(d.get("explored", ""))).decompress(ex_size, FileAccess.COMPRESSION_DEFLATE)
 	_uid = int(d.get("uid", 1000))
 	hp = clampf(float(d.get("hp", 100)), 1.0, max_hp())
 	energy = clampf(float(d.get("energy", 50)), 0.0, max_energy())

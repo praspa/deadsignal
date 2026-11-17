@@ -52,9 +52,11 @@ Desaturated palette: dull crimson instead of bright red, tarnished brass instead
 Characters and props shaded with at least a lit tone, a shadow tone and edge highlights from the light direction, instead of one flat colour per shape.
 
 Sound:
+Main Screen Music - 90s mini nine inch nails/doom/command and conquer style industrial. Main screen song has a heart beat type drum beat that increases into a breakdown.
 Level music - similar 90s MIDI Nine Inch Nails style. MIDI Industrial heavy metal, dark and ominous.
-Combat sounds - automatic rifle bursts, lazer beams shot, melee swing sounds
+Combat sounds - automatic rifle bursts, lazer beams shot, melee swing sounds. On a gun reload we hear the gun reload sound.
 Monster sounds - biological ones making groaning zombie sounds, robotic monsters making bleeping booping sounds
+
 
 3. Player Character
 
@@ -209,10 +211,19 @@ Quit
 
 New Game:
 Brings you to a character creation Screen.
-You choose a Name
+You choose a Name - A random sci-fi name will be generated
 Class (right now only Combat Specialist is available)
 There will be , say 5 classes to hover over with class descriptions. 
 Combat specialist is the only one with details now (the rest grayed out).
+
+Choose a Race (the character model does get affected by the race)
+* Human: The baseline, adaptable species—most widespread across the Stellar Nations.
+* Fraal: Slender, pale, large-eyed humanoids modeled after classic "grey" aliens. They are deeply spiritual, generally non-violent, and naturally psionic.   
+* Mechalus: Humanoid aliens (also called Aleerians) who bond with cybernetic technology from a young age. They can interface directly with computers and networks.   
+* Sesheyan: Nocturnal, winged humanoids with eight small eyes encircling their heads. They come from a low-tech, hunter-gatherer background, have natural gliding/flight capabilities, and are sensitive to bright light.   
+* T'sa: Small, fast-moving, reptilian aliens with a sleek build and fine scales. Hyper-curious, talkative, and mechanically gifted, they are constantly in motion.   
+* Weren: Towering (over 7 feet tall), heavily muscled, fur-covered warriors with fierce claws and manes. Despite their intimidating size and tribal background, they have a strong sense of honor. 
+
 
 
 Required HUD:
@@ -233,13 +244,17 @@ Character attributes.
 Loot inspection.
 Dialogue and terminal interaction.
 
+In game Mini-Map to aid in navigation:
+In game mini map of the level in the upper right hand corner. Similar to diablo. 
+The mini map is Architectural Line-Art: Instead of showing colored textures, grass, or rock surfaces, it renders the level as thin, crisp lines—usually light gray, off-white, or muted gold—representing walls, doorways, cliffs, and impassable obstacles. Explored areas persist. Unexplored areas remain completely blank. Mini map retains the fog of war. Allows you to spot dead ends and unexplored branching paths at a glance.
+
 12. Classes
 
 Will be several classes
 
 For the demo we will focus on first class by default
 
-Combat specialist 
+Combat Specialist - Character sprite looks like a space marine - similar to a star craft space marine with a suit and glass helmet
 Skills: Firearms, Heavy Weapons, Armor, Melee, Brute Force
 Player Model: A burly, battle hardened, human male space marine
 

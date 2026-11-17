@@ -95,46 +95,75 @@ func _key(code: Key) -> void:
 		await get_tree().process_frame
 
 
-## New Game -> character creation -> game, plus Back, locked classes and the
-## name surviving a save / load.
+## New Game -> character creation -> game, plus Back, races, locked classes,
+## keyboard navigation, and name / race surviving a save / load.
 func _character_creation_test() -> void:
 	print("== character creation")
 	check(GameState.clean_name("   ") == GameState.DEFAULT_NAME, "blank name falls back to the default")
-	check(GameState.clean_name("  Voss\n ") == "Voss", "name is trimmed and control characters dropped")
+	check(GameState.clean_name("  Vo\tss ") == "Voss", "name is trimmed and control characters dropped")
 	check(GameState.clean_name("x".repeat(40)).length() == GameState.NAME_MAX, "name is capped at %d characters" % GameState.NAME_MAX)
+	var names_ok := true
+	for i in 50:
+		var n := GameState.random_name()
+		names_ok = names_ok and n.length() <= GameState.NAME_MAX and GameState.clean_name(n) == n
+	check(names_ok, "random names fit the name rules")
 	main.call("_on_menu_action", "new")
-	await get_tree().process_frame
-	await get_tree().process_frame
+	await frames(3)
 	var cc := main.get("current") as CharacterCreation
 	check(cc != null, "New Game opens the character creation screen")
 	if cc == null:
 		return
-	await get_tree().process_frame
 	check(cc.class_buttons.size() == 5, "five classes listed")
 	var enabled := cc.class_buttons.filter(func(b: Button) -> bool: return not b.disabled)
 	check(enabled.size() == 1 and String(enabled[0].get_meta("class_id")) == "combat_specialist", "only Combat Specialist is selectable")
+	check(cc.race_buttons.size() == GameState.RACES.size() and cc.race_buttons.all(func(b: Button) -> bool: return not b.disabled), "all %d races listed and selectable" % GameState.RACES.size())
+	check(cc.name_edit.text != "" and cc.name_edit.text != GameState.DEFAULT_NAME, "name field starts with a random name (%s)" % cc.name_edit.text)
+	var first_name := cc.name_edit.text
+	for i in 10:
+		cc.dice_btn.pressed.emit()
+		if cc.name_edit.text != first_name:
+			break
+	check(cc.name_edit.text != first_name, "Random rerolls the name")
 	check(get_viewport().gui_get_focus_owner() == cc.name_edit, "name field has focus on open")
 	await _key(KEY_DOWN)
-	check(get_viewport().gui_get_focus_owner() == cc.class_buttons[0], "down arrow leaves the name field for the class list")
+	check(get_viewport().gui_get_focus_owner() == cc.race_buttons[0], "down arrow leaves the name field for the race list")
+	await _key(KEY_RIGHT)
 	await _key(KEY_DOWN)
-	check(cc.detail_status.text == "LOCKED", "focusing a locked class shows it as locked")
-	check(cc.selected_id == "combat_specialist", "locked class cannot be selected")
+	check(cc.detail_status.text.contains("LOCKED"), "focusing a locked class shows it as locked")
+	check(cc.selected_class == "combat_specialist", "locked class cannot be selected")
+	await _key(KEY_RIGHT)
+	await get_tree().process_frame
+	check(get_viewport().gui_get_focus_owner() == cc.begin_btn and not cc.detail_status.text.contains("LOCKED"), "details panel leaves the locked class when focus moves to Begin")
+	for b in cc.race_buttons:
+		b.pressed.emit()
+		await frames(2)   # preview draws each race's art
+	check(cc.preview_view.position == CharacterCreation.PREVIEW_FEET, "operative preview stays in its frame")
+	check(cc.selected_race == GameState.RACES[GameState.RACES.size() - 1]["id"], "clicking a race selects it")
 	await _key(KEY_ESCAPE)
-	await get_tree().process_frame
+	await frames(2)
 	check(main.get("current") is MainMenu, "Esc / B returns to the main menu")
+	check(Audio.get("_music_name") == "menu", "title screen plays the menu track")
 	main.call("_on_menu_action", "new")
-	await get_tree().process_frame
-	await get_tree().process_frame
+	await frames(3)
 	cc = main.get("current") as CharacterCreation
 	cc.name_edit.text = "  Voss "
+	cc.race_buttons[GameState.RACES.find(GameState.race_info("zessk"))].pressed.emit()
+	var begins := [0]
+	cc.begin.connect(func(_n: String, _c: String, _r: String) -> void: begins[0] += 1)
 	cc.begin_btn.pressed.emit()
+	cc.begin_btn.pressed.emit()   # double click / Enter + A in one frame
+	await _key(KEY_ESCAPE)        # and Esc right after Begin
 	await frames(6)
-	check(main.get("current") is Game, "Begin Mission starts the game")
-	check(GameState.player_name == "Voss" and GameState.class_title() == "Combat Specialist", "name and class carried into the game")
+	check(begins[0] == 1, "Begin Mission fires once, however many times it is pressed")
+	check(main.get("current") is Game, "Begin Mission starts the game (and a late Esc does not undo it)")
+	check(GameState.player_name == "Voss" and GameState.class_title() == "Combat Specialist" and GameState.race_id == "zessk", "name, class and race carried into the game")
+	var g := main.get("current") as Game
+	check(g != null and g.player.race == "zessk", "the in-game operative is drawn as the chosen race")
 	GameState.save_game(Vector2.ZERO)
 	GameState.player_name = "changed"
+	GameState.race_id = "human"
 	GameState.load_game()
-	check(GameState.player_name == "Voss", "operative name survives save / load")
+	check(GameState.player_name == "Voss" and GameState.race_id == "zessk", "name and race survive save / load")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(GameState.save_path))
 
 
@@ -159,6 +188,58 @@ func run() -> void:
 	check(enemy_count >= 25, "enemies spawned (%d)" % enemy_count)
 	check(get_tree().get_nodes_in_group("boss").size() == 1, "boss spawned")
 	check(not GameState.equipment["primary"].is_empty(), "starting primary weapon equipped")
+	check(Audio.get("_music_name") == "level", "game switches to the level track")
+
+	print("== minimap")
+	var mm := game.minimap
+	check(mm != null and mm.is_visible_in_tree(), "minimap on the HUD")
+	await frames(2)
+	var seen := mm.explored_count()
+	check(seen > 0 and mm.wall_segs.size() > 0, "start area explored and drawn as line art (%d tiles, %d wall edges)" % [seen, mm.wall_segs.size() / 2])
+	var boss_cell := level.world_to_cell((get_tree().get_first_node_in_group("boss") as Node2D).global_position)
+	check(not mm.is_explored(boss_cell.x, boss_cell.y), "unexplored areas stay blank (boss room)")
+	# two floor tiles in a straight line with wall between them (any thickness):
+	# the far one must not be visible from the near one
+	var pair := []
+	for y in range(level.h):
+		for x in range(level.w):
+			if not pair.is_empty() or not level.is_floor(x, y):
+				continue
+			for dv in [Vector2i(1, 0), Vector2i(0, 1)]:
+				var d: Vector2i = dv
+				var a := Vector2i(x, y)
+				if not pair.is_empty() or not level.is_wall((a + d).x, (a + d).y):
+					continue
+				for k in range(2, Minimap.SIGHT):
+					var b := a + d * k
+					if level.is_floor(b.x, b.y):
+						pair = [a, b, d]
+						break
+	check(not pair.is_empty(), "layout has a wall between two floor tiles to test sight against")
+	if not pair.is_empty():
+		check(not mm._visible(pair[0], pair[1]) and mm._visible(pair[0] - pair[2], pair[0]), "walls block the minimap's line of sight")
+	mm.reveal_around(boss_cell)
+	check(mm.is_explored(boss_cell.x, boss_cell.y) and mm.explored_count() > seen, "exploring reveals new map")
+	var explored_now := mm.explored_count()
+	GameState.save_game(player.global_position)
+	GameState.explored = PackedByteArray()
+	GameState.load_game()
+	check(GameState.explored.count(1) == explored_now, "explored map survives save / load")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(GameState.save_path))
+
+	print("== reload sounds")
+	var rifle := player.weapon("primary")
+	rifle["loaded"] = 0
+	var heard: Dictionary = Audio.get("_last")
+	heard.erase("reload_rifle_out")
+	heard.erase("reload_rifle_in")
+	player.start_reload("primary")
+	check(heard.has("reload_rifle_out"), "rifle reload starts with the magazine coming out")
+	for i in 200:
+		if not player.is_reloading("primary"):
+			break
+		await frames(1)
+	check(heard.has("reload_rifle_in") and int(rifle["loaded"]) > 0, "rifle reload ends with mag in + charging handle")
 
 	print("== movement (8 directions, screen-relative in the isometric view)")
 	var dirs := {"right": Vector2.RIGHT, "left": Vector2.LEFT, "up": Vector2.UP, "down": Vector2.DOWN}
@@ -366,12 +447,16 @@ func run() -> void:
 			break
 	check(boss.active, "boss activates when player enters the arena")
 	var seen_patterns := {}
-	for i in 900:
+	# patterns are random (never the same twice in a row), so watch for up to
+	# 30 s and stop as soon as three different ones have shown up
+	for i in 1800:
 		player.hp = player.max_hp
 		player.statuses.clear()
 		if boss.pattern != "":
 			seen_patterns[boss.pattern] = true
-		if i % 30 == 0 and i > 0:
+		if seen_patterns.size() >= 3:
+			break
+		if i % 30 == 0 and i > 0 and i <= 900:
 			boss.take_hit(Combat.make_hit(45, player))
 		await get_tree().physics_frame
 	check(seen_patterns.size() >= 3, "boss uses multiple attack patterns %s" % str(seen_patterns.keys()))
