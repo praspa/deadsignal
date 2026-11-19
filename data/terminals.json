@@ -70,5 +70,6 @@
       "ARCHIVE: THE DEAD SIGNAL (original capture, day 1)\nPLAYBACK LOCKED.\n\nA single data spool sits in a cradle of frost. Its indicator light pulses. Three times. Then silence.",
       "You pull the spool and seal it in your thermal case. Somewhere far above, the orbital relay crackles back to life.\n\nStep onto the extraction platform to leave Kharon Outpost."
     ]
-  }
+  },
+  "nav": {"title": "NAV CONSOLE", "type": "nav", "xp": 0, "pages": []}
 }

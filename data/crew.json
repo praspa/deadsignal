@@ -1,0 +1,77 @@
+{
+  "Q": {
+    "name": "Quartermaster Dov Harrow",
+    "role": "quartermaster",
+    "color": [
+      0.42,
+      0.33,
+      0.2
+    ],
+    "lines": [
+      "Hold's a mess, I know where everything is. Mostly.",
+      "Bring me salvage, I'll bring you creds. Counter's not open yet, though.",
+      "Don't lean on the reactor housing. She bites."
+    ]
+  },
+  "T": {
+    "name": "Signals Tech Ines Ruhl",
+    "role": "tech",
+    "color": [
+      0.2,
+      0.34,
+      0.36
+    ],
+    "lines": [
+      "Anything you pull out of the dark comes back scrambled. I unscramble it.",
+      "Decoder bank's still warming up. Give me time.",
+      "If a piece of gear starts humming at you, bring it straight to me. Don't listen to it."
+    ]
+  },
+  "M": {
+    "name": "Medic Oskar Venn",
+    "role": "medic",
+    "color": [
+      0.36,
+      0.34,
+      0.32
+    ],
+    "lines": [
+      "Sit. Bleed quietly. I'll get to you.",
+      "I lost my licence on Thessaly. I didn't lose my hands.",
+      "Come back in one piece. Fewer pieces, more paperwork."
+    ],
+    "revive_lines": [
+      "Easy. Easy. You were dead for a bit. Don't make a habit of it.",
+      "The Cradle put you back together. Mostly the right way round.",
+      "Welcome back. That's another one I'm not filing paperwork for."
+    ]
+  },
+  "F": {
+    "name": "Kesh, a fence",
+    "role": "fence",
+    "color": [
+      0.3,
+      0.22,
+      0.26
+    ],
+    "lines": [
+      "Passenger. Strictly passenger. Don't ask what's in the crates.",
+      "Sealed salvage, operative. Could be junk. Could be a fortune. That's the fun.",
+      "I'll have stock once we hit a port with fewer customs officers."
+    ]
+  },
+  "P": {
+    "name": "Pilot Mara Quill",
+    "role": "pilot",
+    "color": [
+      0.26,
+      0.28,
+      0.2
+    ],
+    "lines": [
+      "She flies. Don't ask me how. Don't ask her either.",
+      "Pick a heading on the nav console and I'll get us there. Probably in one piece.",
+      "Third coolant leak this week. That's a record. A good one."
+    ]
+  }
+}

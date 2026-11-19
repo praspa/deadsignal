@@ -20,7 +20,7 @@ func setup(p_level: Level, p_cell: Vector2i, p_strong: bool) -> void:
 
 
 func flag() -> String:
-	return "box:%d,%d" % [cell.x, cell.y]
+	return GameState.area_flag("box:%d,%d" % [cell.x, cell.y])
 
 
 func _ready() -> void:

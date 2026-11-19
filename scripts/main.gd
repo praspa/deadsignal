@@ -73,6 +73,11 @@ func _on_menu_action(id: String) -> void:
 
 
 func _on_game_request(id: String) -> void:
+	if id.begins_with("travel:"):
+		GameState.travel(id.trim_prefix("travel:"))
+		GameState.save_game(null)   # arrive at the destination's start point
+		start_game.call_deferred()
+		return
 	match id:
 		"menu":
 			show_menu.call_deferred()

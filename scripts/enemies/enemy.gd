@@ -392,7 +392,7 @@ func die() -> void:
 	_shape.set_deferred("disabled", true)
 	cv.z_index = -1
 	if spawn_id != "":
-		GameState.set_flag("k:" + spawn_id)
+		GameState.set_flag(GameState.area_flag("k:" + spawn_id))
 	GameState.add_xp(int(def.get("xp", 10)))
 	Fx.text(get_parent(), Iso.sp(global_position, 50), "+%d XP" % int(def.get("xp", 10)), Color(0.7, 0.6, 1.0), 0.85)
 	if kind == "researcher":

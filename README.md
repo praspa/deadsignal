@@ -1,4 +1,4 @@
-# Dead Signal — vertical slice
+# Dead Signal
 
 Grimdark sci-fi action RPG (Godot 4.5, GDScript, 2D isometric in the style of Diablo II). Built from `claude-requirements.md`.
 
@@ -44,7 +44,18 @@ The rooms are the generator hall, labs, Xenolab, security core, vault, barracks,
 
 Each new game picks a random layout, never the one in your current save. The layout is stored in the save and announced when the game starts. Story text gets its compass directions from the layout (`{gen_dir}` and so on in `data/mission.json` and `data/terminals.json`), so "the generator hall is north-west of the atrium" is always true. To force a layout for testing, add `-- --variant N`.
 
-## Mission
+## Ship and locations
+
+A new game starts aboard the operative's assigned ship, the *Sable Mule*. It's the hub, the equivalent of a Diablo town: it has its own silver-blue look and bright, steady lighting (no flashlight), the operative carries no weapon and can't fire or use combat abilities aboard, a cargo locker in the hold stores items you don't want to carry, the crew stand at their posts (placeholders for now, they only talk), and the cockpit's nav console opens the star map. Each location is an entry in `data/locations.json` that names its map, lighting and music. A location's look is data too: `palette` remaps wall / floor / prop brightness onto a colour ramp (`shaders/luma_normal.gdshader`), plus `post` grade, `lamp_color`, `flashlight` and `steady_lights`. The ship map is `data/maps/ship.txt` (`N` = nav console, `L` = cargo locker, `Q T M F P` = crew from `data/crew.json`).
+
+- **Star map** (`data/starmap.json`): a tree of known space drawn left to right (universe → galaxies → systems → planets / stations). Move the selection with the d-pad, stick, arrows or mouse; Accept flies the ship marker along the chart lines to an unlocked node, and Accept again (or Descend) drops you to that node's mission site. Locked nodes show as "Uncharted" and hide their children. The ship's position on the map is saved.
+- **Death** on a mission fades out and the operative wakes aboard the ship in the **Lazarus Cradle** (medbay, map char `Z`), at full health. It costs 10% of carried UC and 5% of the current level's XP (never a whole level); the ship stays in orbit where you descended and the mission site keeps its state, so the way back is the star map. Revival autosaves.
+- **Travel** autosaves and drops you at the destination's start point. Floor loot and map state (kills, crates, doors) are kept per location.
+- **Mission sites** have a return-shuttle beacon at the landing point that flies you back to the ship.
+- **Universal Credits (UC, "creds")** drop from enemies, crates and bosses, are collected by walking over them, and show on the HUD and the inventory screen. There's nothing to spend them on yet.
+- **Kharon Outpost** (the demo mission, frozen at git tag `demo-v1.0`) is the star map's only destination for now. It will be replaced by the first new mission. Extracting from Kharon flies you back to the ship.
+
+## Mission (Kharon Outpost, temporary)
 
 1. Enter Kharon Outpost.
 2. Restore power in the generator hall (west).
@@ -65,6 +76,9 @@ data/            all tunable content (JSON + ASCII map)
   enemies.json   enemy archetype stats and attack timings
   terminals.json logs / terminal text and the flags they set
   mission.json   objective chain + radio comms
+  locations.json the ship and mission sites: map, lighting, music, OVERWATCH comms
+  crew.json      ship crew: names, colours, dialogue lines
+  starmap.json   the star map tree (galaxies, systems, planets, stations), unlocks, mission sites
 scripts/
   autoload/      Events (signal bus), InputSetup (KB/M + pad bindings),
                  ItemDB (data + item generation), GameState (character, flags, save/load)

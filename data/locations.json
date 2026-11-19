@@ -1,0 +1,64 @@
+{
+  "ship": {
+    "name": "Sable Mule",
+    "map": "ship",
+    "hub": true,
+    "powered": true,
+    "ambient": [
+      0.9,
+      0.93,
+      1.0
+    ],
+    "music": "",
+    "intro_comms": [
+      "[OVERWATCH] Operative, welcome aboard the Sable Mule. She's ugly, but she's yours for the duration.",
+      "[OVERWATCH] Your first tasking is loaded into the nav console in the cockpit. Plot a course when you're ready."
+    ],
+    "debrief_comms": [
+      "[OVERWATCH] Good work at Kharon, Operative. Stand by on the Mule while we sort out your next tasking."
+    ],
+    "palette": {
+      "dark": [
+        0.06,
+        0.08,
+        0.12
+      ],
+      "light": [
+        0.74,
+        0.79,
+        0.87
+      ],
+      "gain": 3.4,
+      "amount": 0.85
+    },
+    "post": {
+      "grade": 0.15,
+      "saturation": 0.9
+    },
+    "lamp_color": [
+      0.78,
+      0.88,
+      1.0
+    ],
+    "wall_style": "ship",
+    "flashlight": false,
+    "steady_lights": true
+  },
+  "kharon": {
+    "name": "Kharon Outpost",
+    "map": "outpost_{variant}",
+    "hub": false,
+    "powered_flag": "power",
+    "ambient": [
+      0.24,
+      0.23,
+      0.25
+    ],
+    "ambient_powered": [
+      0.38,
+      0.37,
+      0.36
+    ],
+    "music": "level"
+  }
+}

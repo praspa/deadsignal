@@ -7,6 +7,7 @@ uniform float grain = 0.055;
 uniform float aberration = 2.2;      // pixels of channel split at the corners
 uniform float saturation = 0.72;
 uniform float black_crush = 0.03;
+uniform float grade = 1.0;          // strength of the green-rust colour grade (lower aboard the ship)
 
 void fragment() {
 	vec2 uv = SCREEN_UV;
@@ -22,7 +23,7 @@ void fragment() {
 	c = pow(c, vec3(1.04));
 	vec3 shadow_tint = vec3(0.9, 1.0, 0.84);
 	vec3 high_tint = vec3(1.07, 0.97, 0.84);
-	c *= mix(shadow_tint, high_tint, smoothstep(0.08, 0.6, l));
+	c *= mix(vec3(1.0), mix(shadow_tint, high_tint, smoothstep(0.08, 0.6, l)), grade);
 	float n = fract(sin(dot(FRAGCOORD.xy + fract(TIME * 7.13) * vec2(97.3, 41.7), vec2(12.9898, 78.233))) * 43758.5453);
 	c += (n - 0.5) * grain;
 	COLOR = vec4(c, 1.0);

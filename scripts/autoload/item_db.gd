@@ -16,6 +16,9 @@ var specials: Dictionary = {}
 var enemies: Dictionary = {}
 var terminals: Dictionary = {}
 var mission: Dictionary = {}
+var locations: Dictionary = {}
+var crew: Dictionary = {}
+var starmap: Dictionary = {}
 var rng := RandomNumberGenerator.new()
 
 
@@ -30,6 +33,9 @@ func _ready() -> void:
 	enemies = load_json("res://data/enemies.json")
 	terminals = load_json("res://data/terminals.json")
 	mission = load_json("res://data/mission.json")
+	locations = load_json("res://data/locations.json")
+	crew = load_json("res://data/crew.json")
+	starmap = load_json("res://data/starmap.json")
 
 
 static func load_json(path: String) -> Dictionary:

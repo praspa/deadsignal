@@ -7,6 +7,9 @@ const SLOTS := ["primary", "secondary", "head", "body", "gloves", "boots", "util
 const ATTRS := ["str", "dex", "int", "wil"]
 const POINTS_PER_LEVEL := 3
 const MAX_INVENTORY := 30
+const MAX_STASH := 50
+const DEATH_UC_LOSS := 0.10    # share of carried creds lost on death
+const DEATH_XP_LOSS := 0.05    # share of the current level's XP requirement lost on death
 const DEFAULT_NAME := "Operative"
 const NAME_MAX := 16
 ## Playable classes, in the order the character creation screen lists them.
@@ -53,14 +56,23 @@ var inventory: Array = []
 var equipment: Dictionary = {}
 var ammo := {"rifle": 150, "shell": 24}
 var stims := 2
+var credits := 0                   # Universal Credits (UC, "creds")
 var flags: Dictionary = {}
-var ground_items: Array = []
+var location := "ship"             # key into data/locations.json
+var reviving := false             # died: wake in the Lazarus Cradle on the next ship load
+var last_death_loss := [0, 0]      # [UC, XP] lost on the last death (for the wake-up message)
+var stash: Array = []              # items in the ship's cargo locker
+var ship_node := ""                # where the ship is on the star map (data/starmap.json node id)
+var areas: Dictionary = {}         # location -> {"ground_items": [...]} for places not currently loaded
+var ground_items: Array = []       # loot on the floor of the current location
 var player_pos: Variant = null
 var map_variant := 1               # which outpost layout (data/maps/outpost_<n>.txt)
 var map_info: Dictionary = {}      # that layout's metadata (name, rooms, compass directions)
 var explored := PackedByteArray()   # minimap fog of war: 1 per seen tile (row-major, map width)
 
 const MAP_VARIANTS := 6
+const SAVE_VERSION := 3   # 2: race / name / class, 3: locations + creds
+const _MAP_FLAG_PREFIXES := ["k:", "box:", "door:", "read:"]
 var play_time := 0.0
 var _uid := 1
 var loaded_from_save := false
@@ -90,7 +102,13 @@ func new_game(p_name: String = DEFAULT_NAME, p_class: String = "combat_specialis
 		equipment[s] = {}
 	ammo = {"rifle": 150, "shell": 24}
 	stims = 2
+	credits = 0
 	flags = {}
+	location = "ship"
+	ship_node = String(ItemDB.starmap.get("ship_start", ""))
+	stash = []
+	reviving = false
+	areas = {}
 	ground_items = []
 	player_pos = null
 	map_variant = _pick_variant()
@@ -155,6 +173,116 @@ func class_title() -> String:
 	return String(class_info(class_id).get("name", "Combat Specialist"))
 
 
+# ---------------------------------------------------------------- locations
+
+func location_def(id: String = "") -> Dictionary:
+	return ItemDB.locations.get(location if id == "" else id, {})
+
+
+func is_hub() -> bool:
+	return bool(location_def().get("hub", false))
+
+
+func location_name(id: String = "") -> String:
+	return String(location_def(id).get("name", id if id != "" else location))
+
+
+## Map file base name (no extension) under data/maps/ for the current location.
+func map_base() -> String:
+	return String(location_def().get("map", location)).format({"variant": map_variant})
+
+
+## Moves the character to another location. Floor loot of the place being left
+## is kept so it is still there on the way back.
+func travel(dest: String) -> void:
+	var here := pack_explored(explored)
+	here["ground_items"] = ground_items
+	areas[location] = here
+	location = dest
+	var there: Dictionary = areas.get(dest, {})
+	ground_items = there.get("ground_items", [])
+	explored = unpack_explored(there)
+	areas.erase(dest)
+	player_pos = null
+	loaded_from_save = false
+
+
+## Minimap fog of war as JSON-safe data (deflated, base64).
+static func pack_explored(arr: PackedByteArray) -> Dictionary:
+	if arr.is_empty():   # not visited yet (e.g. saving right after travel)
+		return {"explored": "", "explored_size": 0}
+	return {"explored": Marshalls.raw_to_base64(arr.compress(FileAccess.COMPRESSION_DEFLATE)), "explored_size": arr.size()}
+
+
+static func unpack_explored(d: Dictionary) -> PackedByteArray:
+	var n := int(d.get("explored_size", 0))
+	if n <= 0:
+		return PackedByteArray()
+	return Marshalls.base64_to_raw(String(d.get("explored", ""))).decompress(n, FileAccess.COMPRESSION_DEFLATE)
+
+
+## Flags for things placed in a map (killed enemies, opened crates, doors, read
+## terminals) are per location, since map coordinates repeat between maps.
+func area_flag(f: String) -> String:
+	return location + "/" + f
+
+
+# ---------------------------------------------------------------- death
+
+## Applies the death penalty and restores the body for revival aboard the ship:
+## 10% of carried UC, and 5% of this level's XP requirement taken only from
+## progress toward the next level (never loses a level).
+func apply_death() -> void:
+	var uc := int(floor(credits * DEATH_UC_LOSS))
+	var xp_loss := mini(xp, int(floor(xp_to_next() * DEATH_XP_LOSS)))
+	credits -= uc
+	xp -= xp_loss
+	last_death_loss = [uc, xp_loss]
+	hp = max_hp()
+	energy = max_energy()
+	reviving = true
+	Events.stats_changed.emit()
+
+
+# ---------------------------------------------------------------- stash
+
+## Moves an item between the pack and the ship's cargo locker. False if full.
+func stash_item(item: Dictionary) -> bool:
+	if stash.size() >= MAX_STASH or not inventory.has(item):
+		return false
+	inventory.erase(item)
+	stash.append(item)
+	Events.inventory_changed.emit()
+	return true
+
+
+func unstash_item(item: Dictionary) -> bool:
+	if inventory.size() >= MAX_INVENTORY or not stash.has(item):
+		return false
+	stash.erase(item)
+	inventory.append(item)
+	Events.inventory_changed.emit()
+	return true
+
+
+# ---------------------------------------------------------------- credits
+
+func add_credits(amount: int) -> void:
+	if amount <= 0:
+		return
+	credits += amount
+	Events.stats_changed.emit()
+
+
+static func fmt_uc(amount: int) -> String:
+	var s := str(absi(amount))
+	var out := ""
+	while s.length() > 3:
+		out = "," + s.substr(s.length() - 3) + out
+		s = s.substr(0, s.length() - 3)
+	return ("-" if amount < 0 else "") + s + out + " UC"
+
+
 # ---------------------------------------------------------------- flags
 
 func has_flag(f: String) -> bool:
@@ -202,6 +330,10 @@ func objective_index() -> int:
 
 
 func current_objective_text() -> String:
+	if location == "ship":
+		if has_flag("escape"):
+			return "Await new orders from OVERWATCH"
+		return "Deploy to Kharon Outpost (nav console, cockpit)"
 	var objs: Array = ItemDB.mission.get("objectives", [])
 	var i := objective_index()
 	if i >= objs.size():
@@ -418,19 +550,22 @@ func has_save() -> bool:
 	return FileAccess.file_exists(save_path)
 
 
-func save_game(pos: Vector2) -> bool:
+## `pos` null = respawn at the location's start point on load.
+func save_game(pos: Variant) -> bool:
 	player_pos = pos
+	var pp: Array = [] if pos == null else [(pos as Vector2).x, (pos as Vector2).y]
 	var d := {
-		"version": 2,
+		"version": SAVE_VERSION,
 		"player_name": player_name, "class_id": class_id, "race_id": race_id,
 		"level": level, "xp": xp, "attr_points": attr_points,
 		"attributes": attributes, "hp": hp, "energy": energy,
 		"inventory": inventory, "equipment": equipment,
-		"ammo": ammo, "stims": stims, "flags": flags,
+		"ammo": ammo, "stims": stims, "credits": credits, "flags": flags,
+		"location": location, "areas": areas, "ship_node": ship_node, "stash": stash, "reviving": reviving,
 		"ground_items": ground_items,
-		"player_pos": [pos.x, pos.y],
+		"player_pos": pp,
 		"map_variant": map_variant,
-		"explored": Marshalls.raw_to_base64(explored.compress(FileAccess.COMPRESSION_DEFLATE)),
+		"explored": pack_explored(explored)["explored"],
 		"explored_size": explored.size(),
 		"play_time": play_time, "uid": _uid,
 	}
@@ -475,18 +610,43 @@ func load_game() -> bool:
 	for k in am:
 		ammo[k] = int(am[k])
 	stims = int(d.get("stims", 0))
+	credits = int(d.get("credits", 0))
 	flags = d.get("flags", {})
+	location = String(d.get("location", "kharon"))   # pre-v3 saves were all at Kharon
+	if not ItemDB.locations.has(location):
+		location = "ship"
+	areas = d.get("areas", {})
+	ship_node = String(d.get("ship_node", ""))
+	stash = d.get("stash", [])
+	reviving = bool(d.get("reviving", false))
+	if not ItemDB.starmap.get("nodes", {}).has(ship_node):
+		# older saves: in orbit over the mission site they were on, else the start
+		ship_node = StarMapUI.node_for_location(location)
+		if ship_node == "":
+			ship_node = String(ItemDB.starmap.get("ship_start", ""))
 	ground_items = d.get("ground_items", [])
+	if int(d.get("version", 1)) < 3:
+		_migrate_pre_location_flags()
 	var pp: Array = d.get("player_pos", [])
 	player_pos = Vector2(float(pp[0]), float(pp[1])) if pp.size() == 2 else null
 	play_time = float(d.get("play_time", 0.0))
 	map_variant = clampi(int(d.get("map_variant", 1)), 1, MAP_VARIANTS)   # older saves: original layout
-	explored = PackedByteArray()   # older saves: no minimap yet, start blank
-	var ex_size := int(d.get("explored_size", 0))
-	if ex_size > 0:
-		explored = Marshalls.base64_to_raw(String(d.get("explored", ""))).decompress(ex_size, FileAccess.COMPRESSION_DEFLATE)
+	explored = unpack_explored(d)   # older saves: no minimap yet, start blank
 	_uid = int(d.get("uid", 1000))
 	hp = clampf(float(d.get("hp", 100)), 1.0, max_hp())
 	energy = clampf(float(d.get("energy", 50)), 0.0, max_energy())
 	loaded_from_save = true
 	return true
+
+
+## Saves before v3 predate locations: their map flags all belong to Kharon.
+func _migrate_pre_location_flags() -> void:
+	var out := {}
+	for f in flags:
+		var key := String(f)
+		for pre in _MAP_FLAG_PREFIXES:
+			if key.begins_with(pre):
+				key = "kharon/" + key
+				break
+		out[key] = flags[f]
+	flags = out

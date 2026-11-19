@@ -174,9 +174,71 @@ func start() -> void:
 
 
 func run() -> void:
-	print("== boot")
+	print("== ship hub")
 	GameState.new_game()
 	await start()
+	check(GameState.location == "ship" and game.hub, "new game starts aboard the ship")
+	check(game.player.holstered, "weapons holstered aboard the ship")
+	check(get_tree().get_nodes_in_group("enemies").is_empty(), "no enemies aboard the ship")
+	check(get_tree().get_nodes_in_group("crew").size() == 5, "five crew members aboard")
+	var nav: Terminal = null
+	for n in game.world.get_children():
+		if n is Terminal and (n as Terminal).term_id == "nav":
+			nav = n
+	check(nav != null, "nav console aboard")
+	var crew0 := get_tree().get_first_node_in_group("crew") as CrewNpc
+	crew0.interact(game.player)
+	check(game.hud.messages.any(func(m: Array) -> bool: return String(m[0]).begins_with(crew0.display_name())), "crew member talks")
+	var locker: StashLocker = null
+	for n in game.world.get_children():
+		if n is StashLocker:
+			locker = n
+	check(locker != null, "cargo locker aboard")
+	locker.interact(game.player)
+	await frames(2)
+	check(game.stash_ui.visible, "cargo locker opens the stash")
+	var stowed: Dictionary = ItemDB.generate("flak_carapace", 1, 1)
+	GameState.add_item(stowed)
+	game.stash_ui._move(stowed, true)
+	check(GameState.stash.has(stowed) and not GameState.inventory.has(stowed), "item stowed in the cargo locker")
+	game.stash_ui._move(stowed, false)
+	check(GameState.inventory.has(stowed) and GameState.stash.is_empty(), "item taken back out of the locker")
+	game.stash_ui._move(stowed, true)
+	game.stash_ui.close()
+	await frames(2)
+	check(not game.player._cone.enabled, "flashlight off aboard the well-lit ship")
+	var cd0: float = game.player.cooldowns["pulse"]
+	Input.action_press("pulse")
+	await frames(3)
+	Input.action_release("pulse")
+	check(float(game.player.cooldowns["pulse"]) == cd0, "combat abilities disabled aboard the ship")
+	nav.interact(game.player)
+	await frames(2)
+	var sm := game.star_map
+	check(sm.visible, "nav console opens the star map")
+	check(sm.pos.has("known_space") and sm.pos.has("veil") and sm.pos.has("kharon"), "star map lays out the tree (%d nodes shown)" % sm.pos.size())
+	check(not sm.pos.has("relay_9"), "children of locked nodes stay hidden")
+	check(sm.ship_at == "kessar", "ship starts at its star map node")
+	check(StarMapUI.tree_path("kharon", "drift") == ["kharon", "kessar", "veil", "known_space", "drift"], "course follows the tree")
+	sm.activate("kessar_iv")
+	await frames(2)
+	check(sm.flight.is_empty() and sm.ship_at == "kessar", "locked node can't be flown to")
+	sm._select("kharon")
+	sm.activate("kharon")
+	for i in 120:
+		await frames(1)
+		if sm.flight.is_empty():
+			break
+	check(sm.ship_at == "kharon" and GameState.ship_node == "kharon", "ship flies to Kharon on the star map")
+	check(sm.can_descend(), "can descend at a node with a mission site")
+	sm.activate("kharon")
+	await frames(8)
+	game = main.get("current")
+	check(GameState.location == "kharon" and not game.hub, "nav console deploys to Kharon")
+	check(game.player._cone.enabled, "flashlight on at mission sites")
+	check(GameState.has_save() and _saved_location() == "kharon", "travel autosaves")
+
+	print("== boot")
 	var level := game.level
 	var player := game.player
 	check(level.w > 60 and level.h > 60, "outpost map loaded (%dx%d)" % [level.w, level.h])
@@ -386,6 +448,11 @@ func run() -> void:
 	level.enemy_loot(player.global_position, {"drop_chance": 1.0, "ammo_chance": 1.0, "quality": 2})
 	await frames(2)
 	check(int(item_drops.call()) > n_items, "enemy death drops loot")
+	var uc0 := GameState.credits
+	level.drop_credits(player.global_position + Vector2(40, 0), 1.0)
+	await frames(30)
+	check(GameState.credits > uc0, "creds dropped and auto-collected (%s)" % GameState.fmt_uc(GameState.credits - uc0))
+	check(GameState.fmt_uc(1234567) == "1,234,567 UC", "UC formatting")
 	var drop: LootDrop = null
 	for n in get_tree().get_nodes_in_group("loot"):
 		drop = n
@@ -474,12 +541,14 @@ func run() -> void:
 	GameState.save_game(player.global_position)
 	var saved_level := GameState.level
 	var saved_inv := GameState.inventory.size()
+	var saved_uc := GameState.credits
 	main.call("_on_game_request", "load")
 	await frames(8)
 	game = main.get("current")
 	player = game.player
 	level = game.level
-	check(GameState.level == saved_level and GameState.inventory.size() == saved_inv, "save/load restores character")
+	check(GameState.level == saved_level and GameState.inventory.size() == saved_inv and GameState.credits == saved_uc, "save/load restores character and creds")
+	check(GameState.stash.size() == 1, "stash survives save / load")
 	check(GameState.has_flag("boss") and get_tree().get_nodes_in_group("boss").size() == 0, "save/load restores world state")
 
 	print("== escape")
@@ -490,20 +559,92 @@ func run() -> void:
 	player.global_position = level.exit_rect.get_center()
 	await frames(10)
 	check(GameState.has_flag("escape"), "reaching containment completes the mission")
-	for i in 150:
+	for i in 200:
 		await get_tree().physics_frame
-		if game.end_screen.visible:
+		if main.get("current") != game:
 			break
-	check(game.end_screen.visible, "victory screen shown")
+	await frames(8)
+	game = main.get("current")
+	check(GameState.location == "ship" and game.hub, "extraction returns the operative to the ship")
+	check(GameState.has_flag("debriefed"), "OVERWATCH debrief aboard the ship")
+	var kharon_loot: Array = GameState.areas.get("kharon", {}).get("ground_items", [])
+	check(not kharon_loot.is_empty(), "loot left at Kharon is kept while away")
+	check(GameState.explored.size() == game.level.w * game.level.h and int(GameState.areas["kharon"].get("explored_size", 0)) > 0, "minimap exploration kept per location")
+
+	print("== shuttle back from a mission site")
+	main.call("_on_game_request", "travel:kharon")
+	await frames(8)
+	game = main.get("current")
+	check(GameState.has_flag("kharon/k:" + _any_boss_sid()) and get_tree().get_nodes_in_group("boss").is_empty(), "Kharon remembers its state on return")
+	var pad: ShuttlePad = null
+	for n in game.world.get_children():
+		if n is ShuttlePad:
+			pad = n
+	check(pad != null, "return shuttle at the landing site")
+	pad.interact(game.player)
+	await frames(8)
+	game = main.get("current")
+	check(GameState.location == "ship", "shuttle flies back to the ship")
+
+	print("== death and the Lazarus Cradle")
+	main.call("_on_game_request", "travel:kharon")
+	await frames(8)
+	game = main.get("current")
+	var node_before := GameState.ship_node
+	GameState.credits = 1000
+	var lv_before := GameState.level
+	var xp_loss := int(floor(GameState.xp_to_next() * GameState.DEATH_XP_LOSS))
+	GameState.xp = xp_loss + 7
+	game.player.die()
+	for i in 240:
+		await get_tree().physics_frame
+		if main.get("current") != game:
+			break
+	await frames(8)
+	game = main.get("current")
+	check(GameState.location == "ship", "dying on a mission revives aboard the ship")
+	check(game.player.global_position.distance_to(game.level.revive_point) < 4.0 and game.level.revive_point != Vector2.ZERO, "operative wakes at the Lazarus Cradle")
+	check(GameState.credits == 900, "death costs 10%% of carried UC (%d left)" % GameState.credits)
+	check(GameState.xp == 7 and GameState.level == lv_before, "death costs 5% of the level's XP, no level lost")
+	check(game.player.hp >= game.player.max_hp - 0.5 and not game.player.dead, "revived at full health")
+	check(GameState.ship_node == node_before, "ship still in orbit where the operative descended")
+	check(not GameState.reviving and _saved_location() == "ship", "revival autosaves aboard the ship")
+	check(game.hud.messages.any(func(m: Array) -> bool: return String(m[0]).contains("Lost:")), "wake-up message lists what was lost")
+	GameState.xp = 0
+	GameState.apply_death()
+	check(GameState.xp == 0 and GameState.level == lv_before, "death never drops below the start of the level")
+	GameState.reviving = false
+
+	print("== v1 save migration")
+	var v1 := {"version": 1, "level": 3, "flags": {"power": true, "k:5,5": true, "box:2,3": true}, "player_pos": [10, 10]}
+	var f := FileAccess.open(GameState.save_path, FileAccess.WRITE)
+	f.store_string(JSON.stringify(v1))
+	f.close()
+	GameState.load_game()
+	check(GameState.location == "kharon" and GameState.has_flag("power") and GameState.has_flag("kharon/k:5,5") and GameState.has_flag("kharon/box:2,3"), "v1 saves load at Kharon with their map flags")
 
 	print("== performance sample")
+	GameState.new_game()
+	GameState.location = "kharon"
+	await start()
 	get_tree().paused = false
-	game.end_screen.hide()
-	GameState.flags.erase("escape")
 	var t0 := Time.get_ticks_usec()
 	await frames(120)
 	var avg := (Time.get_ticks_usec() - t0) / 120.0 / 1000.0
 	print("  avg frame (headless, physics-bound) %.2f ms" % avg)
+
+
+func _saved_location() -> String:
+	var d = JSON.parse_string(FileAccess.get_file_as_string(GameState.save_path))
+	return String(d.get("location", "")) if d is Dictionary else ""
+
+
+func _any_boss_sid() -> String:
+	for y in game.level.h:
+		for x in game.level.w:
+			if game.level.ch(x, y) == "B":
+				return "%d,%d" % [x, y]
+	return "?"
 
 
 func _count_projectiles() -> int:

@@ -124,7 +124,7 @@ func _ready() -> void:
 func set_powered(on: bool) -> void:
 	powered = on
 	if kind == "l" and light != null:
-		light.color = Color(0.95, 0.82, 0.62) if on else Color(0.95, 0.2, 0.1)
+		light.color = (level.lamp_color if level != null else Color(0.95, 0.82, 0.62)) if on else Color(0.95, 0.2, 0.1)
 		light.energy = 1.3 if on else 1.0
 		if cv != null: cv.queue_redraw()
 
@@ -139,7 +139,9 @@ func _process(delta: float) -> void:
 		"l":
 			var hsh := Level.hash2(cell.x, cell.y)
 			var lamp_on := 1.3 if powered else 0.7 + 0.45 * sin(t * 2.4)   # emergency beacons pulse
-			if hsh % 7 == 0:
+			if level != null and level.steady_lights and hsh % 7 != 0:
+				light.energy = lamp_on
+			elif hsh % 7 == 0:
 				# dying: mostly dark, an occasional sputtering flash
 				light.energy = 0.08 if fmod(t + float(hsh % 9), 6.3) > 0.35 else randf_range(0.4, lamp_on)
 			elif hsh % 3 == 0:

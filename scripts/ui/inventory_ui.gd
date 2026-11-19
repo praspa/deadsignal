@@ -148,9 +148,10 @@ func refresh() -> void:
 			b.text = ""
 			b.focus_entered.connect(_select_none)
 		grid.add_child(b)
-	info.text = "Armor %d   Crit %d%%   Evasion %d%%\nAmmo: %d rifle  /  %d shells   Stims: %d" % [
+	info.text = "Armor %d   Crit %d%%   Evasion %d%%\nAmmo: %d rifle  /  %d shells   Stims: %d\nCreds: %s" % [
 		roundi(GameState.armor()), roundi(GameState.crit_chance() * 100.0), roundi(GameState.evasion() * 100.0),
-		int(GameState.ammo.get("rifle", 0)), int(GameState.ammo.get("shell", 0)), GameState.stims]
+		int(GameState.ammo.get("rifle", 0)), int(GameState.ammo.get("shell", 0)), GameState.stims,
+		GameState.fmt_uc(GameState.credits)]
 	_rebuilding = false
 	if focus_idx >= 0:
 		var parent: Container = equip_box if focus_in_equip else grid

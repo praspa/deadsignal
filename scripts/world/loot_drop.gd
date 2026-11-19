@@ -13,6 +13,7 @@ var cv: IsoView
 var lift_px := 0.0   # current pop height (read by LootLabels)
 
 static var _font: Font
+const CREDIT_COLOR := Color(0.95, 0.8, 0.38)
 
 
 func _ready() -> void:
@@ -49,6 +50,8 @@ func label_text() -> String:
 			return "%d %s" % [int(entry["amount"]), ItemDB.ammo_label(String(entry["ammo"]))]
 		"stim":
 			return "Stim-pack"
+		"credits":
+			return GameState.fmt_uc(int(entry["amount"]))
 	return "?"
 
 
@@ -60,6 +63,8 @@ func color() -> Color:
 			return Color(0.85, 0.75, 0.45)
 		"stim":
 			return Color(0.5, 1.0, 0.55)
+		"credits":
+			return CREDIT_COLOR
 	return Color.WHITE
 
 
@@ -100,6 +105,9 @@ func _process(delta: float) -> void:
 		elif kind == "stim":
 			GameState.stims += int(entry.get("amount", 1))
 			Events.msg("+%d stim-pack" % int(entry.get("amount", 1)), color())
+		elif kind == "credits":
+			GameState.add_credits(int(entry["amount"]))
+			Events.msg("+" + GameState.fmt_uc(int(entry["amount"])), color())
 		_consume()
 
 
@@ -127,6 +135,16 @@ func _render() -> void:
 		cv.draw_arc(Vector2.ZERO, 11.0, 0, TAU, 20, Color(c.r, c.g, c.b, 0.35), 1.0)
 		cv.draw_set_transform(Vector2.ZERO)
 		ItemIcon.draw(cv, entry["item"], base + Vector2(0, -6 + bob), 0.85, c)
+	elif kind == "credits":
+		# a short stack of credit chits
+		var pc := base + Vector2(0, -3 + bob)
+		for i in 3:
+			var o := pc + Vector2((i - 1) * 4.0, -i * 2.5)
+			cv.draw_set_transform(o, 0.0, Vector2(1, 0.5))
+			cv.draw_circle(Vector2.ZERO, 5.0, c.darkened(0.45))
+			cv.draw_circle(Vector2(0, -2), 5.0, c.darkened(0.1))
+			cv.draw_arc(Vector2(0, -2), 5.0, 0, TAU, 12, c.lightened(0.2), 1.0)
+		cv.draw_set_transform(Vector2.ZERO)
 	elif kind == "ammo":
 		var p2 := base + Vector2(0, -5 + bob)
 		cv.draw_rect(Rect2(p2.x - 7, p2.y - 5, 14, 10), Color(0.25, 0.22, 0.12))
