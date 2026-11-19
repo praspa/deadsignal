@@ -69,6 +69,8 @@ func interact(_player: Node) -> void:
 	if GameState.add_item(entry["item"]):
 		Events.msg("Picked up: " + String(entry["item"]["name"]), color())
 		Audio.play_ui("pickup")
+		for it in GameState.auto_equip():
+			Events.msg("Equipped: %s (%s)" % [it["name"], ItemDB.slot_label(it)], ItemDB.rarity_color(int(it["rarity"])))
 		_consume()
 
 

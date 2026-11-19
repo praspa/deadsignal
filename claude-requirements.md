@@ -148,6 +148,13 @@ Inventory must support item pickup, inspection, equipping, unequipping, and comp
 
 Loot on the ground graphic represents the type (i.e. gun, boots, breastplate, gloves ) along with name and color rarity
 
+Lootable containers, crates, chests, boxes, tables (any container in the future) - should emit a soft glow indicating that it's interactable. It's hard to tell exactly what's openable.
+
+The in game player model gets updated based on what type of weapon or equipment is being held/worn/wielded.
+A big part of these games is the satisfaction of seeing your character wear the new armor or new weapon. The way the weapon is wielded depends on its type, e.g. an assault rife is held differently than a blaster pistol. Low level equipment is boring gunmetal gray, where as unique armor might be metallic red or green for example.
+
+If the player has an equipment slot not occupied, the game automatically equips the highest rarity item in inventory to that equipemnt slot (mostly applicable on item pickup)
+
 8. Enemies
 
 Implement three enemy archetypes:

@@ -342,6 +342,25 @@ func add_item(item: Dictionary) -> bool:
 	return true
 
 
+## Fills every empty equipment slot with the best inventory item that fits it
+## (highest rarity, then item level). Called on pickup. Returns what it equipped.
+func auto_equip() -> Array:
+	var equipped: Array = []
+	for slot in SLOTS:
+		if not equipment.get(slot, {}).is_empty():
+			continue
+		var best: Dictionary = {}
+		for it in inventory:
+			if not can_equip(it, slot):
+				continue
+			if best.is_empty() or int(it["rarity"]) > int(best["rarity"]) or (int(it["rarity"]) == int(best["rarity"]) and int(it["ilvl"]) > int(best["ilvl"])):
+				best = it
+		if not best.is_empty():
+			equip(best, slot)
+			equipped.append(best)
+	return equipped
+
+
 func can_equip(item: Dictionary, slot: String) -> bool:
 	return slot in item.get("slots", [item.get("slot", "")])
 
@@ -357,8 +376,8 @@ func best_slot_for(item: Dictionary) -> String:
 func equip(item: Dictionary, slot: String = "") -> void:
 	if slot == "":
 		slot = best_slot_for(item)
-	if not can_equip(item, slot):
-		return
+	if not can_equip(item, slot) or equipment.get(slot, {}) == item:
+		return   # (re-equipping the item already there would duplicate it)
 	var idx := inventory.find(item)
 	if idx >= 0:
 		inventory.remove_at(idx)

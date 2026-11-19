@@ -25,6 +25,7 @@ var reload_uid := {"primary": -1, "secondary": -1}
 var muzzle_t := 0.0
 var swing_t := 0.0
 var swing_dir := 0.0
+var offhand_t := 0.0     # off-hand (secondary) pistol drawn while it fires
 var roll_t := 0.0
 var roll_dir := Vector2.ZERO
 var invuln_t := 0.0
@@ -42,6 +43,7 @@ var _body_cone: PointLight2D
 var _last_hint_t := 0.0
 var aim_override: Variant = null
 var race := GameState.DEFAULT_RACE   # which RACE_LOOK to draw
+var gear_override: Variant = null    # slot -> item Dictionary for previews; null = GameState.equipment
 var input_grace := 0.0             # ignore actions briefly after a menu closes   # Vector2 to force aim (automated tests)
 
 
@@ -155,6 +157,7 @@ func _tick_timers(delta: float) -> void:
 				_finish_reload(s)
 	muzzle_t = maxf(0.0, muzzle_t - delta)
 	swing_t = maxf(0.0, swing_t - delta)
+	offhand_t = maxf(0.0, offhand_t - delta)
 	invuln_t = maxf(0.0, invuln_t - delta)
 	flash = maxf(0.0, flash - delta)
 	if overcharge_t > 0.0:
@@ -259,7 +262,13 @@ func _handle_actions() -> void:
 # ---------------------------------------------------------------- weapons
 
 func weapon(slot: String) -> Dictionary:
-	return GameState.equipment.get(slot, {})
+	return _equipment().get(slot, {})
+
+
+## Normally the character's real equipment; previews (screenshot lineups) can
+## give a puppet its own via `gear_override`.
+func _equipment() -> Dictionary:
+	return gear_override if gear_override != null else GameState.equipment
 
 
 func damage_mult(item: Dictionary) -> float:
@@ -333,6 +342,8 @@ func fire(slot: String) -> void:
 			return
 		GameState.energy -= cost
 	fire_cd[slot] = 1.0 / fire_rate(item)
+	if slot == "secondary" and mode != "melee":
+		offhand_t = 0.45
 	match mode:
 		"projectile":
 			_fire_projectile(item)
@@ -743,8 +754,8 @@ func _render_body() -> void:
 		# tucked into a combat roll
 		var f := 1.0 - roll_t / ROLL_TIME
 		cv.draw_set_transform(Vector2(0, -12), f * TAU * (1.0 if aim_dir.x >= 0.0 else -1.0), Vector2(0.75, 0.75))
-		cv.draw_circle(Vector2.ZERO, 12.0, _tint(C_ARMOR))
-		cv.draw_arc(Vector2.ZERO, 12.0, 0.0, PI, 10, _tint(C_RED), 5.0)
+		cv.draw_circle(Vector2.ZERO, 12.0, _tint(_body_col()))
+		cv.draw_arc(Vector2.ZERO, 12.0, 0.0, PI, 10, _tint(_body_col().lightened(0.2)), 5.0)
 		cv.draw_circle(Vector2(0, -6), 5.0, _tint(_look()["skin"]))
 		cv.draw_circle(Vector2(0, -6), 6.5, Color(0.55, 0.8, 0.95, 0.18))   # helmet glass
 		cv.draw_set_transform(Vector2.ZERO)
@@ -762,10 +773,54 @@ func _render_body() -> void:
 			cv.draw_rect(Rect2(-16, -64, 32 * rp, 4), Color(0.9, 0.75, 0.3))
 
 
-## A marine in heavy power armour with a glass helmet, drawn upright for the
-## isometric camera. The race (RACE_LOOK) sets body proportions, what shows
-## through the helmet glass, and extras such as wings, a tail or claws. `aim_dir` is in screen space here (see _render):
-## the body turns to face it (left/right, toward or away from the camera).
+# ---------------------------------------------------------------- gear look
+
+## Gear paint by rarity, matching the loot colours: Common is plain gunmetal,
+## Uncommon metallic green, Rare metallic gold, Experimental metallic violet
+## with glowing seams. Empty slots show the bare undersuit.
+const PAINT := [Color(0.21, 0.22, 0.23), Color(0.17, 0.34, 0.19), Color(0.52, 0.39, 0.12), Color(0.34, 0.15, 0.48)]
+const C_SUIT := Color(0.11, 0.11, 0.12)
+const C_LEATHER := Color(0.16, 0.12, 0.09)
+const C_WOOD := Color(0.36, 0.23, 0.13)
+const C_GUN := Color(0.3, 0.31, 0.33)          # weapon steel: lighter than the suit, so guns read
+const C_EXP_GLOW := Color(0.78, 0.45, 1.0)
+
+
+func _gear(slot: String) -> Dictionary:
+	return _equipment().get(slot, {})
+
+
+func _paint(item: Dictionary) -> Color:
+	return PAINT[clampi(int(item.get("rarity", 0)), 0, PAINT.size() - 1)]
+
+
+## Body armour colour (or the undersuit when no body armour is worn).
+func _body_col() -> Color:
+	var b := _gear("body")
+	return C_SUIT if b.is_empty() else _paint(b)
+
+
+## Bright streak along an edge of painted metal; plain gunmetal gets none.
+func _sheen(a: Vector2, b: Vector2, item: Dictionary) -> void:
+	if item.is_empty():
+		return
+	var r := int(item.get("rarity", 0))
+	if r > 0:
+		cv.draw_line(a, b, Color(1, 1, 1, 0.3 + 0.1 * r), 1.0)
+
+
+## Pulsing violet seam on Experimental gear.
+func _exp_seam(a: Vector2, b: Vector2, item: Dictionary) -> void:
+	if not item.is_empty() and int(item.get("rarity", 0)) >= ItemDB.RARITY_EXPERIMENTAL:
+		var k := 0.55 + 0.45 * sin(Time.get_ticks_msec() * 0.005)
+		cv.draw_line(a, b, Color(C_EXP_GLOW.r, C_EXP_GLOW.g, C_EXP_GLOW.b, 0.5 + 0.4 * k), 1.3)
+
+
+## The operative, drawn upright for the isometric camera. The race (RACE_LOOK)
+## sets proportions and what shows through the helmet glass; every equipment
+## slot shows on the body (helmet, armour, gloves, boots, utility gear), painted
+## by rarity; the weapon in hand sets the stance. `aim_dir` is in screen space
+## here (see _render): the body turns to face it.
 func _draw_marine() -> void:
 	var d := aim_dir
 	var fx := 1.0 if d.x >= 0.0 else -1.0
@@ -774,45 +829,66 @@ func _draw_marine() -> void:
 	var bob := absf(stride) * 1.2
 	var breathe := sin(Time.get_ticks_msec() * 0.003) * 0.6 if not moving else 0.0
 	var up := Vector2(0, -bob + breathe)
+	var body := _gear("body")
+	var armored := not body.is_empty()
+	var heavy := String(body.get("base", "")) == "plate_cuirass"
+	var bcol := _body_col()
+	var bsh := bcol.darkened(0.4)
+	var bhi := bcol.lightened(0.25)
+	var util := String(_gear("utility").get("base", ""))
 
 	if race == "zessk" and not away:
 		_draw_tail(fx, up)
 	if race == "nyxari" and not away:
 		_draw_wings(up, false)
 
-	# legs: armoured greaves, knee guards, heavy boots
+	# legs: undersuit, armoured thigh plates and knee guards with body armour, boots
 	for side in [-1.0, 1.0]:
 		var sw: float = stride * 5.0 * side
 		var hip := Vector2(side * 5.5, -20) + up
 		var foot := Vector2(side * 6.0 + sw * fx * 0.7, -1.0 - maxf(0.0, sw) * 0.5)
 		var knee := hip.lerp(foot, 0.5) + Vector2(fx * 1.5, 0)
-		var shade := C_ARMOR if side * fx < 0.0 else C_ARMOR_SH
-		Shade.limb(cv, hip, knee, 8.0, _tint(shade))
-		Shade.limb(cv, knee, foot + Vector2(0, -3), 7.0, _tint(shade))
-		cv.draw_rect(Rect2(knee + Vector2(-3.5, -2.5), Vector2(7, 5)), _tint(C_ARMOR_HI.darkened(0.25)))
-		Shade.poly(cv, PackedVector2Array([foot + Vector2(-4.5, -5), foot + Vector2(4.5, -5), foot + Vector2(4.5 + fx * 3.0, 1), foot + Vector2(-4.5, 1)]), _tint(C_METAL.lightened(0.08)))
+		var near_leg: bool = side * fx < 0.0
+		var leg := C_SUIT.lightened(0.07) if near_leg else C_SUIT
+		Shade.limb(cv, hip, knee, 7.0, _tint(leg))
+		Shade.limb(cv, knee, foot + Vector2(0, -3), 6.5, _tint(leg))
+		if armored:
+			Shade.limb(cv, hip, hip.lerp(knee, 0.75), 8.5 if heavy else 7.8, _tint(bcol if near_leg else bsh))
+			cv.draw_rect(Rect2(knee + Vector2(-3.5, -2.5), Vector2(7, 5)), _tint(bhi.darkened(0.25)))
+		_draw_boot(foot, fx, near_leg)
 
 	if race == "zessk" and away:
 		_draw_tail(fx, up)
 	if away:
 		_draw_arms_and_weapon(d, fx, up)
 
-	# hip armour, belt and tabard
-	Shade.poly(cv, _shift(up) * PackedVector2Array([Vector2(-10, -26), Vector2(10, -26), Vector2(11, -18), Vector2(-11, -18)]), _tint(C_ARMOR_SH.lightened(0.1)))
+	# hips and belt; heavy plate adds a cloth tabard
+	Shade.poly(cv, _shift(up) * PackedVector2Array([Vector2(-10, -26), Vector2(10, -26), Vector2(11, -18), Vector2(-11, -18)]), _tint((bsh if armored else C_SUIT).lightened(0.1)))
 	cv.draw_rect(Rect2(Vector2(-10, -26) + up, Vector2(20, 4)), _tint(C_METAL))
 	cv.draw_rect(Rect2(Vector2(-2.5, -26) + up, Vector2(5, 4)), _tint(C_TRIM))
-	if not away:
+	if heavy and not away:
 		Shade.poly(cv, _shift(up) * PackedVector2Array([Vector2(-4, -22), Vector2(4, -22), Vector2(3, -9), Vector2(0, -7), Vector2(-3, -9)]), _tint(C_RED))
+	if util == "injector":
+		var vial := Vector2(fx * 7.5, -24) + up
+		cv.draw_rect(Rect2(vial + Vector2(-1.5, -3), Vector2(3, 6)), _tint(C_METAL.lightened(0.2)))
+		cv.draw_rect(Rect2(vial + Vector2(-1.0, -2), Vector2(2, 4)), Color(0.35, 0.95, 0.45, 0.9))
 
-	# power pack: peeks over the shoulders from the front, dominates from behind
+	# life-support pack (part of the suit): peeks over the shoulders from the front
 	if not away:
 		cv.draw_rect(Rect2(Vector2(-12, -53) + up, Vector2(24, 9)), _tint(C_METAL))
 		for ex in [-8.0, 5.0]:
 			cv.draw_rect(Rect2(Vector2(ex, -58) + up, Vector2(3, 6)), _tint(C_ARMOR_HI))
+		if util == "capacitor":
+			cv.draw_circle(Vector2(-fx * 9, -55) + up, 2.2, Color(0.4, 0.75, 1.0, 0.8))
 
-	# torso: broad, barrel-chested power armour
-	var chest := _shift(up) * PackedVector2Array([Vector2(-9, -26), Vector2(9, -26), Vector2(13, -38), Vector2(12, -45), Vector2(-12, -45), Vector2(-13, -38)])
-	Shade.poly(cv, chest, _tint(C_ARMOR))
+	# torso: armour plates over the undersuit
+	if armored:
+		var wv := 2.0 if heavy else 0.0
+		var chest := _shift(up) * PackedVector2Array([Vector2(-9 - wv * 0.5, -26), Vector2(9 + wv * 0.5, -26), Vector2(13 + wv, -38), Vector2(12 + wv, -45), Vector2(-12 - wv, -45), Vector2(-13 - wv, -38)])
+		Shade.poly(cv, chest, _tint(bcol))
+		_sheen(Vector2(-11 - wv, -44) + up, Vector2(-2, -44) + up, body)
+	else:
+		Shade.poly(cv, _shift(up) * PackedVector2Array([Vector2(-8, -26), Vector2(8, -26), Vector2(10, -38), Vector2(9.5, -45), Vector2(-9.5, -45), Vector2(-10, -38)]), _tint(C_SUIT.lightened(0.04)))
 	if away:
 		var pack := Rect2(Vector2(-10, -50) + up, Vector2(20, 22))
 		Shade.rect(cv, pack, _tint(C_METAL.lightened(0.06)))
@@ -821,126 +897,306 @@ func _draw_marine() -> void:
 		for ex in [-8.0, 5.0]:
 			cv.draw_rect(Rect2(Vector2(ex, -56) + up, Vector2(3, 7)), _tint(C_ARMOR_HI))
 			cv.draw_circle(Vector2(ex + 1.5, -57) + up, 1.5, Color(0.9, 0.35, 0.1, 0.8))
+		if util == "capacitor":
+			cv.draw_rect(Rect2(Vector2(-3, -48) + up, Vector2(6, 14)), Color(0.4, 0.75, 1.0, 0.75 + 0.2 * sin(Time.get_ticks_msec() * 0.006)))
 		if race == "nyxari":
 			_draw_wings(up, true)
 	else:
-		# moulded pectoral plates, brass trim and a life-support panel
-		cv.draw_line(Vector2(-9, -36) + up, Vector2(-1, -33) + up, _tint(C_ARMOR_HI), 1.5)
-		cv.draw_line(Vector2(9, -36) + up, Vector2(1, -33) + up, _tint(C_ARMOR_HI), 1.5)
-		cv.draw_line(Vector2(-10, -42) + up, Vector2(10, -42) + up, _tint(C_TRIM), 1.5)
+		if armored:
+			# moulded pectoral plates and trim; flak is quilted, plate is smooth
+			cv.draw_line(Vector2(-9, -36) + up, Vector2(-1, -33) + up, _tint(bhi), 1.5)
+			cv.draw_line(Vector2(9, -36) + up, Vector2(1, -33) + up, _tint(bhi), 1.5)
+			cv.draw_line(Vector2(-10, -42) + up, Vector2(10, -42) + up, _tint(C_TRIM), 1.5)
+			if not heavy:
+				for i in 2:
+					cv.draw_line(Vector2(-8, -31 + i * 3) + up, Vector2(8, -31 + i * 3) + up, _tint(bsh), 1.0)
+			_exp_seam(Vector2(-8, -29) + up, Vector2(8, -29) + up, body)
+		# life-support panel and the hose to the helmet collar (always: they're the suit)
 		cv.draw_rect(Rect2(Vector2(-4, -40) + up, Vector2(8, 5)), _tint(C_METAL))
 		var blink := 0.6 + 0.4 * sin(Time.get_ticks_msec() * 0.004)
 		cv.draw_circle(Vector2(-1.8, -37.5) + up, 0.9, Color(C_GLOW.r, C_GLOW.g, C_GLOW.b, blink))
 		cv.draw_circle(Vector2(1.8, -37.5) + up, 0.9, Color(0.4, 1.0, 0.45, 0.85))
-		# hose from the pack to the helmet collar
 		cv.draw_line(Vector2(-6 * fx, -44) + up, Vector2(-7 * fx, -30) + up, _tint(C_METAL.lightened(0.1)), 2.0)
 
-	_draw_head(fx, up, away)
+	var dome: Array = _draw_head(fx, up, away)
+	_draw_helmet_gear(dome[0], dome[1], fx, away)
 
-	# massive pauldrons in chapter crimson with brass rims
+	# shoulders: pauldrons sized by the armour, or plain undersuit shoulders
 	for side in [-1.0, 1.0]:
 		var near: bool = side * fx > 0.0
-		var pc := Vector2(side * 14.0, -43) + up
-		var col := C_RED if near or not away else C_RED_SH
+		if not armored:
+			Shade.ball(cv, Vector2(side * 10.5, -43) + up, 4.5, _tint(C_SUIT.lightened(0.06)))
+			continue
+		var prx := 10.5 if heavy else 7.5
+		var pry := 8.0 if heavy else 5.5
+		var pc := Vector2(side * (14.5 if heavy else 12.5), -43) + up
+		var col := bcol if near or not away else bsh
 		var pts := PackedVector2Array()
 		for i in 11:
 			var a := PI + PI * float(i) / 10.0
-			pts.append(pc + Vector2(cos(a) * 9.0, sin(a) * 7.0))
-		pts.append(pc + Vector2(8, 5))
-		pts.append(pc + Vector2(-8, 5))
+			pts.append(pc + Vector2(cos(a) * prx, sin(a) * pry))
+		pts.append(pc + Vector2(prx - 1.0, 5))
+		pts.append(pc + Vector2(-prx + 1.0, 5))
 		Shade.poly(cv, pts, _tint(col))
-		cv.draw_polyline(pts.slice(0, 11), _tint(C_TRIM.darkened(0.15)), 1.0)   # worn brass rim
+		cv.draw_polyline(pts.slice(0, 11), _tint((C_TRIM if heavy else bhi).darkened(0.15)), 1.0)
+		if near:
+			_sheen(pc + Vector2(-prx * 0.7, -pry * 0.75), pc + Vector2(0, -pry), body)
+			_exp_seam(pc + Vector2(-prx * 0.6, 1), pc + Vector2(prx * 0.6, 1), body)
 		if not away and near:
 			# unit chevron stencilled on the near pauldron
 			cv.draw_polyline(PackedVector2Array([pc + Vector2(-3, -3), pc + Vector2(0, 0), pc + Vector2(3, -3)]), _tint(Color(0.75, 0.72, 0.62)), 1.2)
+	if util == "auspex":
+		var sc := Vector2(fx * (15.0 if heavy else 12.5), -51) + up   # shoulder-mounted scanner
+		cv.draw_rect(Rect2(sc + Vector2(-2.5, -2), Vector2(5, 4)), _tint(C_METAL.lightened(0.15)))
+		var on := fmod(Time.get_ticks_msec() * 0.001, 1.2) < 0.15
+		cv.draw_circle(sc + Vector2(fx * 2.0, 0), 1.0, Color(1.0, 0.2, 0.1) if on else Color(0.4, 0.08, 0.05))
 
 	if not away:
 		_draw_arms_and_weapon(d, fx, up)
+	if util == "refractor":
+		var k := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.003)
+		cv.draw_polyline(_ellipse(Vector2(0, -32) + up, 18.0, 33.0, 28) + PackedVector2Array([Vector2(18, -32) + up]), Color(0.5, 0.85, 1.0, 0.08 + 0.08 * k), 1.5)
+
+
+## Boots by type: Mag-Treads are heavy with a glowing mag strip, Skitter Boots
+## are slim with a stripe; no boots leaves the plain suit feet.
+func _draw_boot(foot: Vector2, fx: float, near: bool) -> void:
+	var boots := _gear("boots")
+	if boots.is_empty():
+		Shade.poly(cv, PackedVector2Array([foot + Vector2(-3.8, -4), foot + Vector2(3.8, -4), foot + Vector2(3.8 + fx * 2.5, 1), foot + Vector2(-3.8, 1)]), _tint(C_SUIT.lightened(0.05)))
+		return
+	var col := _paint(boots)
+	if not near:
+		col = col.darkened(0.25)
+	if String(boots.get("base", "")) == "runner_boots":
+		Shade.poly(cv, PackedVector2Array([foot + Vector2(-3.8, -5), foot + Vector2(3.8, -5), foot + Vector2(3.8 + fx * 3.0, 1), foot + Vector2(-3.8, 1)]), _tint(col))
+		cv.draw_line(foot + Vector2(-3, -2), foot + Vector2(3 + fx * 1.5, -2), _tint(col.lightened(0.35)), 1.0)
+	else:
+		Shade.poly(cv, PackedVector2Array([foot + Vector2(-4.8, -6), foot + Vector2(4.8, -6), foot + Vector2(4.8 + fx * 3.2, 1), foot + Vector2(-4.8, 1)]), _tint(col))
+		cv.draw_line(foot + Vector2(-5, 1), foot + Vector2(5 + fx * 3.0, 1), _tint(C_METAL), 2.5)
+		cv.draw_line(foot + Vector2(-3.5, -0.5), foot + Vector2(3.5, -0.5), Color(C_GLOW.r, C_GLOW.g, C_GLOW.b, 0.7), 1.0)
+	_sheen(foot + Vector2(-3.5, -5), foot + Vector2(2, -5), boots)
+
+
+## Helmet gear over the glass dome: a Visored Sallet covers the dome with an
+## armoured shell and leaves a visor band; a Rebreather adds a mask and filters.
+func _draw_helmet_gear(dome: Vector2, dome_r: float, fx: float, away: bool) -> void:
+	var item := _gear("head")
+	if item.is_empty():
+		return
+	var col := _tint(_paint(item))
+	if String(item.get("base", "")) == "sallet_helm":
+		var shell := PackedVector2Array()
+		var a0 := PI - 0.5 if away else PI + 0.22
+		var a1 := TAU + 0.5 if away else TAU - 0.22
+		for i in 13:
+			var a := lerpf(a0, a1, float(i) / 12.0)
+			shell.append(dome + Vector2(cos(a), sin(a)) * (dome_r + 0.9))
+		Shade.poly(cv, shell, col)
+		cv.draw_line(dome + Vector2(0, -dome_r - 0.9), dome + Vector2(0, -dome_r * 0.35), col.lightened(0.25), 1.2)   # crest ridge
+		if not away:
+			var chin := PackedVector2Array()
+			for i in 9:
+				var a := lerpf(0.45, PI - 0.45, float(i) / 8.0)
+				chin.append(dome + Vector2(cos(a), sin(a)) * (dome_r + 0.6))
+			Shade.poly(cv, chin, col.darkened(0.15))
+		_sheen(dome + Vector2(-dome_r * 0.8, -dome_r * 0.55), dome + Vector2(-dome_r * 0.1, -dome_r * 0.98), item)
+		_exp_seam(dome + Vector2(-dome_r * 0.9, -dome_r * 0.3), dome + Vector2(dome_r * 0.9, -dome_r * 0.3), item)
+	else:
+		if not away:
+			var mask := dome + Vector2(fx * 1.8, dome_r * 0.45)
+			Shade.poly(cv, _ellipse(mask, 3.4, 2.4, 12), col)
+			Shade.ball(cv, mask + Vector2(fx * 3.4, 1.0), 1.7, col.lightened(0.15))      # filter canister
+			Shade.ball(cv, mask + Vector2(-fx * 2.8, 1.2), 1.3, col.darkened(0.2))
+			for i in 2:
+				cv.draw_line(mask + Vector2(-1.6, -0.6 + i * 1.2), mask + Vector2(1.6, -0.6 + i * 1.2), col.darkened(0.45), 0.8)
+			cv.draw_line(mask + Vector2(-fx * 1.5, 1.5), dome + Vector2(-fx * 2.5, dome_r + 2.5), _tint(C_METAL.lightened(0.15)), 1.3)
+		cv.draw_arc(dome, dome_r + 0.6, 0.35, PI - 0.35, 10, col, 2.0)   # sealed collar band
+		_exp_seam(dome + Vector2(-dome_r * 0.7, dome_r * 0.75), dome + Vector2(dome_r * 0.7, dome_r * 0.75), item)
 
 
 static func _shift(o: Vector2) -> Transform2D:
 	return Transform2D(0.0, o)
 
 
-## Both arms hold the current primary weapon at chest height, pointed along
-## the screen-space aim; the off-hand melee weapon hangs at the hip until swung.
+## Weapon stance by type: the assault rifle is shouldered with both hands, the
+## shotgun is held lower at the hip and pumps after each shot, the energy pistol
+## is held out one-handed. A melee secondary hangs at the hip until swung; an
+## energy-pistol secondary sits in a hip holster and is drawn in the off hand
+## while firing.
 func _draw_arms_and_weapon(d: Vector2, fx: float, up: Vector2) -> void:
 	var prim := weapon("primary")
-	var t := "rifle"
-	if not prim.is_empty():
-		t = String(prim["weapon"]["type"])
-	var grip := Vector2(fx * 3.0, -33) + up + d * 4.0
-	var length := {"rifle": 30.0, "shotgun": 28.0, "energy": 18.0}.get(t, 28.0) as float
-	var muzzle := grip + d * length
-	var stock := grip - d * 8.0
-	var down := Vector2(0, 1)
-	# weapon
-	match t:
-		"shotgun":
-			cv.draw_line(stock, grip, _tint(Color(0.32, 0.2, 0.11)), 6.0)
-			cv.draw_line(grip, muzzle, _tint(C_METAL), 5.0)
-			cv.draw_line(grip + d * 9.0 + down * 3.0, grip + d * 18.0 + down * 3.0, _tint(Color(0.32, 0.2, 0.11)), 4.0)
-		"energy":
-			cv.draw_line(grip - d * 2.0, muzzle, _tint(C_ARMOR_HI), 5.0)
-			cv.draw_line(grip + d * 3.0, grip + d * 11.0, Color(0.3, 0.7, 1.0, 0.95), 2.5)
-			cv.draw_circle(muzzle, 2.5, Color(0.5, 0.85, 1.0))
-		_:
-			cv.draw_line(stock, grip, _tint(C_METAL), 5.0)
-			cv.draw_line(grip, muzzle, _tint(C_METAL), 4.5)
-			cv.draw_line(grip + d * 4.0, grip + d * 13.0, _tint(C_ARMOR_HI), 6.0)        # receiver
-			cv.draw_line(grip + d * 8.0, grip + d * 8.0 + down * 6.0, _tint(C_METAL), 3.5)  # magazine
-	# arms: rear arm to the trigger grip, lead arm to the foregrip
+	var t := "" if prim.is_empty() else String(prim["weapon"]["type"])
+	var sec := weapon("secondary")
+	var st := "" if sec.is_empty() else String(sec["weapon"]["type"])
+	var arm := _body_col()
 	var sh_rear := Vector2(-fx * 11.0, -41) + up
 	var sh_lead := Vector2(fx * 11.0, -41) + up
-	var fore := grip + d * length * 0.55
-	for pair in [[sh_rear, grip], [sh_lead, fore]]:
-		var s0: Vector2 = pair[0]
-		var h: Vector2 = pair[1]
-		var elbow := s0.lerp(h, 0.5) + Vector2(0, 5)
-		Shade.limb(cv, s0, elbow, 6.5, _tint(C_ARMOR))
-		Shade.limb(cv, elbow, h, 6.0, _tint(C_ARMOR))
-		Shade.ball(cv, h, 3.4, _tint(C_ARMOR_HI))   # gauntlet
-		if race == "ursathi":
-			for k in [-0.5, 0.0, 0.5]:
-				var cd := d.rotated(k)
-				cv.draw_line(h + cd * 2.5, h + cd * 6.0, Color(0.85, 0.8, 0.68), 1.2)   # claws through the glove tips
-	if muzzle_t > 0.0:
-		var mc := Color(1.0, 0.85, 0.4) if t != "energy" else Color(0.6, 0.9, 1.0)
+	var down := Vector2(0, 1)
+	var rear_hand: Vector2
+	var lead_hand: Vector2
+	var grip := Vector2.ZERO
+	var muzzle := Vector2.ZERO
+	var pump := 0.0
+	match t:
+		"rifle":
+			grip = Vector2(fx * 3.0, -33) + up + d * 4.0
+			muzzle = grip + d * 30.0
+			rear_hand = grip
+			lead_hand = grip + d * 16.5
+		"shotgun":
+			grip = Vector2(fx * 4.0, -29) + up + d * 3.0
+			muzzle = grip + d * 28.0
+			pump = _pump_offset(prim)
+			rear_hand = grip
+			lead_hand = grip + d * (13.5 - pump) + down * 3.0
+		"energy":
+			grip = sh_lead + d * 15.0 + down * 1.5
+			muzzle = grip + d * 11.0
+			lead_hand = grip
+			rear_hand = Vector2(-fx * 9.5, -27) + up    # off arm relaxed at the side
+		_:
+			lead_hand = sh_lead + d * 8.0 + down * 7.0  # empty-handed, fists up
+			rear_hand = Vector2(-fx * 9.0, -28) + up
+	# the off-hand pistol is drawn in the rear hand while it fires
+	var offhand_gun := st == "energy" and offhand_t > 0.0
+	if offhand_gun:
+		rear_hand = sh_rear + d * 14.0 + down * 1.0
+	# arms, then the guns over the forearms, then the hands gripping them
+	_draw_arm(sh_rear, rear_hand, arm)
+	_draw_arm(sh_lead, lead_hand, arm)
+	match t:
+		"rifle":
+			_draw_rifle(grip, d, muzzle, prim)
+		"shotgun":
+			_draw_shotgun(grip, d, muzzle, pump, prim)
+		"energy":
+			_draw_pistol(grip, d, prim)
+	if offhand_gun:
+		_draw_pistol(rear_hand, d, sec)
+	_draw_hand(rear_hand, d)
+	_draw_hand(lead_hand, d)
+	if muzzle_t > 0.0 and t != "":
+		var at := rear_hand + d * 11.0 if offhand_gun else muzzle
+		var energy := t == "energy" or offhand_gun
+		var mc := Color(0.6, 0.9, 1.0) if energy else Color(1.0, 0.85, 0.4)
 		var n := Vector2(-d.y, d.x)
-		cv.draw_colored_polygon(PackedVector2Array([muzzle + n * 5.0, muzzle + d * 14.0, muzzle - n * 5.0, muzzle + d * 4.0]), mc)
-		cv.draw_circle(muzzle, 4.0, Color(1, 1, 0.9))
-	# off-hand melee weapon
-	var sec := weapon("secondary")
-	if not sec.is_empty() and String(sec["weapon"]["type"]) == "melee":
-		var is_maul := String(sec["weapon"].get("status", "")) == "stun"
-		var hilt: Vector2
-		var tip: Vector2
-		if swing_t > 0.0:
-			var k := 1.0 - swing_t / 0.18
-			var ang := d.angle() + lerpf(-1.5, 1.5, k) * fx
-			hilt = sh_lead + Vector2.from_angle(ang) * 10.0
-			tip = hilt + Vector2.from_angle(ang) * 24.0
-			cv.draw_line(sh_lead, hilt, _tint(C_ARMOR), 6.0)
-		else:
-			hilt = Vector2(-fx * 11.0, -24) + up
-			tip = hilt + Vector2(-fx * 4.0, 16.0)
-		cv.draw_line(hilt, tip, _tint(C_METAL), 3.5)
-		if is_maul:
-			cv.draw_circle(tip, 5.0, _tint(C_ARMOR_HI))
-			cv.draw_circle(tip, 2.5, Color(0.5, 0.8, 1.0, 0.9))
-		else:
-			cv.draw_line(hilt.lerp(tip, 0.3), tip, Color(0.75, 0.72, 0.65), 4.0)
-			cv.draw_line(hilt.lerp(tip, 0.3), tip, C_RED, 1.0)
+		cv.draw_colored_polygon(PackedVector2Array([at + n * 5.0, at + d * 14.0, at - n * 5.0, at + d * 4.0]), mc)
+		cv.draw_circle(at, 4.0, Color(1, 1, 0.9))
+	# secondary weapon
+	if st == "melee":
+		_draw_melee(sec, d, fx, up, sh_lead, arm)
+	elif st == "energy" and not offhand_gun:
+		var hol := Vector2(-fx * 10.0, -22) + up    # holstered on the hip
+		cv.draw_line(hol, hol + Vector2(-fx * 1.5, 7), _tint(C_LEATHER), 4.0)
+		cv.draw_line(hol + Vector2(0, -1), hol + Vector2(fx * 2.5, -2), _tint(_paint(sec)), 3.0)
+
+
+func _draw_arm(s0: Vector2, h: Vector2, col: Color) -> void:
+	var elbow := s0.lerp(h, 0.5) + Vector2(0, 5)
+	Shade.limb(cv, s0, elbow, 6.5, _tint(col))
+	Shade.limb(cv, elbow, h, 6.0, _tint(col))
+
+
+## Hands by glove type: Ceramite Gauntlets are big and plated, Marksman Grips
+## are slim leather with a painted cuff, no gloves leaves the suit's thin glove.
+func _draw_hand(h: Vector2, d: Vector2) -> void:
+	var g := _gear("gloves")
+	if g.is_empty():
+		Shade.ball(cv, h, 2.6, _tint(C_SUIT.lightened(0.12)))
+	elif String(g.get("base", "")) == "grip_gloves":
+		cv.draw_circle(h - d * 2.4, 2.4, _tint(_paint(g)))   # cuff
+		Shade.ball(cv, h, 2.9, _tint(C_LEATHER))
+	else:
+		Shade.ball(cv, h, 4.0, _tint(_paint(g)))
+		var o := d.orthogonal() * 2.2
+		cv.draw_line(h + o + d * 1.6, h - o + d * 1.6, _tint(_paint(g).lightened(0.3)), 1.0)   # knuckle plate
+		_sheen(h + Vector2(-2.5, -1.5), h + Vector2(0, -3.2), g)
+	if race == "ursathi":
+		for k in [-0.5, 0.0, 0.5]:
+			var cd := d.rotated(k)
+			cv.draw_line(h + cd * 2.5, h + cd * 6.0, Color(0.85, 0.8, 0.68), 1.2)   # claws through the glove tips
+
+
+func _draw_rifle(grip: Vector2, d: Vector2, muzzle: Vector2, item: Dictionary) -> void:
+	var paint := _tint(_paint(item).lightened(0.12))
+	var down := Vector2(0, 1)
+	cv.draw_line(grip - d * 8.0, grip, paint.darkened(0.25), 5.0)                    # stock
+	cv.draw_line(grip, muzzle, _tint(C_GUN), 3.5)                                  # barrel
+	cv.draw_line(grip + d * 3.0, grip + d * 14.0, paint, 6.0)                         # receiver
+	cv.draw_line(grip + d * 8.0, grip + d * 8.0 + down * 6.0, _tint(C_GUN), 3.5)    # magazine
+	cv.draw_line(grip + d * 6.0 + Vector2(0, -3.2), grip + d * 11.0 + Vector2(0, -3.2), _tint(C_GUN.lightened(0.15)), 1.8)   # sight rail
+	_sheen(grip + d * 3.5 + Vector2(0, -2.2), grip + d * 13.0 + Vector2(0, -2.2), item)
+	_exp_seam(grip + d * 4.0, grip + d * 13.0, item)
+
+
+## Pump stroke after each shotgun blast: back, then home.
+func _pump_offset(item: Dictionary) -> float:
+	var since := 1.0 / maxf(0.1, fire_rate(item)) - float(fire_cd["primary"])
+	if since > 0.12 and since < 0.42 and float(fire_cd["primary"]) > 0.0:
+		return 5.0 * sin(PI * (since - 0.12) / 0.3)
+	return 0.0
+
+
+func _draw_shotgun(grip: Vector2, d: Vector2, muzzle: Vector2, pump: float, item: Dictionary) -> void:
+	var paint := _tint(_paint(item).lightened(0.12))
+	var down := Vector2(0, 1)
+	cv.draw_line(grip - d * 7.0 + Vector2(0, -1.5), grip, _tint(C_WOOD), 6.0)        # stock, tucked under the arm
+	cv.draw_line(grip, grip + d * 9.0, paint, 5.5)                                   # receiver
+	cv.draw_line(grip + d * 8.0, muzzle, _tint(C_GUN), 4.5)                        # barrel
+	cv.draw_line(grip + d * 8.0 + down * 2.5, muzzle - d * 3.0 + down * 2.5, _tint(C_GUN.darkened(0.2)), 2.5)   # tube magazine
+	cv.draw_line(grip + d * (10.0 - pump) + down * 3.0, grip + d * (17.0 - pump) + down * 3.0, _tint(C_WOOD.lightened(0.1)), 4.5)   # pump
+	_sheen(grip + d * 0.5 + Vector2(0, -2.2), grip + d * 8.5 + Vector2(0, -2.2), item)
+	_exp_seam(grip + d * 1.0, grip + d * 8.0, item)
+
+
+func _draw_pistol(grip: Vector2, d: Vector2, item: Dictionary) -> void:
+	var paint := _tint(_paint(item).lightened(0.1))
+	cv.draw_line(grip + Vector2(0, 0.5), grip + Vector2(0, 4.5) - d * 1.5, _tint(C_GUN), 3.0)   # handle
+	cv.draw_line(grip - d * 2.0, grip + d * 9.0, paint, 4.5)                                       # body
+	var k := 0.75 + 0.25 * sin(Time.get_ticks_msec() * 0.008)
+	cv.draw_line(grip + d * 2.0, grip + d * 7.0, Color(0.3, 0.7, 1.0, 0.95 * k), 2.0)              # charge coil
+	cv.draw_circle(grip + d * 10.0, 2.0, Color(0.5, 0.85, 1.0))                                    # emitter
+	_sheen(grip - d * 1.5 + Vector2(0, -1.8), grip + d * 8.0 + Vector2(0, -1.8), item)
+	_exp_seam(grip - d * 1.0, grip + d * 8.0, item)
+
+
+## Off-hand melee weapon: hangs at the hip, swung from the lead shoulder.
+func _draw_melee(sec: Dictionary, d: Vector2, fx: float, up: Vector2, sh_lead: Vector2, arm: Color) -> void:
+	var is_maul := String(sec.get("base", "")) == "power_maul" or String(sec["weapon"].get("status", "")) == "stun"
+	var hilt: Vector2
+	var tip: Vector2
+	if swing_t > 0.0:
+		var k := 1.0 - swing_t / 0.18
+		var ang := d.angle() + lerpf(-1.5, 1.5, k) * fx
+		hilt = sh_lead + Vector2.from_angle(ang) * 10.0
+		tip = hilt + Vector2.from_angle(ang) * 24.0
+		cv.draw_line(sh_lead, hilt, _tint(arm), 6.0)
+	else:
+		hilt = Vector2(-fx * 11.0, -24) + up
+		tip = hilt + Vector2(-fx * 4.0, 16.0)
+	var paint := _tint(_paint(sec))
+	cv.draw_line(hilt, tip, _tint(C_METAL), 3.5)
+	if is_maul:
+		Shade.ball(cv, tip, 5.0, paint.lightened(0.15))
+		cv.draw_circle(tip, 2.5, Color(0.5, 0.8, 1.0, 0.9))
+	else:
+		cv.draw_line(hilt.lerp(tip, 0.3), tip, Color(0.75, 0.72, 0.65), 4.0)
+		cv.draw_line(hilt.lerp(tip, 0.3), tip, C_RED, 1.0)
+		cv.draw_line(hilt, hilt.lerp(tip, 0.3), paint, 4.0)   # motor housing
+	_exp_seam(hilt.lerp(tip, 0.3), tip, sec)
 
 
 func _draw_corpse() -> void:
 	var t := minf(death_t / 0.5, 1.0)
 	cv.draw_set_transform(Vector2(0, -4), PI * 0.5 * t * (1.0 if cos(facing) >= 0.0 else -1.0), Vector2(1, 1))
-	cv.draw_rect(Rect2(-6, -22, 13, 20), C_ARMOR)                 # torso
-	cv.draw_rect(Rect2(-5, -2, 5, 14), C_ARMOR_SH)               # legs
-	cv.draw_rect(Rect2(1, -2, 5, 14), C_ARMOR_SH)
-	cv.draw_circle(Vector2(-9, -20), 6.0, C_RED)                  # pauldrons
-	cv.draw_circle(Vector2(10, -20), 6.0, C_RED)
+	var bc := _body_col()
+	cv.draw_rect(Rect2(-6, -22, 13, 20), bc)                      # torso
+	cv.draw_rect(Rect2(-5, -2, 5, 14), C_SUIT)                    # legs
+	cv.draw_rect(Rect2(1, -2, 5, 14), C_SUIT)
+	if not _gear("body").is_empty():
+		cv.draw_circle(Vector2(-9, -20), 6.0, bc.darkened(0.15))  # pauldrons
+		cv.draw_circle(Vector2(10, -20), 6.0, bc.darkened(0.15))
 	cv.draw_circle(Vector2(0, -27), 5.0, _look()["skin_sh"])     # head
 	cv.draw_circle(Vector2(0, -27), 7.0, Color(0.55, 0.8, 0.95, 0.15))   # cracked helmet glass
 	cv.draw_line(Vector2(-3, -31), Vector2(2, -25), Color(0.85, 0.95, 1.0, 0.5), 1.0)
@@ -961,7 +1217,7 @@ static func _ellipse(c: Vector2, rx: float, ry: float, n: int = 16) -> PackedVec
 
 ## Head under a glass helmet: collar, the inside of the dome, the race's head,
 ## then the glass on top (tint, rim, glint).
-func _draw_head(fx: float, up: Vector2, away: bool) -> void:
+func _draw_head(fx: float, up: Vector2, away: bool) -> Array:
 	var lk := _look()
 	var r: float = lk["head_r"]
 	var skin: Color = _tint(lk["skin"])
@@ -1059,6 +1315,7 @@ func _draw_head(fx: float, up: Vector2, away: bool) -> void:
 	if not away:
 		cv.draw_arc(dome, dome_r - 1.8, PI * 1.08, PI * 1.42, 8, Color(1, 1, 1, 0.5), 1.3)
 		cv.draw_circle(dome + Vector2(dome_r * 0.35, -dome_r * 0.55), 0.8, Color(1, 1, 1, 0.55))
+	return [dome, dome_r]
 
 
 ## Nyxari wings, folded and rising behind the shoulders. `front` = drawn over

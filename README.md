@@ -2,12 +2,12 @@
 
 Grimdark sci-fi action RPG (Godot 4.5, GDScript, 2D isometric in the style of Diablo II). Built from `claude-requirements.md`.
 
-All art is drawn procedurally in code (`_draw()`), so the project has no image assets and needs no import step.
+All art is drawn procedurally in code (`_draw()`), so there are no image assets. All audio is synthesised into WAV files (see [Sound](#sound)), which Godot has to import once before the game can play them.
 
 ## Run
 
 ```bash
-godot --path . --headless --import   # import assets (first run / after changes)
+godot --path . --headless --import   # import assets (first run, after pulling, after adding audio or classes)
 godot --path .                       # play
 godot -e --path .                    # open in the editor
 ```
@@ -32,6 +32,24 @@ Target is 1280x800 (Steam Deck) at 60 FPS with the GL Compatibility renderer.
 | Menus: move / select / back | Arrows / Enter / Esc | D-pad or left stick / A (PS Cross) / B (PS Circle) |
 
 Movement is screen-relative: W moves up the screen, and diagonals follow the isometric grid, so they run along corridors.
+
+## Character and gear
+
+- **New Game opens character creation.**
+  - **Name:** a random sci-fi name is filled in. Type your own or press **Random**.
+  - **Race:** six races. Each changes how the operative looks, not their stats (yet). The race list, names and descriptions are in `GameState.RACES`; the look of each race is in `Player.RACE_LOOK`.
+  - **Class:** five classes are listed. Only Combat Specialist is available; the rest are locked (`GameState.CLASSES`).
+  - **Preview:** a turning figure of the operative, drawn with the real in-game art.
+- **What you wear shows.** The helmet, body armour, gloves, boots and utility gear each have their own look on the operative. An empty slot shows the bare undersuit.
+- **Paint by rarity**, matching the loot colours: Common is plain gunmetal, Uncommon metallic green, Rare metallic gold, Experimental metallic violet with glowing seams. Weapons are painted the same way.
+- **Stance by weapon:**
+  - **Assault rifle:** shouldered, two hands.
+  - **Shotgun:** held lower at the hip, and pumps after each shot.
+  - **Energy pistol:** one hand, arm extended.
+  - **Secondary weapon:** a melee weapon hangs at the hip until swung. An energy pistol in the secondary slot sits in a hip holster and is drawn in the off hand while it fires.
+- **Auto-equip.** Picking something up fills any empty equipment slot with the best item that fits (highest rarity, then item level). Occupied slots are never changed.
+- **Containers glow.** Unopened crates and strongboxes glow softly so you can tell what can be looted, and the glow goes out once they're opened. Future containers get the same look from `InteractGlow`.
+- **Minimap** (top right), like Diablo II's automap: line art of walls, doors and obstacles in the game's isometric angle, centred on you. It only shows what you've seen: walls and closed doors block your line of sight, and everything else stays blank, so dead ends and unexplored branches stand out. The explored map is saved with the game.
 
 ## Outpost layouts
 
@@ -74,13 +92,15 @@ scripts/
   enemies/       Enemy state machine (drone/researcher/heavy), Boss (WARDEN)
   world/         Level builder (AStarGrid2D pathing, merged collision, floor baking,
                  wall cutaway), floor chunks, isometric wall blocks, doors,
-                 terminals, crates, props, loot drops
+                 terminals, crates (with InteractGlow), props, loot drops
   fx/            Projectile (ray-swept, ground-plane), lightweight effects
-  ui/            HUD, inventory, character, terminal, pause, end screens, theme
+  ui/            HUD, minimap, character creation, inventory, character sheet,
+                 terminal, pause and end screens, theme
 tools/
   gen_maps.py    builds the layouts (variant 1 hand-placed, 2-6 from room templates)
   check_map.py   validates every layout (objective order, gates, no walled-off floor)
   smoke_test.gd  automated play-through of the acceptance criteria
+  gen_audio.py   synthesises every sound and music loop into audio/
   screenshots.gd one-scene screenshot capture and `perf` timing (needs a display)
 ```
 
@@ -89,12 +109,16 @@ tools/
 Every sound is synthesised by `tools/gen_audio.py` (pure Python, no dependencies,
 deterministic) into `audio/`, 22 kHz mono WAV for a lo-fi 90s sound-module feel:
 
-- **Music** (`audio/music/`): `level.wav`, a 100 BPM E-phrygian industrial loop. It opens
+- **Music** (`audio/music/`): `menu.wav` is the 92 BPM title loop: a muffled heartbeat
+  that quickens bar by bar, a snare roll, then a halftime industrial breakdown that
+  collapses back into the heartbeat. `level.wav` is a 100 BPM E-phrygian industrial loop. It opens
   on a heartbeat kick and monitor beep, then brings in distorted "MIDI guitar" chugs, a
   clanking metal snare and a squelchy lead, with a tritone breakdown. `boss.wav` is a
   138 BPM four-on-the-floor loop that starts when the WARDEN wakes. Both loop seamlessly.
 - **Combat**: rifle, shotgun, energy-pistol laser, sword/maul/chainblade swings and hits,
-  impacts, grenades and explosions, plus dodge, abilities and reload.
+  impacts, grenades and explosions, plus dodge and abilities. Reloads come in two halves,
+  played when the reload starts and when it finishes, so they match any reload time:
+  rifle magazine out → magazine in and charging handle; shotgun shells loading → pump.
 - **Monsters**: mutated researchers groan, snarl when they lunge, and gurgle when they die
   (synthesised vocal tract). Servo-skulls, security heavies and the WARDEN bleep, chatter
   and power down; bigger machines are pitched lower.
@@ -102,8 +126,9 @@ deterministic) into `audio/`, 22 kHz mono WAV for a lo-fi 90s sound-module feel:
 
 `scripts/autoload/audio.gd` (`Audio`) plays sounds at their position in the isometric
 view, varies pitch slightly, and caps how many copies of a sound play at once. It also
-cross-fades the music. Regenerate with `python3 tools/gen_audio.py` (`sfx` or `music`
-for one half). Per-sound volume and voice limits are in the `SFX` table in `audio.gd`.
+cross-fades the music. Regenerate with `python3 tools/gen_audio.py`, or one part with
+`sfx`, `music` (all loops) or `menu` (just the title loop). Per-sound volume and voice
+limits are in the `SFX` table in `audio.gd`. Then run the import step from [Run](#run).
 
 ## Tests
 
@@ -115,7 +140,16 @@ godot --headless --path . -- --smoke --variant 3   # gameplay checks on one layo
 
 The smoke test strips joypad bindings so a connected controller can't interfere. It writes to its own save file.
 
-Performance check (needs a display): `godot --path . -- --shots /tmp/shots perf [--cap]` prints the average frame time in the busiest room.
+Screenshots (needs a display): `godot --path . -- --shots <dir> <scene>`. Scenes include `menu`, `creation`, `races` (every race from the front, side and back), `gear` (each weapon stance and rarity tier), `container`, `landing`, `generator`, `labs`, `loot`, `inventory` and `character`; the full list is at the top of `tools/screenshots.gd`.
+
+Performance check (needs a display): `godot --path . -- --shots /tmp/shots perf [--cap]` prints the average frame time in the busiest room. It runs uncapped (`--cap` limits it to 60 FPS), but some desktops, such as Wayland compositors, still hold it to the display refresh and report about 16–17 ms. To check whether a change costs performance, compare against `main` on the same machine, for example from a `git worktree` of `main`.
+
+## Working together
+
+- One branch per feature off an up-to-date `main` (`git switch main && git pull && git switch -c feature/<name>`), merged by pull request.
+- Before opening a PR, run the smoke test (above). It should pass with no `SCRIPT ERROR` lines in its output.
+- After pulling, run the import step from [Run](#run): new audio files and new `class_name` scripts aren't picked up until you do.
+- Godot rewrites `project.godot` (header comments, settings that match the defaults) whenever the editor or an import touches it. Only commit it when a setting really changed.
 
 ## Steam Deck
 
@@ -182,4 +216,4 @@ where each image goes in Steam. It's rendered from a staged fight in the real ga
   - Names show for nearby items, or for all items while Alt / L3 is held.
   - The item you would pick up is highlighted.
 - **Controller in menus.** Godot's built-in `ui_*` actions are keyboard-only, so `InputSetup` adds A (Cross) to accept, B (Circle) to go back, and the d-pad and left stick to navigate. The smoke test checks this with synthetic pad events.
-- **Save format.** Items are plain dictionaries, so the save is readable JSON at `user://deadsignal_save.json`.
+- **Save format.** Items are plain dictionaries, so the save is readable JSON at `user://deadsignal_save.json`. Version 2 added the operative's name, class, race and the explored minimap (deflate-compressed, base64). Older saves still load: they get the defaults and a blank map.

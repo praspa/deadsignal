@@ -1,6 +1,7 @@
 class_name LootContainer
 extends StaticBody2D
 ## Supply crate (common) or strongbox (better loot). Opened once; state is saved.
+## Unopened containers glow softly (InteractGlow) so it's clear they can be looted.
 
 var level: Level
 var cell := Vector2i.ZERO
@@ -8,6 +9,7 @@ var strong := false
 var opened := false
 var interact_radius := 54.0
 var cv: IsoView
+var glow: PointLight2D
 
 const T := 32
 
@@ -35,6 +37,7 @@ func _ready() -> void:
 	opened = GameState.has_flag(flag())
 	if not opened:
 		add_to_group("interactable")
+		glow = InteractGlow.attach(cv, 18.0)
 
 
 func interact_text() -> String:
@@ -47,6 +50,8 @@ func interact(_player: Node) -> void:
 	opened = true
 	GameState.set_flag(flag())
 	remove_from_group("interactable")
+	if is_instance_valid(glow):
+		glow.queue_free()
 	level.container_loot(global_position + Vector2(10, 10), strong)
 	Audio.play("crate", global_position, 0.85 if strong else 1.0)
 	Fx.burst(get_parent(), Iso.sp(global_position, 16), Color(0.7, 0.6, 0.4), 10, 120.0)
@@ -68,6 +73,7 @@ func _render() -> void:
 		var d := Iso.to_screen(Vector2(-half.x + 2, half.y - 2)) - Vector2(0, 16)
 		cv.draw_colored_polygon(PackedVector2Array([a, b, c, d]), Color(0.03, 0.03, 0.03))
 	else:
+		InteractGlow.draw_halo(cv, half + Vector2(1, 1), 21.0)
 		Iso.box(cv, Vector2.ZERO, half + Vector2(1, 1), 5.0, body.lightened(0.15), body.lightened(0.05), body.darkened(0.15), trim, 16.0)
 		# front latch / hazard stripe on the camera-facing side
 		Iso.face(cv, Vector2(-half.x, half.y), Vector2.RIGHT)

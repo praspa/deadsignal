@@ -389,13 +389,12 @@ func run() -> void:
 	var drop: LootDrop = null
 	for n in get_tree().get_nodes_in_group("loot"):
 		drop = n
-	var inv0 := GameState.inventory.size()
+	var picked: Dictionary = drop.entry["item"] if drop != null else {}
 	if drop != null:
 		player.global_position = drop.global_position
 		await frames(2)
 		drop.interact(player)
-	check(GameState.inventory.size() == inv0 + 1, "item picked up into inventory")
-	var picked: Dictionary = GameState.inventory[GameState.inventory.size() - 1]
+	check(not picked.is_empty() and (picked in GameState.inventory or picked in GameState.equipment.values()), "item picked up (into the inventory, or auto-equipped)")
 	check(ItemDB.describe(picked).length() > 20, "item can be inspected")
 	var slot := GameState.best_slot_for(picked)
 	var cmp := ItemDB.compare(picked, GameState.equipment.get(slot, {}))
@@ -404,6 +403,47 @@ func run() -> void:
 	check(GameState.equipment[slot] == picked, "picked item equipped to %s" % slot)
 	GameState.unequip(slot)
 	check(GameState.equipment[slot].is_empty() or GameState.equipment[slot] != picked, "item unequipped")
+	var inv_before := GameState.inventory.size()
+	GameState.equip(GameState.equipment[slot], slot)   # re-equipping what's already worn
+	check(GameState.inventory.size() == inv_before, "re-equipping an equipped item does not duplicate it")
+
+	print("== auto-equip on pickup")
+	var eq_backup := GameState.equipment.duplicate()
+	var inv_backup := GameState.inventory.duplicate()
+	for sl in ["head", "gloves", "boots", "utility"]:
+		GameState.equipment[sl] = {}
+	var occupied: Array = GameState.SLOTS.filter(func(sl: String) -> bool: return not GameState.equipment[sl].is_empty())
+	var helm_common := ItemDB.generate("sallet_helm", 0, 1)
+	var helm_rare := ItemDB.generate("rebreather_helm", 2, 1)
+	GameState.add_item(helm_common)
+	GameState.add_item(helm_rare)
+	var gloves_drop := LootDrop.new()
+	gloves_drop.entry = {"kind": "item", "item": ItemDB.generate("gauntlets", 1, 1)}
+	gloves_drop.position = player.global_position
+	level.world.add_child(gloves_drop)
+	await frames(2)
+	gloves_drop.interact(player)
+	check(GameState.equipment["gloves"] == gloves_drop.entry["item"], "picked-up gloves go straight into the empty glove slot")
+	check(GameState.equipment["head"] == helm_rare and helm_common in GameState.inventory, "empty slot gets the highest-rarity item that fits")
+	check(not occupied.is_empty() and occupied.all(func(sl: String) -> bool: return GameState.equipment[sl] == eq_backup[sl]), "occupied slots are left alone (%s)" % ", ".join(PackedStringArray(occupied)))
+	GameState.equipment = eq_backup
+	GameState.inventory = inv_backup
+
+	print("== container glow")
+	var boxes := get_tree().get_nodes_in_group("interactable").filter(func(n: Node) -> bool: return n is LootContainer)
+	check(not boxes.is_empty() and boxes.all(func(b: LootContainer) -> bool: return is_instance_valid(b.glow)), "every unopened container glows (%d)" % boxes.size())
+	if not boxes.is_empty():
+		var box: LootContainer = boxes[0]
+		var light := box.glow
+		var xp0 := GameState.xp
+		var lv0 := GameState.level
+		var pts0 := GameState.attr_points
+		box.interact(player)
+		await frames(2)
+		check(not is_instance_valid(light), "container glow goes out once opened")
+		GameState.xp = xp0   # leave progression as it was for the checks below
+		GameState.level = lv0
+		GameState.attr_points = pts0
 	var exp_item := ItemDB.generate("assault_rifle", 3, 3)
 	check(exp_item["special"] != "", "experimental items roll a special property")
 

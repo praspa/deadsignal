@@ -1,7 +1,7 @@
 extends Node
 ## Captures one gameplay screenshot per run for visual review (needs a display).
 ##   godot --path . -- --shots <output_dir> <scene>
-## scenes: menu creation races landing atrium generator powered labs xenolab boss inventory character terminal cutaway loot [aim: down|up|left|right] overview
+## scenes: menu creation races gear container landing atrium generator powered labs xenolab boss inventory character terminal cutaway loot [aim: down|up|left|right] overview
 ## add --variant N to pick a layout
 
 var main: Node
@@ -34,6 +34,10 @@ func _ready() -> void:
 	if scene == "menu":
 		await frames(30)
 		await _shot()
+		get_tree().quit()
+		return
+	if scene == "gear":
+		await _gear_lineup()
 		get_tree().quit()
 		return
 	if scene == "races":
@@ -154,6 +158,15 @@ func _ready() -> void:
 			print("PERF avg %.2f ms (%.0f fps), worst %.2f ms, %d/300 frames over %.1f ms, views %d" % [avg, 1000.0 / avg, worst / 1000.0, slow, 20.0 if Engine.max_fps > 0 else 16.7, Iso.view_root.get_child_count()])
 			get_tree().quit()
 			return
+		"container":
+			# unopened containers glowing in the dark, the operative a few tiles off
+			for e in get_tree().get_nodes_in_group("enemies"):
+				e.queue_free()
+			var boxes := get_tree().get_nodes_in_group("interactable").filter(func(n: Node) -> bool: return n is LootContainer)
+			if not boxes.is_empty():
+				p.global_position = (boxes[0] as Node2D).global_position + Vector2(-70, 70)
+				p.aim_override = (boxes[0] as Node2D).global_position
+			await frames(60)
 		"loot":
 			# every item type on the floor around the player (zoomed in)
 			GameState.set_flag("power")
@@ -257,6 +270,66 @@ func _races_lineup() -> void:
 			var v := IsoView.new()
 			v.target = p
 			v.position = Vector2(100 + i * 208, 250 + k * 250)
+			v.scale = Vector2(2.6, 2.6)
+			p.cv = v
+			bg.add_child(v)
+			v.set_process(false)   # after add_child, or entering the tree re-enables it
+			puppets.append(p)
+	await frames(10)
+	await _shot()
+	layer.queue_free()
+	await frames(1)
+	for p in puppets:
+		(p as Node).free()
+
+
+## Weapon stances (top row) and every rarity tier of armour, front and back,
+## using the real Player art with per-puppet equipment.
+func _gear_lineup() -> void:
+	var bg := ColorRect.new()
+	bg.color = Color(0.09, 0.085, 0.09)
+	bg.size = Vector2(1280, 800)
+	var layer := CanvasLayer.new()
+	layer.layer = 50
+	layer.add_child(bg)
+	add_child(layer)
+	var g := func(base: String, rarity: int) -> Dictionary: return ItemDB.generate(base, rarity, 1)
+	var none := {"primary": {}, "secondary": {}, "head": {}, "body": {}, "gloves": {}, "boots": {}, "utility": {}}
+	var kit := func(r: int, heavy: bool, util: String) -> Dictionary:
+		return {"primary": g.call("assault_rifle", r), "secondary": g.call("power_maul" if heavy else "chainblade", r),
+			"head": g.call("sallet_helm" if heavy else "rebreather_helm", r), "body": g.call("plate_cuirass" if heavy else "flak_carapace", r),
+			"gloves": g.call("gauntlets" if heavy else "grip_gloves", r), "boots": g.call("mag_boots" if heavy else "runner_boots", r),
+			"utility": {} if util == "" else g.call(util, r)}
+	var base_kit: Dictionary = kit.call(0, false, "")
+	var rows := [
+		[["Assault rifle", base_kit.merged({"primary": g.call("assault_rifle", 0)}, true), 0.0],
+			["Shotgun", base_kit.merged({"primary": g.call("shotgun", 0)}, true), 0.0],
+			["Energy pistol", base_kit.merged({"primary": g.call("energy_pistol", 0), "secondary": g.call("chainblade", 0)}, true), 0.0],
+			["Off-hand pistol", base_kit.merged({"secondary": g.call("energy_pistol", 1)}, true), 0.4],
+			["No gear", none.duplicate(), 0.0]],
+		[["Common", kit.call(0, true, ""), 0.0], ["Uncommon", kit.call(1, false, "injector"), 0.0],
+			["Rare", kit.call(2, true, "auspex"), 0.0], ["Experimental", kit.call(3, true, "capacitor"), 0.0],
+			["Rare (flak)", kit.call(2, false, "refractor"), 0.0]],
+	]
+	var puppets: Array = []
+	for row_i in 3:
+		var row: Array = rows[mini(row_i, 1)]
+		var aim := Vector2(0.4, 1.0) if row_i < 2 else Vector2(-0.3, -1.0)
+		for i in row.size():
+			var e: Array = row[i]
+			if row_i < 2:
+				var label := Label.new()
+				label.text = String(e[0])
+				label.position = Vector2(30 + i * 250, 12 + row_i * 262)
+				label.add_theme_font_size_override("font_size", 18)
+				bg.add_child(label)
+			var p := Player.new()
+			p.gear_override = e[1]
+			p.aim_dir = aim.normalized()
+			p.offhand_t = float(e[2])
+			var v := IsoView.new()
+			v.target = p
+			v.position = Vector2(120 + i * 250, 240 + row_i * 262)
 			v.scale = Vector2(2.6, 2.6)
 			p.cv = v
 			bg.add_child(v)
