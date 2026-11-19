@@ -150,6 +150,8 @@ Inventory must support item pickup, inspection, equipping, unequipping, and comp
 
 Loot on the ground graphic represents the type (i.e. gun, boots, breastplate, gloves ) along with name and color rarity
 
+Unopened loot containers (supply crates, strongboxes) give off a subtle yellow / gold glow with a slow, soft pulse, so they pop out of the dark while exploring. Strongboxes glow a little stronger than crates. The glow goes out when the container is opened, and opened containers stay dark (also after loading a save). [DONE]
+
 8. Enemies
 
 Implement three enemy archetypes:
@@ -190,7 +192,7 @@ Lighting and atmospheric effects.
 
 10. Demo Mission (archived)
 
-The Kharon Outpost mission below was the demo's test setting. It is kept temporarily as the nav console's only destination and will be removed once the first new mission (section 15) exists.
+The Kharon Outpost mission below was the demo's test setting. It stays in the game as a placeholder destination on the star map and a secondary test destination (the smoke test plays through it). Kessar IV (section 15.9) becomes the first mission.
 
 The player investigates a research facility after communications cease.
 
@@ -368,13 +370,29 @@ The ship's position in the tree is saved. Moving within the tree is free; only d
 
 Data: data/starmap.json. A flat list of nodes, each with a parent, type, name, description, an optional "location" (key into data/locations.json) and optional "requires" (story flags that unlock it). The layout is computed from the tree, so adding a node needs no coordinates.
 
-15.6 Recall (town portal)                                    [to do]
+15.6 Recall (town portal)                                    [DONE — first cut]
 
-No consumable town-portal scrolls.
-A Recall button with a cooldown (~60 s, not ticking aboard the ship).
-Hold ~2 s to channel; taking damage interrupts it, so it isn't a panic button.
-Leaves a beacon where the player stood; the ship's boarding ramp / teleport pad returns the player to that exact spot.
-Bindings: T on keyboard, R3 on controller.
+Diablo II's town portal, without the scrolls. One button pulls the operative back to the ship and leaves a beacon, so they can return to the exact spot.
+
+Using it:
+Bindings: T on keyboard, R3 (right stick click) on controller. Shown on the HUD as a fourth ability slot with its cooldown, like Roll / Overcharge / Pulse.
+Press once to start a 2 s channel (no need to hold the button). The operative stands still while channeling.
+Channel visuals and sound: a column of blue light rises around the operative, a ring on the floor closes in over the 2 s, rising hum. At the end: flash, the operative dematerialises, cut to the ship.
+Interrupted by: taking damage, moving, rolling, firing, or using an ability. Interrupting costs a short 3 s cooldown, not the full one. This keeps it from being a panic button mid-fight.
+Cooldown: 60 s from a successful recall. It ticks everywhere, including aboard the ship.
+Not usable aboard the ship (nothing to recall from).
+
+The beacon:
+A successful recall leaves a recall beacon where the operative stood: a small blinking marker on the floor, also shown on the minimap.
+Only one beacon exists at a time; a new recall replaces the old one. It is saved with the game.
+The mission site keeps its state while the operative is away (as for all travel): killed enemies stay dead, survivors stay where they were.
+
+Going back:
+Aboard the ship, a teleport pad in the cargo hold (by the boarding ramp) shows "Return to beacon — <location name>". Using it drops the operative on the beacon and removes the beacon.
+The pad only works while the ship is still in orbit over that beacon's star map node. If the ship has been moved on the star map, the pad says "Beacon out of range — return the ship to <node>".
+Descending from the star map still lands at the site's landing point as usual; the beacon stays until it's used or replaced.
+Dying does not create a beacon (the operative wakes in the Lazarus Cradle, see 15.8); an existing beacon is kept.
+
 Mission sites also have a return-shuttle beacon at the landing point. [DONE]
 
 15.7 Locations and travel                                    [DONE]
@@ -402,26 +420,117 @@ Gear, inventory and the cargo stash are untouched; no corpse run.
 On revival, a message states what was lost (e.g. "-42 UC, -15 XP").
 Both percentages are tunable constants.
 
-15.9 First Mission: the Brood Queen                           [to do]
+15.9 First Mission: the Brood Queen (Kessar IV)               [first cut DONE — Brood Nurse, new audio/music, art polish to do]
 
-The starter quest, in the spirit of Diablo II's Den of Evil.
+The starter quest, in the spirit of Diablo II's Den of Evil: a short outdoor area, then one cave, a boss at the end. Tuned for a fresh character, levels 1–4. It becomes the first destination; Kharon Outpost stays on the star map as a secondary destination.
 
-OVERWATCH assigns it; the player uses the star map to travel to the first hostile planet.
-Planet surface: outdoor area (rock, ash, alien growth) with scattered enemies, loot containers and the hive entrance.
-Alien hive: tight, dark, organic cave.
-Objective: kill the Brood Queen.
-New enemies: Swarmlings (fast, weak, packs), Spitters (ranged acid, damage over time), Broodguard (armoured, charges).
-Boss: Brood Queen — spawns eggs, acid spray, burrows to reposition.
-Reward: UC, an item, and the next star map node unlocks.
+Story and briefing:
+Kessar IV is an ash world with a small mining claim. The claim stopped reporting a week ago. A survey drone caught heat signatures moving under the crust before it went dark.
+OVERWATCH (new-game briefing, on the ship): "Mining claim on Kessar IV has gone quiet. Something's nesting under the ash. Find the nest, find whatever's laying the eggs, and kill it before it fills the planet."
+The star map opens with Kessar IV unlocked and the ship in orbit over the Kessar System.
 
-15.10 Build order
+Objectives (shown on the HUD in order):
+1. Land on Kessar IV.
+2. Find the hive entrance. (A log terminal in the abandoned mining camp points the way.)
+3. Enter the hive.
+4. Kill the Brood Queen.
+5. Return to the ship and report to OVERWATCH (Recall, or walk back to the landing shuttle).
+Debrief: OVERWATCH pays a bounty (500 UC for now; economy balance comes later) and unlocks the next star map node (Belt Claim 7).
+
+Area 1 — Ashfall Flats (planet surface):
+Outdoor, bigger and more open than the outpost: ash plains, rock ridges and cliff edges as walls, craters, alien growth (resin, fleshy pods) spreading toward the hive.
+Its own look: rock and ash instead of metal plating; dusty orange-grey palette; no ceiling lights, dim reddish daylight plus the flashlight; drifting ash particles instead of dust.
+Landing point with the return-shuttle beacon.
+The abandoned mining camp: a few prefab huts, crates, a dead hauler, corpses, the log terminal (objective 2), loot containers. Environmental storytelling: the miners dug into something.
+Enemies scattered in small groups, thicker near the hive.
+Finding the hive is part of the mission: the entrance (a resin-crusted sinkhole) is in a different place on each layout, never near the landing point, and the player has to search for it. Clues help without giving it away: alien growth thickens and enemy groups get denser the closer you get, and the mining camp log gives a rough direction. The minimap only shows it once seen.
+Several layouts, picked at random per new game (like the outpost): 3 to start.
+
+Area 2 — The Hive (cave):
+A separate location reached through the sinkhole (interact: "Descend into the hive"); an exit beside the arrival point leads back up.
+Tight, dark, organic: chitin and resin walls, wet floors, tunnels opening into egg chambers. Lighting comes only from bioluminescent growths and the flashlight.
+Egg clusters: destructible. They hatch Swarmlings when the operative comes close, unless they are shot first.
+One level. The Brood Queen's chamber is the largest room, at the end.
+Several layouts (3 to start), random per new game.
+
+New enemies (stats relative to the existing roster):
+Swarmling: small, fast insect. HP ~18, speed ~230, melee bite. Attacks in packs of 4–8. Low XP each. Dangerous when they surround; Disruptor Pulse is the answer.
+Spitter: bloated ranged bug. HP ~40, speed ~120, keeps its distance. Lobs an arcing acid glob (telegraphed: it rears back) that leaves an acid pool on the floor for ~3 s. Acid applies the existing toxin damage-over-time status.
+Broodguard: heavy armoured beetle. HP ~160, armor ~8, speed ~90. Telegraphed charge (paws the ground ~0.8 s, then rushes in a straight line, heavy knockback). If it hits a wall it is stunned for ~1.5 s and takes extra damage. Roll sideways to dodge.
+Egg cluster: stationary, HP ~25, hatches 2–3 Swarmlings.
+Infested Miner: one of the missing miners, brood growth bursting through the overalls and helmet. HP ~55, speed ~185, melee. Reuses the Mutated Researcher's behaviour (aggressive, fast, chance to inflict toxin) with new art. Mostly in and around the mining camp; tells the story without text.
+Ash Burrower: ambush predator hidden under the ash. HP ~70, armor ~3. Invisible until the operative comes within a few tiles; the ash bubbles for a split second (the telegraph), then it erupts with a bite and knockback, and fights in the open afterwards. Surface only; makes the plains dangerous rather than empty.
+Brood Nurse (optional, build if time allows): slow, soft-bodied support bug. HP ~60, speed ~80, no real attack. Makes egg clusters near it hatch faster and calls Swarmlings to defend it. A priority target that gives hive fights some tactics.
+
+Where they appear:
+Ashfall Flats (surface): mostly Infested Miners (around the camp), Ash Burrowers, small Swarmling packs and the odd Spitter; a few Broodguard close to the hive entrance. The message: something is wrong here.
+The Hive: all brood — Swarmlings in numbers, Spitters, Broodguard, egg clusters, Brood Nurses, and the Queen.
+
+The Brood is an original species, native to Kessar IV (not taken from Alternity / Star*Drive): the miners dug into its nest.
+
+Later (not part of this mission): Diablo-style champion packs — occasional groups with a random modifier (Frenzied, Bloated, Armoured) led by a named unique monster (e.g. "Gnashmaw the Hungering"). Variety without new art.
+
+Boss — the Brood Queen:
+A huge, mostly stationary insect queen, fat egg-sac and armoured head. HP ~1400, large hit radius. Boss health bar and music like WARDEN.
+Phase 1 (100–60%): acid spray, a cone in front of her (telegraphed with a floor marker); calls Swarmlings out of the chamber's egg clusters every ~12 s.
+Phase 2 (60–25%): burrow. She sinks into the floor; ripples in the floor track toward the operative; she bursts up under them a moment later (telegraphed circle, roll out of it). Between burrows she resumes phase 1 attacks.
+Phase 3 (below 25%): enraged. Faster attacks, and on emerging she sprays acid pools in a ring around her.
+Disruptor Pulse interrupts the acid spray and forces her out of a burrow early (stunned briefly).
+Loot: one Experimental item, one or two Rare items, a large UC drop, stims.
+
+Audio:
+New sounds: Swarmling skitter and bite, Spitter retch and splash, Broodguard roar and charge, egg squelch / burst, Queen screech, burrow rumble, Infested Miner moans (reuse / pitch the zombie groans), Ash Burrower eruption, Brood Nurse warble.
+Music: a surface track (sparse, windy, industrial) and a hive track (slower, wet, heavier); the Queen gets a boss track.
+
+Kharon Outpost stays: it remains on the star map as a placeholder / secondary test destination, and the smoke test keeps playing through it. The smoke test also gets a play-through of the Brood Queen mission.
+
+15.10 Re-entrant Areas and Diminishing Returns               [DONE]
+
+Like Diablo II, mission areas are replayable: every new play session repopulates them, so the player can farm monsters, loot and bosses. Farming pays less and less as the character outlevels an area.
+
+When areas reset:
+A session starts each time the game is loaded from the main menu (Continue, or loading a save). At that point every mission area resets.
+Within a session, areas keep their state as now: travelling to the ship and back (Recall, shuttle, star map) finds the area as it was left.
+The ship never resets.
+
+What resets:
+Monsters respawn, including bosses (the Brood Queen, WARDEN).
+Loot containers refill.
+Loot left on the floor is gone (warn the player: store keepers in the cargo locker).
+Each area re-rolls its random layout (a new Ashfall Flats / Hive / Kharon layout).
+The recall beacon is cleared.
+
+What persists:
+Character: level, XP, attributes, inventory, equipment, cargo stash, UC.
+Story progress: completed objectives and missions, unlocked star map nodes, the ship's position on the star map.
+One-time rewards stay one-time: mission bounties and unlocks are paid only on the first completion; story terminals give their XP only the first time they are read.
+Re-killing a boss gives its loot and XP again, but no bounty and no story event (no new debrief).
+
+Area level:
+Every mission area has an area level (in data/locations.json), e.g. Ashfall Flats 2, the Hive 3, Kharon Outpost 5.
+Monster XP and item drops are based on the area level, not the character's level: loot found in Kessar stays Kessar-grade even for a level 20 character.
+
+Diminishing XP:
+Monster XP is scaled by the gap between character level and area level:
+  character level <= area level + 2      100%
+  each level above that                  -15%
+  minimum                                5%
+Example: in the Hive (area level 3), a level 5 character gets full XP, level 7 gets 70%, level 10 gets 25%, level 12 and up gets 5%.
+
+XP curve:
+XP needed per level grows faster than now (today it is linear: 100 + 60 per level). New curve: XP to next level = 100 × level^1.5, rounded (level 1: 100, level 5: ~1,120, level 10: ~3,160, level 20: ~8,940).
+Together with diminishing XP this pushes the player toward harder areas instead of farming the first one forever.
+Both the curve and the falloff are tunable constants.
+
+15.11 Build order
 
 1. Ship hub, locations / travel, UC currency.   [DONE]
 2. Star map UI on the nav console.   [DONE]
-3. Recall button and beacon.
-4. First mission: planet surface + hive, new enemies, Brood Queen. Then remove Kharon Outpost.
+3. Recall button and beacon.   [DONE]
+4. First mission: planet surface + hive, new enemies, Brood Queen. (Kharon Outpost stays as a secondary destination.)   [first cut DONE]
 5. Crew services: vendor, decryption / identify, medic, fence. Cargo stash.   [stash DONE]
 6. Death and revival in the Lazarus Cradle.   [DONE]
+7. Re-entrant areas: reset on each session, area levels, diminishing XP, new XP curve.   [DONE]
 
 
 ## Target platform

@@ -25,6 +25,7 @@ const KEYS := {
 	"quickload": [KEY_F9],
 	"swap_weapons": [KEY_X],
 	"show_loot": [KEY_ALT],
+	"recall": [KEY_T],
 }
 
 const MOUSE := {
@@ -44,6 +45,7 @@ const PAD_BUTTONS := {
 	"inventory": [JOY_BUTTON_BACK, JOY_BUTTON_DPAD_RIGHT],
 	"pause": [JOY_BUTTON_START],
 	"show_loot": [JOY_BUTTON_LEFT_STICK],
+	"recall": [JOY_BUTTON_RIGHT_STICK],
 }
 
 # Godot's built-in UI actions are keyboard-only, so pad buttons are added to them
@@ -147,7 +149,7 @@ func key_hint(action: String) -> String:
 	if using_pad:
 		var names := {"roll": "A", "interact": "Y", "reload": "X", "overcharge": "LB", "pulse": "RB",
 			"use_stim": "D-Up", "fire_primary": "RT", "fire_secondary": "LT", "inventory": "Back",
-			"character": "D-Left", "pause": "Start", "swap_weapons": "D-Down"}
+			"character": "D-Left", "pause": "Start", "swap_weapons": "D-Down", "recall": "R3"}
 		return names.get(action, "?")
 	var knames := {"fire_primary": "LMB", "fire_secondary": "RMB", "roll": "SPC", "pause": "Esc", "inventory": "I"}
 	if knames.has(action):

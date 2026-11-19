@@ -71,5 +71,11 @@
       "You pull the spool and seal it in your thermal case. Somewhere far above, the orbital relay crackles back to life.\n\nStep onto the extraction platform to leave Kharon Outpost."
     ]
   },
-  "nav": {"title": "NAV CONSOLE", "type": "nav", "xp": 0, "pages": []}
+  "nav": {"title": "NAV CONSOLE", "type": "nav", "xp": 0, "pages": []},
+  "kessar_log": {"title": "CLAIM 4 FOREMAN'S LOG — Kessar IV", "type": "log", "xp": 25, "sets_flag": "kessar:log",
+    "pages": [
+      "Day 31. Bore team hit a void under the ash, forty metres down. Warm air coming up. Smells like meat.",
+      "Day 33. Pell went down the void to take samples. Came back with eggs the size of his helmet. Says they're 'beautiful'. Locked them in the hauler.",
+      "Day 35. The hauler's empty and Pell won't stop scratching. The void's grown a mouth. It's {hive_dir} of camp, past where the ash goes soft and sticky.\n\nIf anyone reads this: don't go down there. And don't let Pell near you."
+    ]}
 }

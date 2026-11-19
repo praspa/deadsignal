@@ -12,7 +12,8 @@
     "music": "",
     "intro_comms": [
       "[OVERWATCH] Operative, welcome aboard the Sable Mule. She's ugly, but she's yours for the duration.",
-      "[OVERWATCH] Your first tasking is loaded into the nav console in the cockpit. Plot a course when you're ready."
+      "[OVERWATCH] First tasking: the mining claim on Kessar IV has gone quiet. Something's nesting under the ash.",
+      "[OVERWATCH] Plot a course on the star map in the cockpit. Kessar IV is in this system."
     ],
     "debrief_comms": [
       "[OVERWATCH] Good work at Kharon, Operative. Stand by on the Mule while we sort out your next tasking."
@@ -42,7 +43,8 @@
     ],
     "wall_style": "ship",
     "flashlight": false,
-    "steady_lights": true
+    "steady_lights": true,
+    "mission": ""
   },
   "kharon": {
     "name": "Kharon Outpost",
@@ -59,6 +61,87 @@
       0.37,
       0.36
     ],
-    "music": "level"
+    "music": "level",
+    "mission": "kharon",
+    "area_level": 5
+  },
+  "kessar_surface": {
+    "name": "Kessar IV \u2014 Ashfall Flats",
+    "map": "kessar_surface_{variant}",
+    "variants": 3,
+    "hub": false,
+    "mission": "kessar",
+    "ambient": [
+      0.46,
+      0.37,
+      0.31
+    ],
+    "palette": {
+      "dark": [
+        0.07,
+        0.05,
+        0.04
+      ],
+      "light": [
+        0.66,
+        0.52,
+        0.4
+      ],
+      "gain": 3.6,
+      "amount": 0.8
+    },
+    "post": {
+      "grade": 0.55,
+      "saturation": 0.8
+    },
+    "wall_style": "rock",
+    "music": "level",
+    "dust": [
+      0.62,
+      0.56,
+      0.5,
+      0.35
+    ],
+    "area_level": 2
+  },
+  "kessar_hive": {
+    "name": "Kessar IV \u2014 The Hive",
+    "map": "kessar_hive_{variant}",
+    "variants": 3,
+    "hub": false,
+    "mission": "kessar",
+    "ambient": [
+      0.24,
+      0.22,
+      0.27
+    ],
+    "palette": {
+      "dark": [
+        0.03,
+        0.025,
+        0.04
+      ],
+      "light": [
+        0.42,
+        0.34,
+        0.4
+      ],
+      "gain": 3.4,
+      "amount": 0.85
+    },
+    "post": {
+      "grade": 0.7,
+      "saturation": 0.85
+    },
+    "wall_style": "hive",
+    "music": "level",
+    "dust": [
+      0.55,
+      0.7,
+      0.45,
+      0.15
+    ],
+    "no_shuttle": true,
+    "area_level": 3
   }
 }

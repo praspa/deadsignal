@@ -18,6 +18,7 @@ var glow := false
 var draw_offset := Vector2(0, -16)  # visual height above the ground-plane track
 var cv: IsoView
 var start_from: Variant = null   # first ray starts here (shooter body) so point-blank shots connect
+var on_impact: Callable          # optional: called with the impact position (e.g. acid pools)
 
 
 static func fire(parent: Node, from: Vector2, vel: Vector2, h: Dictionary, msk: int, dist: float, col: Color) -> Projectile:
@@ -68,6 +69,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _impact(pos: Vector2) -> void:
+	if on_impact.is_valid():
+		on_impact.call(pos)
 	if explode_radius > 0.0:
 		Fx.ring(get_parent(), Iso.sp(pos), explode_radius, Color(1.0, 0.45, 0.1), 0.45, 10.0)
 		Audio.play("explosion", pos)

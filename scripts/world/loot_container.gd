@@ -8,6 +8,8 @@ var strong := false
 var opened := false
 var interact_radius := 54.0
 var cv: IsoView
+var glow: PointLight2D   # subtle gold glow while unopened, so containers stand out in the dark
+var t := 0.0
 
 const T := 32
 
@@ -35,6 +37,27 @@ func _ready() -> void:
 	opened = GameState.has_flag(flag())
 	if not opened:
 		add_to_group("interactable")
+		glow = PointLight2D.new()
+		glow.range_item_cull_mask = 3   # lights the floor around it too
+		glow.height = 150.0
+		glow.texture = LightUtil.radial(128)
+		glow.color = Color(1.0, 0.78, 0.32)
+		glow.texture_scale = 1.1 if not strong else 1.3
+		glow.energy = 0.0
+		glow.position = Vector2(0, -12)
+		glow.scale = Vector2(1.0, 0.6)
+		cv.add_child(glow)
+		t = randf() * TAU
+
+
+func _process(delta: float) -> void:
+	if glow == null:
+		return
+	t += delta
+	var base := 0.95 if strong else 0.75
+	glow.energy = base + 0.2 * sin(t * 1.8)   # slow, soft pulse
+	if cv != null:
+		cv.redraw_if_visible()
 
 
 func interact_text() -> String:
@@ -47,6 +70,11 @@ func interact(_player: Node) -> void:
 	opened = true
 	GameState.set_flag(flag())
 	remove_from_group("interactable")
+	if glow != null:
+		var tw := create_tween()
+		tw.tween_property(glow, "energy", 0.0, 0.4)
+		tw.tween_callback(glow.queue_free)
+		glow = null
 	level.container_loot(global_position + Vector2(10, 10), strong)
 	Audio.play("crate", global_position, 0.85 if strong else 1.0)
 	Fx.burst(get_parent(), Iso.sp(global_position, 16), Color(0.7, 0.6, 0.4), 10, 120.0)
@@ -69,6 +97,12 @@ func _render() -> void:
 		cv.draw_colored_polygon(PackedVector2Array([a, b, c, d]), Color(0.03, 0.03, 0.03))
 	else:
 		Iso.box(cv, Vector2.ZERO, half + Vector2(1, 1), 5.0, body.lightened(0.15), body.lightened(0.05), body.darkened(0.15), trim, 16.0)
+		# faint gold rim on the lid, pulsing with the glow
+		var ga := 0.35 + 0.2 * sin(t * 1.8)
+		var lid := PackedVector2Array()
+		for p in [Vector2(-half.x - 1, -half.y - 1), Vector2(half.x + 1, -half.y - 1), Vector2(half.x + 1, half.y + 1), Vector2(-half.x - 1, half.y + 1), Vector2(-half.x - 1, -half.y - 1)]:
+			lid.append(Iso.to_screen(p) - Vector2(0, 21))
+		cv.draw_polyline(lid, Color(1.0, 0.8, 0.35, ga), 1.5)
 		# front latch / hazard stripe on the camera-facing side
 		Iso.face(cv, Vector2(-half.x, half.y), Vector2.RIGHT)
 		if strong:

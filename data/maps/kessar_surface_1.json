@@ -1,0 +1,27 @@
+{
+ "variant": 1,
+ "name": "Survey Grid A",
+ "rooms": {
+  "landing": [
+   85,
+   3,
+   89,
+   7
+  ],
+  "camp": [
+   42,
+   0,
+   52,
+   8
+  ],
+  "hive_entrance": [
+   23,
+   67,
+   25,
+   69
+  ]
+ },
+ "dirs": {
+  "hive_dir": "south"
+ }
+}

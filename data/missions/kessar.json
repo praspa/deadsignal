@@ -1,0 +1,47 @@
+{
+  "title": "The Brood of Kessar",
+  "objectives": [
+    {
+      "flag": "kessar:landed",
+      "text": "Land on Kessar IV (star map, cockpit)",
+      "comms": []
+    },
+    {
+      "flag": "kessar:hive_found",
+      "text": "Find the hive entrance on the Ashfall Flats",
+      "comms": [
+        "[OVERWATCH] You're down. The mining camp should be close; see if their logs say where they were digging.",
+        "[OVERWATCH] Watch the ash, Operative. The survey drone stopped transmitting somewhere around here."
+      ]
+    },
+    {
+      "flag": "kessar:hive",
+      "text": "Descend into the hive",
+      "comms": [
+        "[OVERWATCH] That's a nest if I ever saw one. Go down and find what's laying the eggs."
+      ]
+    },
+    {
+      "flag": "kessar:queen",
+      "text": "Kill the Brood Queen",
+      "comms": [
+        "[OVERWATCH] Readings are off the scale further in. Whatever's in charge down there, it's big."
+      ]
+    },
+    {
+      "flag": "kessar:done",
+      "text": "Return to the ship (Recall, or the landing shuttle)",
+      "comms": [
+        "[OVERWATCH] Confirmed kill. The swarm's losing its mind without her. Recall to the ship and report in."
+      ]
+    }
+  ],
+  "debrief": [
+    "[OVERWATCH] Kessar IV is quiet again. Good work, Operative. Bounty's in your account.",
+    "[OVERWATCH] There's a refinery in the Kessar belt that's started talking to itself. It's on your star map."
+  ],
+  "bounty": 500,
+  "unlocks": [
+    "belt_open"
+  ]
+}

@@ -57,10 +57,8 @@
       "parent": "kessar",
       "type": "planet",
       "name": "Kessar IV",
-      "description": "Ash world. Survey teams report something living under the crust.",
-      "requires": [
-        "kessar_iv_open"
-      ]
+      "description": "Ash world with a small mining claim that stopped reporting a week ago. Heat signatures moving under the crust.",
+      "location": "kessar_surface"
     },
     "kessar_belt": {
       "parent": "kessar",

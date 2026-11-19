@@ -41,6 +41,7 @@ func set_fade(target: float, delta: float) -> bool:
 
 
 static var ship_style := false   # aboard the ship: no skulls or banners on the walls
+static var natural := ""         # "rock" (planet surface) or "hive" (chitin / resin): no built walls at all
 
 
 ## Deco category for a face: 0 none, 1 window, 2 skull, 3 pipes, 4 warning light, 5 banner.
@@ -105,6 +106,9 @@ func paint(target: CanvasItem) -> void:
 	var south_open := not level.is_wall(cx, cy + 1)
 	var east_open := not level.is_wall(cx + 1, cy)
 	var v := float((hsh % 100) / 25) / 4.0
+	if natural != "":
+		_paint_natural(a, b, c, d, up, hsh, v, south_open, east_open)
+		return
 	if south_open:
 		var inside := level.is_floor(cx, cy + 1)
 		# lit face (light from the upper left)
@@ -130,6 +134,51 @@ func paint(target: CanvasItem) -> void:
 		ci.draw_rect(Rect2(-8, -8, 16, 16), Color(0.05, 0.045, 0.048))
 		ci.draw_line(Vector2(-8, -8), Vector2(8, -8), Color(0.11, 0.1, 0.1), 1.0)
 		ci.draw_set_transform(Vector2.ZERO)
+
+
+## Rock ridge (surface) or chitin / resin wall (hive): lumpy faces with strata,
+## cracks or glistening veins, and an uneven top.
+func _paint_natural(a: Vector2, b: Vector2, c: Vector2, d: Vector2, up: Vector2, hsh: int, v: float, south_open: bool, east_open: bool) -> void:
+	var hive := natural == "hive"
+	var lit := Color(0.2, 0.18, 0.16).lerp(Color(0.24, 0.21, 0.18), v) if not hive else Color(0.17, 0.15, 0.16).lerp(Color(0.21, 0.18, 0.19), v)
+	var dark := lit.darkened(0.4)
+	# ridges come in shelves of similar height (coarse hash), each corner wobbles a little
+	var H := 24.0 + float(Level.hash2(cx / 3, cy / 3) % 4) * 10.0
+	var hs := [H - float(hsh % 5), H - float((hsh / 5) % 5), H - float((hsh / 25) % 5), H - float((hsh / 125) % 5)]
+	var a2 := a + Vector2(0, -hs[0])
+	var b2 := b + Vector2(0, -hs[1])
+	var c2 := c + Vector2(0, -hs[2])
+	var d2 := d + Vector2(0, -hs[3])
+	if south_open:
+		ci.draw_polygon(PackedVector2Array([d, c, c2, d2]), PackedColorArray([lit.darkened(0.45), lit.darkened(0.45), lit, lit]))
+		_natural_detail(d, c, d2, c2, lit, hsh, hive)
+	if east_open:
+		ci.draw_polygon(PackedVector2Array([c, b, b2, c2]), PackedColorArray([dark.darkened(0.45), dark.darkened(0.45), dark, dark]))
+		_natural_detail(c, b, c2, b2, dark, hsh / 7, hive)
+	var top := lit.lightened(0.06)
+	ci.draw_polygon(PackedVector2Array([a2, b2, c2, d2]), PackedColorArray([top.lightened(0.06), top, top.darkened(0.25), top.lightened(0.03)]))
+	if hsh % 3 == 0:
+		ci.draw_circle((a2 + c2) * 0.5 + Vector2(float(hsh % 7) - 3.0, 0), 4.0 + float(hsh % 4), top.lightened(0.1))
+
+
+func _natural_detail(p0: Vector2, p1: Vector2, q0: Vector2, q1: Vector2, base: Color, hsh: int, hive: bool) -> void:
+	for k in 3:
+		var f := 0.25 + 0.25 * k + float((hsh >> k) % 5) * 0.02
+		var l0 := p0.lerp(q0, f)
+		var l1 := p1.lerp(q1, f + float((hsh >> (k + 2)) % 3 - 1) * 0.05)
+		if hive:
+			# glistening resin veins
+			ci.draw_line(l0, l1, Color(0.42, 0.4, 0.3, 0.35), 2.0)
+		else:
+			# rock strata
+			ci.draw_line(l0, l1, base.darkened(0.35), 1.0)
+			ci.draw_line(l0 + Vector2(0, 1), l1 + Vector2(0, 1), base.lightened(0.08), 1.0)
+	if hive and hsh % 4 == 0:
+		ci.draw_circle(p0.lerp(q1, 0.5), 3.0, Color(0.55, 0.85, 0.3, 0.35))
+	elif not hive and hsh % 5 == 0:
+		ci.draw_line(p0.lerp(q0, 0.2).lerp(p1, 0.4), p0.lerp(q0, 0.8).lerp(p1, 0.55), base.darkened(0.5), 1.0)
+	# contact shading toward the ground
+	ci.draw_polygon(PackedVector2Array([p0.lerp(q0, 0.25), p1.lerp(q1, 0.25), p1, p0]), PackedColorArray([Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0.5), Color(0, 0, 0, 0.5)]))
 
 
 ## Draws a vertical face; local x runs 0..T along the wall, y from -H (top) to 0.

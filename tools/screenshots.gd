@@ -50,7 +50,11 @@ func _ready() -> void:
 	if scene == "revive":
 		GameState.credits = 420
 		GameState.apply_death()
-	if not scene in ["ship", "nav", "starmap_fly", "ship_overview", "revive"]:
+	if scene in ["kessar", "camp", "recall", "kessar_overview"]:
+		GameState.location = "kessar_surface"
+	elif scene in ["hive", "queen", "hive_overview"]:
+		GameState.location = "kessar_hive"
+	elif not scene in ["ship", "nav", "starmap_fly", "ship_overview", "revive"]:
 		GameState.location = "kharon"
 	main.call("start_game")
 	await frames(3)
@@ -60,6 +64,28 @@ func _ready() -> void:
 	match scene:
 		"revive":
 			await frames(150)
+		"kessar":
+			await frames(60)
+		"camp":
+			p.global_position = lvl.room_center("camp") + Vector2(0, 60)
+			await frames(60)
+		"recall":
+			for e in get_tree().get_nodes_in_group("enemies"):
+				e.queue_free()
+			await frames(20)
+			p.start_recall()
+			await frames(70)
+		"hive":
+			await frames(60)
+		"queen":
+			var q := get_tree().get_first_node_in_group("boss") as BroodQueen
+			p.global_position = q.global_position + Vector2(40, 190)
+			q.take_hit(Combat.make_hit(10, p))
+			for k in 150:
+				p.hp = p.max_hp
+				await frames(1)
+				if q.act == "spray_tele" and q.act_t < 0.4:
+					break
 		"ship":
 			p.global_position = lvl.room_center("common") + Vector2(40, 0)
 			await frames(60)
@@ -205,7 +231,7 @@ func _ready() -> void:
 				game.camera.reset_smoothing()
 				game.set_process(false)
 				await frames(3)
-		"overview", "ship_overview":
+		"overview", "ship_overview", "kessar_overview", "hive_overview":
 			# whole layout, fully lit and zoomed out (compare the variants)
 			for e in get_tree().get_nodes_in_group("enemies"):
 				e.visible = false

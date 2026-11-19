@@ -8,6 +8,11 @@ const ATTRS := ["str", "dex", "int", "wil"]
 const POINTS_PER_LEVEL := 3
 const MAX_INVENTORY := 30
 const MAX_STASH := 50
+const XP_CURVE_BASE := 100.0   # XP to next level = base * level ^ exponent
+const XP_CURVE_EXP := 1.5
+const XP_FULL_GAP := 2         # full monster XP up to this many levels above the area level
+const XP_FALLOFF := 0.15       # then this much less per extra level
+const XP_MIN_MULT := 0.05
 const DEATH_UC_LOSS := 0.10    # share of carried creds lost on death
 const DEATH_XP_LOSS := 0.05    # share of the current level's XP requirement lost on death
 const DEFAULT_NAME := "Operative"
@@ -62,6 +67,10 @@ var location := "ship"             # key into data/locations.json
 var reviving := false             # died: wake in the Lazarus Cradle on the next ship load
 var last_death_loss := [0, 0]      # [UC, XP] lost on the last death (for the wake-up message)
 var stash: Array = []              # items in the ship's cargo locker
+var variants: Dictionary = {}      # location -> layout number, for locations with several layouts
+var beacon: Dictionary = {}        # recall beacon: {location, x, y, node} or empty
+var recall_cd := 0.0               # seconds until Recall is ready again
+var arrive_at: Variant = null      # Vector2: next arrival spot (teleport pad); String "hive_hole": beside the sinkhole
 var ship_node := ""                # where the ship is on the star map (data/starmap.json node id)
 var areas: Dictionary = {}         # location -> {"ground_items": [...]} for places not currently loaded
 var ground_items: Array = []       # loot on the floor of the current location
@@ -76,6 +85,7 @@ const _MAP_FLAG_PREFIXES := ["k:", "box:", "door:", "read:"]
 var play_time := 0.0
 var _uid := 1
 var loaded_from_save := false
+var session_started := false   # set by start_session; Game announces it once
 
 
 func _ready() -> void:
@@ -108,6 +118,14 @@ func new_game(p_name: String = DEFAULT_NAME, p_class: String = "combat_specialis
 	ship_node = String(ItemDB.starmap.get("ship_start", ""))
 	stash = []
 	reviving = false
+	beacon = {}
+	recall_cd = 0.0
+	arrive_at = null
+	variants = {}
+	for id in ItemDB.locations:
+		var nv := int(ItemDB.locations[id].get("variants", 0))
+		if nv > 0:
+			variants[id] = randi_range(1, nv)
 	areas = {}
 	ground_items = []
 	player_pos = null
@@ -189,7 +207,7 @@ func location_name(id: String = "") -> String:
 
 ## Map file base name (no extension) under data/maps/ for the current location.
 func map_base() -> String:
-	return String(location_def().get("map", location)).format({"variant": map_variant})
+	return String(location_def().get("map", location)).format({"variant": int(variants.get(location, map_variant))})
 
 
 ## Moves the character to another location. Floor loot of the place being left
@@ -321,8 +339,15 @@ func fmt(text: String) -> String:
 	return text.format(map_info.get("dirs", {}))
 
 
-func objective_index() -> int:
-	var objs: Array = ItemDB.mission.get("objectives", [])
+## The mission the current location belongs to ("" aboard the ship).
+func mission_id() -> String:
+	return String(location_def().get("mission", ""))
+
+
+func objective_index(mid: String = "") -> int:
+	if mid == "":
+		mid = mission_id()
+	var objs: Array = ItemDB.missions.get(mid, {}).get("objectives", [])
 	for i in objs.size():
 		if not has_flag(String(objs[i]["flag"])):
 			return i
@@ -331,10 +356,10 @@ func objective_index() -> int:
 
 func current_objective_text() -> String:
 	if location == "ship":
-		if has_flag("escape"):
-			return "Await new orders from OVERWATCH"
-		return "Deploy to Kharon Outpost (nav console, cockpit)"
-	var objs: Array = ItemDB.mission.get("objectives", [])
+		if not has_flag("kessar:queen"):
+			return "Deploy to Kessar IV (star map, cockpit)"
+		return "Await new orders from OVERWATCH"
+	var objs: Array = ItemDB.missions.get(mission_id(), {}).get("objectives", [])
 	var i := objective_index()
 	if i >= objs.size():
 		return "Mission complete"
@@ -432,7 +457,28 @@ func cooldown_mult() -> float:
 
 
 func xp_to_next() -> int:
-	return 100 + (level - 1) * 60
+	return roundi(XP_CURVE_BASE * pow(float(level), XP_CURVE_EXP))
+
+
+## The current location's area level (drives monster XP and loot); the
+## character's level where a place has none (the ship).
+func area_level() -> int:
+	return int(location_def().get("area_level", level))
+
+
+## Monster XP after the outlevelled-area falloff: full until the character is
+## XP_FULL_GAP levels above the area, then -15% per level, never below 5%.
+func xp_mult() -> float:
+	var over := level - area_level() - XP_FULL_GAP
+	if over <= 0:
+		return 1.0
+	return maxf(XP_MIN_MULT, 1.0 - XP_FALLOFF * over)
+
+
+func monster_xp(base: int) -> int:
+	if base <= 0:
+		return 0
+	return maxi(1, roundi(base * xp_mult()))
 
 
 # ---------------------------------------------------------------- progression
@@ -561,7 +607,7 @@ func save_game(pos: Variant) -> bool:
 		"attributes": attributes, "hp": hp, "energy": energy,
 		"inventory": inventory, "equipment": equipment,
 		"ammo": ammo, "stims": stims, "credits": credits, "flags": flags,
-		"location": location, "areas": areas, "ship_node": ship_node, "stash": stash, "reviving": reviving,
+		"location": location, "areas": areas, "ship_node": ship_node, "stash": stash, "reviving": reviving, "variants": variants, "beacon": beacon, "recall_cd": recall_cd,
 		"ground_items": ground_items,
 		"player_pos": pp,
 		"map_variant": map_variant,
@@ -619,6 +665,14 @@ func load_game() -> bool:
 	ship_node = String(d.get("ship_node", ""))
 	stash = d.get("stash", [])
 	reviving = bool(d.get("reviving", false))
+	beacon = d.get("beacon", {})
+	recall_cd = float(d.get("recall_cd", 0.0))
+	variants = {}
+	var sv: Dictionary = d.get("variants", {})
+	for id in ItemDB.locations:
+		var nv := int(ItemDB.locations[id].get("variants", 0))
+		if nv > 0:
+			variants[id] = clampi(int(sv.get(id, randi_range(1, nv))), 1, nv)
 	if not ItemDB.starmap.get("nodes", {}).has(ship_node):
 		# older saves: in orbit over the mission site they were on, else the start
 		ship_node = StarMapUI.node_for_location(location)
@@ -636,7 +690,46 @@ func load_game() -> bool:
 	hp = clampf(float(d.get("hp", 100)), 1.0, max_hp())
 	energy = clampf(float(d.get("energy", 50)), 0.0, max_energy())
 	loaded_from_save = true
+	start_session()
 	return true
+
+
+## A new play session (loading a save): like starting a new game in Diablo II,
+## every mission area is repopulated and re-rolled. The character, story
+## progress, star map and ship persist; the session begins aboard the ship.
+func start_session() -> void:
+	var keep := {}
+	for f in flags:
+		var key := String(f)
+		var slash := key.find("/")
+		if slash > 0:
+			var loc := key.substr(0, slash)
+			var what := key.substr(slash + 1)
+			# map state of mission areas resets; terminals stay read (XP is one-time)
+			if not bool(ItemDB.locations.get(loc, {}).get("hub", false)) and not what.begins_with("read:"):
+				continue
+		keep[key] = flags[f]
+	flags = keep
+	var hub_ground: Array = ground_items if is_hub() else areas.get("ship", {}).get("ground_items", [])
+	var ship_area: Dictionary = areas.get("ship", {}) if not is_hub() else pack_explored(explored)
+	ship_area["ground_items"] = hub_ground
+	if not is_hub():
+		explored = unpack_explored(ship_area)
+	areas = {}
+	ground_items = hub_ground
+	for id in ItemDB.locations:
+		var nv := int(ItemDB.locations[id].get("variants", 0))
+		if nv > 0:
+			var prev := int(variants.get(id, 0))
+			var v := randi_range(1, nv)
+			while nv > 1 and v == prev:
+				v = randi_range(1, nv)
+			variants[id] = v
+	map_variant = _pick_variant()
+	beacon = {}
+	location = "ship"
+	player_pos = null
+	session_started = true
 
 
 ## Saves before v3 predate locations: their map flags all belong to Kharon.

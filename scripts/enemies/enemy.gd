@@ -136,8 +136,8 @@ func become_aggro() -> void:
 	if aggro or dead:
 		return
 	aggro = true
-	if kind == "researcher":
-		Audio.play("zombie_snarl", global_position)
+	if _organic():
+		Audio.play("zombie_snarl", global_position, _voice_pitch())
 	else:
 		Audio.play("robot_alert", global_position, _voice_pitch())
 	state = S.CHASE
@@ -366,18 +366,18 @@ func _on_damaged(hit: Dictionary, _amount: float) -> void:
 		become_aggro()
 	if not hit.get("dot", false):
 		var dir: Vector2 = hit.get("dir", Vector2.ZERO)
-		if kind == "researcher":
+		if _organic():
 			Audio.play("impact_flesh", global_position)
 			if randf() < 0.5:
-				Audio.play("zombie_hurt", global_position)
+				Audio.play("zombie_hurt", global_position, _voice_pitch())
 		else:
 			Audio.play("impact_metal", global_position, 0.8 if kind == "heavy" else 1.0)
 			if randf() < 0.35:
 				Audio.play("robot_hurt", global_position, _voice_pitch())
 		if kind == "drone":
 			Fx.burst(get_parent(), Iso.sp(global_position, 26), Color(1.0, 0.8, 0.3), 5, 150.0, dir, 0.9, 1.5)
-		elif kind == "researcher":
-			Fx.blood(get_parent(), Iso.sp(global_position, 16), dir, Color(0.3, 0.5, 0.08))
+		elif _organic():
+			Fx.blood(get_parent(), Iso.sp(global_position, 16), dir, _blood_color())
 		else:
 			Fx.burst(get_parent(), Iso.sp(global_position, 22), Color(1.0, 0.75, 0.35), 5, 140.0, dir, 0.9, 1.5)
 
@@ -393,16 +393,18 @@ func die() -> void:
 	cv.z_index = -1
 	if spawn_id != "":
 		GameState.set_flag(GameState.area_flag("k:" + spawn_id))
-	GameState.add_xp(int(def.get("xp", 10)))
-	Fx.text(get_parent(), Iso.sp(global_position, 50), "+%d XP" % int(def.get("xp", 10)), Color(0.7, 0.6, 1.0), 0.85)
-	if kind == "researcher":
-		Audio.play("zombie_death", global_position)
+	var xp := GameState.monster_xp(int(def.get("xp", 10)))
+	GameState.add_xp(xp)
+	if xp > 0:
+		Fx.text(get_parent(), Iso.sp(global_position, 50), "+%d XP" % xp, Color(0.7, 0.6, 1.0), 0.85)
+	if _organic():
+		Audio.play("zombie_death", global_position, _voice_pitch())
 	else:
 		Audio.play("robot_death", global_position, _voice_pitch())
 	if kind == "drone":
 		Fx.burst(get_parent(), Iso.sp(global_position, 24), Color(1.0, 0.6, 0.2), 16, 220.0)
 	else:
-		Fx.blood(get_parent(), Iso.sp(global_position, 12), Vector2.UP, Color(0.35, 0.03, 0.02) if kind != "researcher" else Color(0.25, 0.4, 0.05))
+		Fx.blood(get_parent(), Iso.sp(global_position, 12), Vector2.UP, Color(0.35, 0.03, 0.02) if not _organic() else _blood_color())
 	if level != null:
 		level.call("enemy_loot", global_position, def)
 
@@ -411,15 +413,25 @@ func die() -> void:
 
 ## Robots get deeper as they get bigger.
 func _voice_pitch() -> float:
-	return {"heavy": 0.72, "boss": 0.5}.get(kind, 1.0)
+	return float(def.get("voice_pitch", {"heavy": 0.72, "boss": 0.5}.get(kind, 1.0)))
+
+
+## Flesh-and-blood creature (groans, bleeds) rather than a machine.
+func _organic() -> bool:
+	return kind == "researcher" or bool(def.get("organic", false))
+
+
+func _blood_color() -> Color:
+	var b: Array = def.get("blood", [0.3, 0.5, 0.08])
+	return Color(float(b[0]), float(b[1]), float(b[2]))
 
 
 ## Idle noise: researchers groan, machines chatter. Only when the player is near.
 func _voice() -> void:
 	if target == null or global_position.distance_to(target.global_position) > 650.0:
 		return
-	if kind == "researcher":
-		Audio.play("zombie_groan", global_position, randf_range(0.9, 1.1))
+	if _organic():
+		Audio.play("zombie_groan", global_position, randf_range(0.9, 1.1) * _voice_pitch())
 	else:
 		Audio.play("robot_chatter", global_position, _voice_pitch())
 
@@ -471,7 +483,7 @@ func _draw_overlay() -> void:
 
 
 func _top() -> float:
-	return {"drone": -44.0, "researcher": -42.0, "heavy": -58.0}.get(kind, -50.0)
+	return float(def.get("top", {"drone": -44.0, "researcher": -42.0, "heavy": -58.0}.get(kind, -50.0)))
 
 
 func _shadow(r: float, a: float = 0.45) -> void:

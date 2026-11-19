@@ -220,7 +220,7 @@ func run() -> void:
 	check(not sm.pos.has("relay_9"), "children of locked nodes stay hidden")
 	check(sm.ship_at == "kessar", "ship starts at its star map node")
 	check(StarMapUI.tree_path("kharon", "drift") == ["kharon", "kessar", "veil", "known_space", "drift"], "course follows the tree")
-	sm.activate("kessar_iv")
+	sm.activate("kessar_belt")
 	await frames(2)
 	check(sm.flight.is_empty() and sm.ship_at == "kessar", "locked node can't be flown to")
 	sm._select("kharon")
@@ -284,9 +284,7 @@ func run() -> void:
 	check(mm.is_explored(boss_cell.x, boss_cell.y) and mm.explored_count() > seen, "exploring reveals new map")
 	var explored_now := mm.explored_count()
 	GameState.save_game(player.global_position)
-	GameState.explored = PackedByteArray()
-	GameState.load_game()
-	check(GameState.explored.count(1) == explored_now, "explored map survives save / load")
+	check(GameState.unpack_explored(GameState.pack_explored(GameState.explored)).count(1) == explored_now, "explored map saves and loads (packed)")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(GameState.save_path))
 
 	print("== reload sounds")
@@ -474,9 +472,21 @@ func run() -> void:
 	var exp_item := ItemDB.generate("assault_rifle", 3, 3)
 	check(exp_item["special"] != "", "experimental items roll a special property")
 
+	print("== loot container glow")
+	var box: LootContainer = null
+	for n in game.world.get_children():
+		if n is LootContainer and not (n as LootContainer).opened:
+			box = n
+			break
+	check(box != null and box.glow != null, "unopened containers glow")
+	if box != null:
+		player.global_position = box.global_position + Vector2(0, 40)
+		box.interact(player)
+		check(box.glow == null, "opening a container puts its glow out")
+
 	print("== progression")
 	var lv0 := GameState.level
-	GameState.add_xp(900)
+	GameState.add_xp(5000)
 	check(GameState.level >= lv0 + 3, "three+ level-ups (%d -> %d)" % [lv0, GameState.level])
 	var pts := GameState.attr_points
 	var str0 := int(GameState.attributes["str"])
@@ -537,19 +547,31 @@ func run() -> void:
 	await frames(200)
 	check(GameState.has_flag("boss"), "boss defeat sets mission flag")
 
-	print("== save / load")
+	print("== save / load: a new session")
 	GameState.save_game(player.global_position)
 	var saved_level := GameState.level
 	var saved_inv := GameState.inventory.size()
 	var saved_uc := GameState.credits
+	var saved_variant := GameState.map_variant
 	main.call("_on_game_request", "load")
+	await frames(8)
+	game = main.get("current")
+	check(GameState.level == saved_level and GameState.inventory.size() == saved_inv and GameState.credits == saved_uc, "save/load restores character and creds")
+	check(GameState.stash.size() == 1, "stash survives save / load")
+	check(GameState.location == "ship" and game.hub, "loading starts the session aboard the ship")
+	check(GameState.has_flag("boss") and GameState.has_flag("power"), "story progress persists across sessions")
+	check(not GameState.flags.keys().any(func(f: String) -> bool: return f.begins_with("kharon/k:") or f.begins_with("kharon/box:")), "mission areas reset: kills and opened crates forgotten")
+	check(GameState.map_variant != saved_variant, "mission areas re-roll their layout (%d -> %d)" % [saved_variant, GameState.map_variant])
+	check(game.hud.messages.any(func(m: Array) -> bool: return String(m[0]).begins_with("New session")), "new session is announced")
+	main.call("_on_game_request", "travel:kharon")
 	await frames(8)
 	game = main.get("current")
 	player = game.player
 	level = game.level
-	check(GameState.level == saved_level and GameState.inventory.size() == saved_inv and GameState.credits == saved_uc, "save/load restores character and creds")
-	check(GameState.stash.size() == 1, "stash survives save / load")
-	check(GameState.has_flag("boss") and get_tree().get_nodes_in_group("boss").size() == 0, "save/load restores world state")
+	check(get_tree().get_nodes_in_group("boss").size() == 1 and get_tree().get_nodes_in_group("enemies").size() >= 25, "Kharon repopulated: monsters and WARDEN are back")
+	check(level.powered, "but the generator stays restored (story flag)")
+	var kept_item := ItemDB.generate("shotgun", 0, 1)
+	level.drop_item(level.player_start + Vector2(0, 40), {"kind": "item", "item": kept_item})
 
 	print("== escape")
 	var vdoor := _door_with_req("boss")
@@ -575,7 +597,7 @@ func run() -> void:
 	main.call("_on_game_request", "travel:kharon")
 	await frames(8)
 	game = main.get("current")
-	check(GameState.has_flag("kharon/k:" + _any_boss_sid()) and get_tree().get_nodes_in_group("boss").is_empty(), "Kharon remembers its state on return")
+	check(GameState.ground_items.any(func(g: Dictionary) -> bool: return g.get("item", {}) == kept_item), "Kharon remembers its state on return (same session)")
 	var pad: ShuttlePad = null
 	for n in game.world.get_children():
 		if n is ShuttlePad:
@@ -615,13 +637,15 @@ func run() -> void:
 	check(GameState.xp == 0 and GameState.level == lv_before, "death never drops below the start of the level")
 	GameState.reviving = false
 
+	await _kessar_tests()
+
 	print("== v1 save migration")
 	var v1 := {"version": 1, "level": 3, "flags": {"power": true, "k:5,5": true, "box:2,3": true}, "player_pos": [10, 10]}
 	var f := FileAccess.open(GameState.save_path, FileAccess.WRITE)
 	f.store_string(JSON.stringify(v1))
 	f.close()
 	GameState.load_game()
-	check(GameState.location == "kharon" and GameState.has_flag("power") and GameState.has_flag("kharon/k:5,5") and GameState.has_flag("kharon/box:2,3"), "v1 saves load at Kharon with their map flags")
+	check(GameState.location == "ship" and GameState.has_flag("power") and not GameState.has_flag("kharon/k:5,5"), "v1 saves load: story kept, areas reset, aboard the ship")
 
 	print("== performance sample")
 	GameState.new_game()
@@ -632,6 +656,186 @@ func run() -> void:
 	await frames(120)
 	var avg := (Time.get_ticks_usec() - t0) / 120.0 / 1000.0
 	print("  avg frame (headless, physics-bound) %.2f ms" % avg)
+
+
+func _kessar_tests() -> void:
+	print("== Kessar IV: Ashfall Flats")
+	GameState.ship_node = "kessar_iv"
+	main.call("_on_game_request", "travel:kessar_surface")
+	await frames(8)
+	game = main.get("current")
+	var level := game.level
+	var player := game.player
+	check(GameState.location == "kessar_surface" and level.w > 60, "Kessar IV surface loaded (%s)" % GameState.map_info.get("name", "?"))
+	check(GameState.has_flag("kessar:landed") and GameState.current_objective_text().begins_with("Find the hive"), "landing completes objective 1: " + GameState.current_objective_text())
+	check(level.hive_hole != null and level.hive_hole.global_position.distance_to(level.player_start) > 600.0, "hive sinkhole exists, far from the landing point")
+	var kinds := {}
+	for e in get_tree().get_nodes_in_group("enemies"):
+		kinds[(e as Enemy).kind] = int(kinds.get((e as Enemy).kind, 0)) + 1
+	check(kinds.has("miner") and kinds.has("burrower") and kinds.has("swarmling") and kinds.has("spitter"), "surface has miners, burrowers, swarmlings, spitters %s" % str(kinds))
+	var log_term: Terminal = null
+	for n in game.world.get_children():
+		if n is Terminal and (n as Terminal).term_id == "kessar_log":
+			log_term = n
+	check(log_term != null and not GameState.fmt(String(ItemDB.terminals["kessar_log"]["pages"][2])).contains("{"), "mining camp log points toward the hive")
+	# clear the landing zone, then test the Brood up close
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if (e as Node2D).global_position.distance_to(player.global_position) < 900.0:
+			e.queue_free()
+	await frames(2)
+	var bur := level.spawn_enemy("burrower", player.global_position + Vector2(300, 0), "test_burrower") as BroodEnemy
+	await frames(2)
+	check(bur.buried and not bur.take_hit(Combat.make_hit(10, null)), "Ash Burrower hides under the ash, untouchable")
+	bur.global_position = player.global_position + Vector2(60, 0)
+	for i in 60:
+		await frames(1)
+		if not bur.buried:
+			break
+	check(not bur.buried, "Ash Burrower erupts when the operative comes close")
+	bur.take_hit(Combat.make_hit(9999, null))
+	var spit := level.spawn_enemy("spitter", player.global_position + Vector2(250, 0), "") as BroodEnemy
+	await frames(2)
+	spit._spit(player.global_position + Vector2(120, 40))
+	var pooled := false
+	for i in 90:
+		await frames(1)
+		if not get_tree().get_nodes_in_group("acid").is_empty():
+			pooled = true
+			break
+	check(pooled, "Spitter's acid leaves a pool on the floor")
+	spit.take_hit(Combat.make_hit(9999, null))
+
+	print("== recall")
+	GameState.recall_cd = 0.0
+	player.start_recall()
+	await frames(10)
+	for i in 30:   # the operative may evade; keep swinging until a hit lands
+		if player.take_hit(Combat.make_hit(25, null)) and player.recall_t == 0.0:
+			break
+	player.hp = player.max_hp
+	check(player.recall_t == 0.0 and GameState.recall_cd >= 2.5 and GameState.recall_cd <= Player.RECALL_FAIL_CD, "taking damage interrupts recall (short cooldown)")
+	player.start_recall()
+	check(player.recall_t == 0.0, "recall waits for its cooldown")
+	GameState.recall_cd = 0.0
+	var recall_spot := player.global_position
+	player.start_recall()
+	for i in 200:
+		await get_tree().physics_frame
+		if main.get("current") != game:
+			break
+	await frames(8)
+	game = main.get("current")
+	check(GameState.location == "ship", "recall pulls the operative back to the ship")
+	check(String(GameState.beacon.get("location", "")) == "kessar_surface" and GameState.recall_cd > Player.RECALL_COOLDOWN - 5.0, "recall leaves a beacon and starts the 60 s cooldown")
+	var pad := game.level.teleport_pad
+	check(pad != null, "teleport pad aboard the ship")
+	GameState.ship_node = "kessar"
+	pad.interact(game.player)
+	await frames(4)
+	check(GameState.location == "ship", "teleport pad refuses when the ship has moved (beacon out of range)")
+	GameState.ship_node = "kessar_iv"
+	pad.interact(game.player)
+	await frames(8)
+	game = main.get("current")
+	player = game.player
+	level = game.level
+	check(GameState.location == "kessar_surface" and player.global_position.distance_to(recall_spot) < 4.0 and GameState.beacon.is_empty(), "teleport pad returns to the beacon spot (beacon used up)")
+
+	print("== into the hive")
+	player.global_position = level.hive_hole.global_position + Vector2(100, 0)
+	await frames(4)
+	check(GameState.has_flag("kessar:hive_found"), "finding the sinkhole completes objective 2")
+	level.hive_hole.interact(player)
+	await frames(8)
+	game = main.get("current")
+	level = game.level
+	player = game.player
+	check(GameState.location == "kessar_hive" and GameState.has_flag("kessar:hive"), "sinkhole leads down into the hive (%s)" % GameState.map_info.get("name", "?"))
+	check(GameState.current_objective_text() == "Kill the Brood Queen", "objective: " + GameState.current_objective_text())
+	var eggs: Array = get_tree().get_nodes_in_group("enemies").filter(func(e: Node) -> bool: return (e as Enemy).kind == "egg")
+	var n_sw := _count_kind("swarmling")
+	(eggs[0] as BroodEnemy).hatch()
+	await frames(3)
+	check(_count_kind("swarmling") >= n_sw + 2, "egg clusters hatch Swarmlings")
+	var queen := get_tree().get_first_node_in_group("boss") as BroodQueen
+	check(queen != null, "the Brood Queen waits in her chamber")
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e != queen and (e as Enemy).kind != "egg":
+			e.queue_free()
+	player.global_position = queen.global_position + Vector2(0, 160)
+	await frames(2)
+	queen.take_hit(Combat.make_hit(10, player))
+	var seen := {}
+	var forced := false
+	for i in 1400:
+		await frames(1)
+		player.hp = player.max_hp
+		if queen.dead:
+			break
+		seen[queen.act] = true
+		if queen.act == "burrow" and not forced:
+			queen.interrupt()
+			forced = not queen.buried and queen.is_stunned()
+		if i % 40 == 0:
+			queen.take_hit(Combat.make_hit(110, player))
+	check(seen.has("spray_tele") and seen.has("burrow"), "Brood Queen sprays acid and burrows %s" % str(seen.keys()))
+	check(forced, "Disruptor Pulse forces the Queen out of her burrow")
+	while not queen.dead:
+		queen.take_hit(Combat.make_hit(500, player))
+		await frames(1)
+	await frames(4)
+	check(GameState.has_flag("kessar:queen") and GameState.current_objective_text().begins_with("Return to the ship"), "killing the Queen: " + GameState.current_objective_text())
+	var uc0 := GameState.credits
+	for n in get_tree().get_nodes_in_group("enemies") + get_tree().get_nodes_in_group("acid"):
+		n.queue_free()   # leftover Swarmlings would (rightly) interrupt the recall
+	await frames(2)
+	GameState.recall_cd = 0.0
+	player.start_recall()
+	for i in 200:
+		await get_tree().physics_frame
+		if main.get("current") != game:
+			break
+	await frames(8)
+	game = main.get("current")
+	check(GameState.has_flag("kessar:done") and GameState.credits >= uc0 + 500, "OVERWATCH debrief pays the bounty")
+	check(StarMapUI.is_unlocked("kessar_belt"), "mission unlocks the next star map node")
+
+	print("== re-entrant areas and diminishing returns")
+	var lv_keep := GameState.level
+	var loc_keep := GameState.location
+	GameState.location = "kessar_hive"
+	var mults := []
+	for lv in [5, 7, 10, 13]:
+		GameState.level = lv
+		mults.append(snappedf(GameState.xp_mult(), 0.01))
+	var want := [1.0, 0.7, 0.25, 0.05]
+	check(range(4).all(func(i: int) -> bool: return is_equal_approx(float(mults[i]), float(want[i]))), "XP falls off once the character outlevels the area %s" % str(mults))
+	GameState.level = 5
+	check(GameState.xp_to_next() == 1118 and GameState.area_level() == 3, "XP curve 100 x level^1.5; the Hive is area level 3")
+	GameState.level = lv_keep
+	GameState.location = loc_keep
+	GameState.save_game(null)
+	main.call("_on_game_request", "load")
+	await frames(8)
+	GameState.ship_node = "kessar_iv"
+	main.call("_on_game_request", "travel:kessar_hive")
+	await frames(8)
+	game = main.get("current")
+	var queen2 := get_tree().get_first_node_in_group("boss") as BroodQueen
+	check(queen2 != null and not queen2.dead, "new session: the Brood Queen is back for another run")
+	var uc1 := GameState.credits
+	while not queen2.dead:
+		queen2.take_hit(Combat.make_hit(500, game.player))
+		await frames(1)
+	await frames(4)
+	main.call("_on_game_request", "travel:ship")
+	await frames(8)
+	game = main.get("current")
+	check(GameState.credits < uc1 + 500 and not game.comms.any(func(c: Array) -> bool: return String(c[0]).contains("Bounty")), "re-killing her pays no second bounty")
+
+
+func _count_kind(k: String) -> int:
+	return get_tree().get_nodes_in_group("enemies").filter(func(e: Node) -> bool: return (e as Enemy).kind == k).size()
 
 
 func _saved_location() -> String:

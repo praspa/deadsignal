@@ -11,8 +11,13 @@ const WALL_H := 58.0
 const CUTAWAY_ALPHA := 0.22
 const MAP_DIR := "res://data/maps/"   # outpost_<n>.txt + .json, see tools/gen_maps.py
 
-const SOLID_PROPS := "opgt"
-const ENEMY_CHARS := {"d": "drone", "r": "researcher", "h": "heavy", "B": "boss"}
+const SOLID_PROPS := "opgti"
+const ENEMY_CHARS := {"d": "drone", "r": "researcher", "h": "heavy", "B": "boss",
+	"w": "swarmling", "y": "spitter", "G": "broodguard", "m": "miner", "u": "burrower", "e": "egg", "K": "queen"}
+const BROOD := ["swarmling", "spitter", "broodguard", "miner", "burrower", "egg"]
+const HIVE_HOLE_CHAR := "H"   # Kessar sinkhole between the surface and the hive
+const TELEPORT_CHAR := "W"    # ship's teleport pad (returns to the recall beacon)
+const KESSAR_LOG_CHAR := "J"  # mining camp log terminal (id "kessar_log")
 const DOOR_REQ := {"D": "", "E": "power", "R": "research", "S": "cause", "V": "boss"}
 const CREW_CHARS := "QTMFP"   # crew members on the ship, see data/crew.json
 const NAV_CHAR := "N"         # ship's nav console (a terminal with id "nav")
@@ -29,6 +34,8 @@ var walls: Dictionary = {}      # Vector2i -> WallTile
 var _faded: Dictionary = {}     # Vector2i -> true (walls currently fading / faded)
 var player_start := Vector2.ZERO
 var revive_point := Vector2.ZERO   # in front of the Lazarus Cradle (ship only)
+var hive_hole: HiveHole = null
+var teleport_pad: TeleportPad = null
 var rooms: Dictionary = {}           # room name -> Rect2i (tiles), from the layout metadata
 var exit_rect := Rect2()
 var arena_rect := Rect2()
@@ -69,6 +76,7 @@ func build(p_world: Node2D) -> void:
 		lamp_color = Color(float(lc[0]), float(lc[1]), float(lc[2]))
 	steady_lights = bool(ldef.get("steady_lights", false))
 	WallTile.ship_style = String(ldef.get("wall_style", "")) == "ship"
+	WallTile.natural = String(ldef.get("wall_style", "")) if String(ldef.get("wall_style", "")) in ["rock", "hive"] else ""
 	_load_map()
 	floor_layer = Node2D.new()
 	floor_layer.name = "Floor"
@@ -239,7 +247,7 @@ func _build_occluders() -> void:
 	for y in h:
 		for x in w:
 			var c := ch(x, y)
-			if "ogt".contains(c) or c == "C":
+			if "ogti".contains(c) or c == "C":
 				_add_occluder(occ_root, Rect2(x * T + 3, y * T + 3, T - 6, T - 6))
 
 
@@ -295,7 +303,7 @@ func _build_astar() -> void:
 	for y in h:
 		for x in w:
 			var c := ch(x, y)
-			if c == "#" or c == " " or SOLID_PROPS.contains(c) or c.is_valid_int() or c == "c" or c == "C" or c == NAV_CHAR or c == STASH_CHAR or c == CRADLE_CHAR or CREW_CHARS.contains(c):
+			if c == "#" or c == " " or SOLID_PROPS.contains(c) or c.is_valid_int() or c == "c" or c == "C" or c == NAV_CHAR or c == STASH_CHAR or c == CRADLE_CHAR or c == KESSAR_LOG_CHAR or CREW_CHARS.contains(c):
 				astar.set_point_solid(Vector2i(x, y), true)
 			elif DOOR_REQ.has(c):
 				astar.set_point_solid(Vector2i(x, y), not GameState.has_flag(door_flag(x, y)))
@@ -332,6 +340,8 @@ func _spawn_entities() -> void:
 			elif ENEMY_CHARS.has(c):
 				if not GameState.has_flag(GameState.area_flag("k:" + sid)):
 					var e := spawn_enemy(ENEMY_CHARS[c], pos, sid)
+					if c == "K":
+						(e as BroodQueen).arena_rect = Rect2(rooms["queen"].position * T, rooms["queen"].size * T).grow(-T) if rooms.has("queen") else Rect2()
 					if c == "B":
 						arena_rect = _room_rect(x, y).grow(-T * 3)
 						(e as Boss).arena_rect = arena_rect
@@ -349,10 +359,19 @@ func _spawn_entities() -> void:
 				var d := Door.new()
 				d.setup(self, Vector2i(x, y), DOOR_REQ[c])
 				world.add_child(d)
-			elif c.is_valid_int() or c == NAV_CHAR:
+			elif c.is_valid_int() or c == NAV_CHAR or c == KESSAR_LOG_CHAR:
 				var t := Terminal.new()
-				t.setup(self, "nav" if c == NAV_CHAR else c, Vector2i(x, y))
+				t.setup(self, "nav" if c == NAV_CHAR else ("kessar_log" if c == KESSAR_LOG_CHAR else c), Vector2i(x, y))
 				world.add_child(t)
+			elif c == HIVE_HOLE_CHAR:
+				hive_hole = HiveHole.new()
+				hive_hole.position = pos
+				hive_hole.dest = "kessar_hive" if GameState.location == "kessar_surface" else "kessar_surface"
+				world.add_child(hive_hole)
+			elif c == TELEPORT_CHAR:
+				teleport_pad = TeleportPad.new()
+				teleport_pad.position = pos
+				world.add_child(teleport_pad)
 			elif c == CRADLE_CHAR:
 				var cradle := LazarusCradle.new()
 				cradle.position = pos
@@ -370,7 +389,7 @@ func _spawn_entities() -> void:
 				var box := LootContainer.new()
 				box.setup(self, Vector2i(x, y), c == "C")
 				world.add_child(box)
-			elif SOLID_PROPS.contains(c) or c == "l" or c == "v" or c == "z":
+			elif SOLID_PROPS.contains(c) or c == "l" or c == "v" or c == "z" or c == "j" or c == "f":
 				var p := Prop.new()
 				p.setup(self, Vector2i(x, y), c)
 				world.add_child(p)
@@ -394,6 +413,10 @@ func spawn_enemy(kind: String, pos: Vector2, sid: String) -> Enemy:
 	var e: Enemy
 	if kind == "boss":
 		e = Boss.new()
+	elif kind == "queen":
+		e = BroodQueen.new()
+	elif kind in BROOD:
+		e = BroodEnemy.new()
 	else:
 		e = Enemy.new()
 	e.setup(kind, self, sid)
@@ -454,7 +477,7 @@ func roll_consumable(pos: Vector2, stim_chance: float) -> void:
 
 ## A pile of creds, scaled by character level. `mult` scales for tougher sources.
 func drop_credits(pos: Vector2, mult: float) -> void:
-	var amount := roundi(randf_range(4.0, 10.0) * (1.0 + float(GameState.level - 1) * 0.35) * mult)
+	var amount := roundi(randf_range(4.0, 10.0) * (1.0 + float(GameState.area_level() - 1) * 0.35) * mult)
 	if amount > 0:
 		drop_item(scatter(pos), {"kind": "credits", "amount": amount})
 
@@ -464,15 +487,15 @@ func enemy_loot(pos: Vector2, def: Dictionary) -> void:
 	if randf() < float(def.get("credit_chance", 0.5)):
 		drop_credits(pos, 1.0 + q)
 	if randf() < float(def.get("drop_chance", 0.3)):
-		drop_item(scatter(pos), {"kind": "item", "item": ItemDB.random_drop(GameState.level, q)})
+		drop_item(scatter(pos), {"kind": "item", "item": ItemDB.random_drop(GameState.area_level(), q)})
 	if randf() < float(def.get("ammo_chance", 0.3)):
 		roll_consumable(pos, 0.15)
 
 
 func boss_loot(pos: Vector2) -> void:
-	drop_item(scatter(pos), {"kind": "item", "item": ItemDB.generate(ItemDB.random_base_id(), ItemDB.RARITY_EXPERIMENTAL, GameState.level + 1)})
-	drop_item(scatter(pos), {"kind": "item", "item": ItemDB.random_drop(GameState.level + 1, 3)})
-	drop_item(scatter(pos), {"kind": "item", "item": ItemDB.random_drop(GameState.level + 1, 3)})
+	drop_item(scatter(pos), {"kind": "item", "item": ItemDB.generate(ItemDB.random_base_id(), ItemDB.RARITY_EXPERIMENTAL, GameState.area_level() + 1)})
+	drop_item(scatter(pos), {"kind": "item", "item": ItemDB.random_drop(GameState.area_level() + 1, 3)})
+	drop_item(scatter(pos), {"kind": "item", "item": ItemDB.random_drop(GameState.area_level() + 1, 3)})
 	drop_item(scatter(pos), {"kind": "stim", "amount": 2})
 	drop_credits(pos, 25.0)
 
@@ -480,13 +503,13 @@ func boss_loot(pos: Vector2) -> void:
 func container_loot(pos: Vector2, strong: bool) -> void:
 	drop_credits(pos, 4.0 if strong else 1.5)
 	if strong:
-		drop_item(scatter(pos), {"kind": "item", "item": ItemDB.random_drop(GameState.level, 2)})
-		drop_item(scatter(pos), {"kind": "item", "item": ItemDB.random_drop(GameState.level, 1)})
+		drop_item(scatter(pos), {"kind": "item", "item": ItemDB.random_drop(GameState.area_level(), 2)})
+		drop_item(scatter(pos), {"kind": "item", "item": ItemDB.random_drop(GameState.area_level(), 1)})
 		drop_item(scatter(pos), {"kind": "stim", "amount": 1})
 		roll_consumable(pos, 0.0)
 	else:
 		if randf() < 0.6:
-			drop_item(scatter(pos), {"kind": "item", "item": ItemDB.random_drop(GameState.level, 0)})
+			drop_item(scatter(pos), {"kind": "item", "item": ItemDB.random_drop(GameState.area_level(), 0)})
 		roll_consumable(pos, 0.3)
 
 
