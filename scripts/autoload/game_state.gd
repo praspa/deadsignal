@@ -334,6 +334,27 @@ func sell_item(item: Dictionary) -> bool:
 	return true
 
 
+## Common (gray) items in the pack: what "Sell all junk" sells.
+func junk_items() -> Array:
+	return inventory.filter(func(it: Dictionary) -> bool: return int(it["rarity"]) == ItemDB.RARITY_COMMON)
+
+
+## Sells every Common item in the pack in one go. Returns [count, total UC].
+func sell_junk() -> Array:
+	var junk := junk_items()
+	var total := 0
+	for it in junk:
+		inventory.erase(it)
+		total += ItemDB.sell_price(it)
+		buyback.push_front(it)
+	if buyback.size() > BUYBACK_SIZE:
+		buyback.resize(BUYBACK_SIZE)
+	if not junk.is_empty():
+		Events.inventory_changed.emit()
+		add_credits(total)
+	return [junk.size(), total]
+
+
 func buy_supply(id: String) -> bool:
 	var s: Dictionary = ItemDB.SUPPLIES.get(id, {})
 	if s.is_empty() or not _pay(int(s["price"])):

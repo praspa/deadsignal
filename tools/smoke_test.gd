@@ -492,6 +492,19 @@ func run() -> void:
 	GameState.spend_point("str")
 	check(GameState.attr_points == pts - 1 and int(GameState.attributes["str"]) == str0 + 1, "attribute point spent")
 	check(GameState.max_hp() > mhp, "strength raises max health")
+	game.character_ui.open()
+	await frames(3)
+	(game.character_ui.rows.get_child(2) as Control).grab_focus()   # INTELLIGENCE
+	var int0 := int(GameState.attributes["int"])
+	for i in 2:   # press whatever is selected, as a player would
+		(get_viewport().gui_get_focus_owner() as Button).emit_signal("pressed")
+		await frames(2)
+	check(get_viewport().gui_get_focus_owner() == game.character_ui.rows.get_child(2), "assigning a point keeps the selection on that attribute")
+	check(int(GameState.attributes["int"]) == int0 + 2, "repeated presses add to the same attribute")
+	GameState.attributes["int"] = int0   # undo, so later respec checks see the same spent points
+	GameState.attr_points += 2
+	game.character_ui.close()
+	await frames(2)
 
 	print("== mission flow")
 	await _use_terminal("1")
@@ -879,6 +892,24 @@ func _crew_service_tests() -> void:
 	check(GameState.stims == st0 + 1 and int(GameState.ammo["rifle"]) == am0 + 30, "buying supplies (stims, ammo)")
 	GameState.credits = 0
 	check(not GameState.buy_item(GameState.vendor_stock[0]), "can't buy without the creds")
+	var keep := ItemDB.generate("shotgun", ItemDB.RARITY_UNCOMMON, 3)
+	var junk_a := ItemDB.generate("shotgun", ItemDB.RARITY_COMMON, 3)
+	var junk_b := ItemDB.generate("shotgun", ItemDB.RARITY_COMMON, 2)
+	for x in [keep, junk_a, junk_b]:
+		GameState.add_item(x)
+	game.trade_ui.refresh()
+	var n_junk := GameState.junk_items().size()
+	var junk_uc := 0
+	for x in GameState.junk_items():
+		junk_uc += ItemDB.sell_price(x)
+	check(not game.trade_ui.junk_btn.disabled and game.trade_ui.junk_btn.text.contains(str(n_junk)), "Sell all junk button shows the junk count (%d)" % n_junk)
+	game.trade_ui.junk_btn.grab_focus()
+	game.trade_ui._sell_junk()
+	await frames(1)
+	check(GameState.junk_items().is_empty() and GameState.inventory.has(keep) and GameState.credits == junk_uc and GameState.buyback.has(junk_a), "Sell all junk sells every Common item and keeps the rest (+%s)" % GameState.fmt_uc(junk_uc))
+	var fo := get_viewport().gui_get_focus_owner()
+	check(game.trade_ui.junk_btn.disabled and fo != null and fo != game.trade_ui.junk_btn, "with no junk left the button greys out and focus moves on")
+	GameState.credits = 0   # later checks (free respec) expect an empty wallet
 	game.trade_ui.close()
 	await frames(2)
 	print("== medic, fence, pilot")

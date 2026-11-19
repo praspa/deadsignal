@@ -83,8 +83,13 @@ func _ready() -> void:
 			GameState.credits = 640
 			Events.open_crew.emit("Q")
 			await frames(10)
+			for b in ["shotgun", "flak_carapace", "auspex"]:
+				GameState.add_item(ItemDB.generate(b, ItemDB.RARITY_COMMON, 2))
+			GameState.add_item(ItemDB.generate("energy_pistol", ItemDB.RARITY_UNCOMMON, 2))
 			game.crew_ui.trade.emit()
-			await frames(30)
+			await frames(10)
+			game.trade_ui.junk_btn.grab_focus()
+			await frames(20)
 		"kessar":
 			await frames(60)
 		"camp":
