@@ -40,8 +40,20 @@ func set_fade(target: float, delta: float) -> bool:
 	return absf(fade - target) > 0.001
 
 
+static var ship_style := false   # aboard the ship: no skulls or banners on the walls
+
+
 ## Deco category for a face: 0 none, 1 window, 2 skull, 3 pipes, 4 warning light, 5 banner.
 static func _deco_cat(hsh: int) -> int:
+	if ship_style:
+		match hsh % 13:
+			0, 5:
+				return 1   # viewport
+			2, 8, 9:
+				return 3
+			11:
+				return 4
+		return 0
 	match hsh % 13:
 		0, 5:
 			return 1

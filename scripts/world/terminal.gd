@@ -46,14 +46,14 @@ func _ready() -> void:
 
 
 func read_flag() -> String:
-	return "read:%s:%d,%d" % [term_id, cell.x, cell.y]
+	return GameState.area_flag("read:%s:%d,%d" % [term_id, cell.x, cell.y])
 
 
 func _screen_color() -> Color:
 	match String(data.get("type", "log")):
 		"save":
 			return Color(0.3, 0.7, 1.0)
-		"power", "research", "cause":
+		"power", "research", "cause", "nav":
 			return Color(1.0, 0.7, 0.2)
 	return Color(0.35, 1.0, 0.45)
 
@@ -61,11 +61,16 @@ func _screen_color() -> Color:
 func interact_text() -> String:
 	if String(data.get("type", "")) == "save":
 		return "Save progress (Field Uplink)"
+	if String(data.get("type", "")) == "nav":
+		return "Nav console: plot a course"
 	return "Access terminal: " + String(data.get("title", "Terminal"))
 
 
 func interact(_player: Node) -> void:
 	Audio.play_ui("terminal")
+	if String(data.get("type", "")) == "nav":
+		Events.open_nav.emit()
+		return
 	Events.open_terminal.emit(term_id, self)
 
 
@@ -98,6 +103,6 @@ func _render() -> void:
 	cv.draw_circle(Vector2(0, -44), 4.0, Color(0.5, 0.46, 0.4))
 	cv.draw_circle(Vector2(-1.5, -44.5), 1.0, Color(0.05, 0.05, 0.05))
 	cv.draw_circle(Vector2(1.5, -44.5), 1.0, Color(0.05, 0.05, 0.05))
-	if not read and String(data.get("type", "")) != "save":
+	if not read and not String(data.get("type", "")) in ["save", "nav"]:
 		var bob := sin(t * 3.0) * 3.0
 		cv.draw_colored_polygon(PackedVector2Array([Vector2(-5, -58 + bob), Vector2(5, -58 + bob), Vector2(0, -51 + bob)]), Color(1.0, 0.8, 0.3, 0.9))

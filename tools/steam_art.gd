@@ -42,6 +42,7 @@ func _ready() -> void:
 	await frames(3)
 	GameState.new_game()
 	GameState.map_variant = 1
+	GameState.location = "kharon"
 	GameState.set_flag("power")
 	main.call("start_game")
 	await frames(3)

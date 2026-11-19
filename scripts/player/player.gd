@@ -34,6 +34,7 @@ var trail: Array = []
 var interact_target: Node = null
 var hovered_enemy: Node = null
 var controls_enabled := true
+var holstered := false             # aboard the ship: no weapons or combat abilities
 var death_t := 0.0
 var _light: PointLight2D       # lights the floor, casts wall shadows
 var _cone: PointLight2D        # flashlight on the floor, casts wall shadows
@@ -69,6 +70,12 @@ func _ready() -> void:
 	_body_cone = _make_light(LightUtil.cone(), 1.0, 1.0, Color(1.0, 0.95, 0.82), 1, false)
 	for l in [_cone, _body_cone]:
 		(l as PointLight2D).offset = Vector2(256, 0)
+	if not bool(GameState.location_def().get("flashlight", true)):
+		# a well-lit place (the ship): flashlight off, only a faint suit glow
+		_cone.enabled = false
+		_body_cone.enabled = false
+		_light.energy = 0.35
+		_body_light.energy = 0.35
 	sync_from_state()
 	Events.leveled_up.connect(_on_leveled_up)
 
@@ -233,6 +240,14 @@ func _handle_actions() -> void:
 		input_grace -= get_physics_process_delta_time()
 		return
 	if is_stunned():
+		return
+	if holstered:
+		if Input.is_action_just_pressed("interact") and interact_target != null and is_instance_valid(interact_target):
+			interact_target.call("interact", self)
+		if Input.is_action_just_pressed("use_stim"):
+			_use_stim()
+		if Input.is_action_just_pressed("swap_weapons"):
+			GameState.swap_weapons()
 		return
 	if Input.is_action_just_pressed("roll"):
 		_try_roll()
@@ -865,6 +880,9 @@ static func _shift(o: Vector2) -> Transform2D:
 ## Both arms hold the current primary weapon at chest height, pointed along
 ## the screen-space aim; the off-hand melee weapon hangs at the hip until swung.
 func _draw_arms_and_weapon(d: Vector2, fx: float, up: Vector2) -> void:
+	if holstered:
+		_draw_empty_hands(fx, up)
+		return
 	var prim := weapon("primary")
 	var t := "rifle"
 	if not prim.is_empty():
@@ -931,6 +949,18 @@ func _draw_arms_and_weapon(d: Vector2, fx: float, up: Vector2) -> void:
 		else:
 			cv.draw_line(hilt.lerp(tip, 0.3), tip, Color(0.75, 0.72, 0.65), 4.0)
 			cv.draw_line(hilt.lerp(tip, 0.3), tip, C_RED, 1.0)
+
+
+## Aboard the ship: no weapon in hand, arms hang at the sides.
+func _draw_empty_hands(fx: float, up: Vector2) -> void:
+	var swing := sin(walk_t * 9.0) * 3.0 if moving else 0.0
+	for side in [-1.0, 1.0]:
+		var s0 := Vector2(side * fx * 11.0, -41) + up
+		var hand := s0 + Vector2(side * fx * 2.5, 19.0) + Vector2(swing * side, 0)
+		var elbow := s0.lerp(hand, 0.5) + Vector2(side * fx * 1.5, 0)
+		Shade.limb(cv, s0, elbow, 6.5, _tint(C_ARMOR))
+		Shade.limb(cv, elbow, hand, 6.0, _tint(C_ARMOR))
+		Shade.ball(cv, hand, 3.4, _tint(C_ARMOR_HI))
 
 
 func _draw_corpse() -> void:

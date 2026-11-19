@@ -1,0 +1,87 @@
+{
+  "root": "known_space",
+  "ship_start": "kessar",
+  "nodes": {
+    "known_space": {
+      "type": "universe",
+      "name": "Known Space",
+      "description": "Every charted lane the Stellar Nations still bother to patrol. Less of it every year."
+    },
+    "veil": {
+      "parent": "known_space",
+      "type": "galaxy",
+      "name": "The Veil",
+      "description": "A dim, dust-choked galaxy on the frontier. OVERWATCH's current theatre of operations."
+    },
+    "corvane": {
+      "parent": "known_space",
+      "type": "galaxy",
+      "name": "Corvane Reach",
+      "description": "Contested space. OVERWATCH has not cleared you for it.",
+      "requires": [
+        "corvane_cleared"
+      ]
+    },
+    "drift": {
+      "parent": "known_space",
+      "type": "galaxy",
+      "name": "The Drift",
+      "description": "No beacons, no lanes, no records. Ships that go in come back late, or not at all.",
+      "requires": [
+        "drift_cleared"
+      ]
+    },
+    "kessar": {
+      "parent": "veil",
+      "type": "system",
+      "name": "Kessar System",
+      "description": "A tired orange star and a handful of mining claims. Quiet, until recently."
+    },
+    "halcyon": {
+      "parent": "veil",
+      "type": "system",
+      "name": "Halcyon System",
+      "description": "Former colony hub. Comms have been patchy for months.",
+      "requires": [
+        "halcyon_cleared"
+      ]
+    },
+    "kharon": {
+      "parent": "kessar",
+      "type": "station",
+      "name": "Kharon Outpost",
+      "description": "Research outpost. Silent for nine days. Security AI WARDEN not answering hails.",
+      "location": "kharon"
+    },
+    "kessar_iv": {
+      "parent": "kessar",
+      "type": "planet",
+      "name": "Kessar IV",
+      "description": "Ash world. Survey teams report something living under the crust.",
+      "requires": [
+        "kessar_iv_open"
+      ]
+    },
+    "kessar_belt": {
+      "parent": "kessar",
+      "type": "station",
+      "name": "Belt Claim 7",
+      "description": "Automated ore refinery. Still running. Nobody remembers who owns it.",
+      "requires": [
+        "belt_open"
+      ]
+    },
+    "halcyon_prime": {
+      "parent": "halcyon",
+      "type": "planet",
+      "name": "Halcyon Prime",
+      "description": "Colony world, population four million. Last census: overdue."
+    },
+    "relay_9": {
+      "parent": "halcyon",
+      "type": "station",
+      "name": "Relay Station 9",
+      "description": "Deep-space relay. It has been repeating the same three notes since spring."
+    }
+  }
+}

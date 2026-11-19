@@ -361,7 +361,7 @@ func _death_sequence(delta: float) -> void:
 		Audio.music("level", 4.0)
 		GameState.add_xp(int(def.get("xp", 300)))
 		Fx.text(get_parent(), core_pos(), "+%d XP" % int(def.get("xp", 300)), Color(0.7, 0.6, 1.0), 1.5)
-		GameState.set_flag("k:" + spawn_id)
+		GameState.set_flag(GameState.area_flag("k:" + spawn_id))
 		level.call("boss_loot", global_position)
 		GameState.set_flag("boss")
 

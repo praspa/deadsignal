@@ -1,6 +1,7 @@
 class_name Level
 extends Node2D
-## Builds the outpost from the ASCII map in data/outpost.txt: floor + wall
+## Builds the current location (GameState.location) from its ASCII map in
+## data/maps/ (see data/locations.json): floor + wall
 ## rendering, merged wall collision, an AStarGrid2D for enemy pathing, and all
 ## entities (enemies, doors, terminals, containers, props, lights, triggers).
 ## Simulation runs on the square grid; rendering is isometric (see Iso).
@@ -13,6 +14,10 @@ const MAP_DIR := "res://data/maps/"   # outpost_<n>.txt + .json, see tools/gen_m
 const SOLID_PROPS := "opgt"
 const ENEMY_CHARS := {"d": "drone", "r": "researcher", "h": "heavy", "B": "boss"}
 const DOOR_REQ := {"D": "", "E": "power", "R": "research", "S": "cause", "V": "boss"}
+const CREW_CHARS := "QTMFP"   # crew members on the ship, see data/crew.json
+const NAV_CHAR := "N"         # ship's nav console (a terminal with id "nav")
+const STASH_CHAR := "L"       # ship's cargo locker (stash)
+const CRADLE_CHAR := "Z"      # Lazarus Cradle: where the operative revives after dying
 
 var grid: Array = []
 var w := 0
@@ -23,12 +28,16 @@ var floor_layer: Node2D
 var walls: Dictionary = {}      # Vector2i -> WallTile
 var _faded: Dictionary = {}     # Vector2i -> true (walls currently fading / faded)
 var player_start := Vector2.ZERO
+var revive_point := Vector2.ZERO   # in front of the Lazarus Cradle (ship only)
 var rooms: Dictionary = {}           # room name -> Rect2i (tiles), from the layout metadata
 var exit_rect := Rect2()
 var arena_rect := Rect2()
 var lamps: Array = []
 var canvas_mod: CanvasModulate
 var powered := false
+var lamp_color := Color(0.95, 0.82, 0.62)
+var steady_lights := false     # aboard the ship: lamps don't fail (one still flickers)
+var tinted := false            # location palette remap active (props share it)
 var _flicker_t := 0.0
 var chunks: Array = []
 var baker: Baker
@@ -41,12 +50,25 @@ const LIGHT_FLOOR := 2   # light layer for the floor: lit by lamps and the playe
 
 func build(p_world: Node2D) -> void:
 	world = p_world
-	powered = GameState.has_flag("power")
+	var ldef := GameState.location_def()
+	powered = bool(ldef.get("powered", false)) or GameState.has_flag(String(ldef.get("powered_flag", "-")))
 	baker = Baker.new()
 	baker.name = "Baker"
 	add_child(baker)
 	normal_material = ShaderMaterial.new()
 	normal_material.shader = preload("res://shaders/luma_normal.gdshader")
+	var pal: Dictionary = ldef.get("palette", {})
+	if not pal.is_empty():
+		tinted = true
+		normal_material.set_shader_parameter("remap", float(pal.get("amount", 1.0)))
+		normal_material.set_shader_parameter("remap_dark", _vec3(pal.get("dark", [0, 0, 0])))
+		normal_material.set_shader_parameter("remap_light", _vec3(pal.get("light", [1, 1, 1])))
+		normal_material.set_shader_parameter("remap_gain", float(pal.get("gain", 3.0)))
+	if ldef.has("lamp_color"):
+		var lc: Array = ldef["lamp_color"]
+		lamp_color = Color(float(lc[0]), float(lc[1]), float(lc[2]))
+	steady_lights = bool(ldef.get("steady_lights", false))
+	WallTile.ship_style = String(ldef.get("wall_style", "")) == "ship"
 	_load_map()
 	floor_layer = Node2D.new()
 	floor_layer.name = "Floor"
@@ -77,7 +99,7 @@ func build(p_world: Node2D) -> void:
 
 
 func _load_map() -> void:
-	var base := MAP_DIR + "outpost_%d" % GameState.map_variant
+	var base := MAP_DIR + GameState.map_base()
 	var f := FileAccess.open(base + ".txt", FileAccess.READ)
 	var lines := f.get_as_text().split("\n")
 	grid = []
@@ -94,6 +116,10 @@ func _load_map() -> void:
 	for k in rm:
 		var r: Array = rm[k]
 		rooms[k] = Rect2i(int(r[0]), int(r[1]), int(r[2]) - int(r[0]) + 1, int(r[3]) - int(r[1]) + 1)
+
+
+static func _vec3(a: Array) -> Vector3:
+	return Vector3(float(a[0]), float(a[1]), float(a[2]))
 
 
 ## World-space centre of a named room (layout metadata), or the player start.
@@ -269,7 +295,7 @@ func _build_astar() -> void:
 	for y in h:
 		for x in w:
 			var c := ch(x, y)
-			if c == "#" or c == " " or SOLID_PROPS.contains(c) or c.is_valid_int() or c == "c" or c == "C":
+			if c == "#" or c == " " or SOLID_PROPS.contains(c) or c.is_valid_int() or c == "c" or c == "C" or c == NAV_CHAR or c == STASH_CHAR or c == CRADLE_CHAR or CREW_CHARS.contains(c):
 				astar.set_point_solid(Vector2i(x, y), true)
 			elif DOOR_REQ.has(c):
 				astar.set_point_solid(Vector2i(x, y), not GameState.has_flag(door_flag(x, y)))
@@ -288,7 +314,7 @@ func find_path(from: Vector2, to: Vector2) -> PackedVector2Array:
 
 
 static func door_flag(x: int, y: int) -> String:
-	return "door:%d,%d" % [x, y]
+	return GameState.area_flag("door:%d,%d" % [x, y])
 
 
 # ---------------------------------------------------------------- entities
@@ -304,7 +330,7 @@ func _spawn_entities() -> void:
 			if c == "@":
 				player_start = pos
 			elif ENEMY_CHARS.has(c):
-				if not GameState.has_flag("k:" + sid):
+				if not GameState.has_flag(GameState.area_flag("k:" + sid)):
 					var e := spawn_enemy(ENEMY_CHARS[c], pos, sid)
 					if c == "B":
 						arena_rect = _room_rect(x, y).grow(-T * 3)
@@ -323,10 +349,23 @@ func _spawn_entities() -> void:
 				var d := Door.new()
 				d.setup(self, Vector2i(x, y), DOOR_REQ[c])
 				world.add_child(d)
-			elif c.is_valid_int():
+			elif c.is_valid_int() or c == NAV_CHAR:
 				var t := Terminal.new()
-				t.setup(self, c, Vector2i(x, y))
+				t.setup(self, "nav" if c == NAV_CHAR else c, Vector2i(x, y))
 				world.add_child(t)
+			elif c == CRADLE_CHAR:
+				var cradle := LazarusCradle.new()
+				cradle.position = pos
+				world.add_child(cradle)
+				revive_point = pos + Vector2(T, 0)
+			elif c == STASH_CHAR:
+				var locker := StashLocker.new()
+				locker.position = pos
+				world.add_child(locker)
+			elif CREW_CHARS.contains(c) and c != "":
+				var npc := CrewNpc.new()
+				npc.setup(c, pos)
+				world.add_child(npc)
 			elif c == "c" or c == "C":
 				var box := LootContainer.new()
 				box.setup(self, Vector2i(x, y), c == "C")
@@ -335,6 +374,8 @@ func _spawn_entities() -> void:
 				var p := Prop.new()
 				p.setup(self, Vector2i(x, y), c)
 				world.add_child(p)
+				if tinted and c != "l" and p.cv != null:
+					p.cv.material = normal_material
 				if c == "l":
 					lamps.append(p)
 			elif c == "X":
@@ -411,8 +452,17 @@ func roll_consumable(pos: Vector2, stim_chance: float) -> void:
 			drop_item(scatter(pos), {"kind": "ammo", "ammo": "shell", "amount": randi_range(6, 12)})
 
 
+## A pile of creds, scaled by character level. `mult` scales for tougher sources.
+func drop_credits(pos: Vector2, mult: float) -> void:
+	var amount := roundi(randf_range(4.0, 10.0) * (1.0 + float(GameState.level - 1) * 0.35) * mult)
+	if amount > 0:
+		drop_item(scatter(pos), {"kind": "credits", "amount": amount})
+
+
 func enemy_loot(pos: Vector2, def: Dictionary) -> void:
 	var q := int(def.get("quality", 0))
+	if randf() < float(def.get("credit_chance", 0.5)):
+		drop_credits(pos, 1.0 + q)
 	if randf() < float(def.get("drop_chance", 0.3)):
 		drop_item(scatter(pos), {"kind": "item", "item": ItemDB.random_drop(GameState.level, q)})
 	if randf() < float(def.get("ammo_chance", 0.3)):
@@ -424,9 +474,11 @@ func boss_loot(pos: Vector2) -> void:
 	drop_item(scatter(pos), {"kind": "item", "item": ItemDB.random_drop(GameState.level + 1, 3)})
 	drop_item(scatter(pos), {"kind": "item", "item": ItemDB.random_drop(GameState.level + 1, 3)})
 	drop_item(scatter(pos), {"kind": "stim", "amount": 2})
+	drop_credits(pos, 25.0)
 
 
 func container_loot(pos: Vector2, strong: bool) -> void:
+	drop_credits(pos, 4.0 if strong else 1.5)
 	if strong:
 		drop_item(scatter(pos), {"kind": "item", "item": ItemDB.random_drop(GameState.level, 2)})
 		drop_item(scatter(pos), {"kind": "item", "item": ItemDB.random_drop(GameState.level, 1)})
@@ -441,11 +493,13 @@ func container_loot(pos: Vector2, strong: bool) -> void:
 # ---------------------------------------------------------------- atmosphere
 
 func _ambient() -> Color:
-	return Color(0.38, 0.37, 0.36) if powered else Color(0.24, 0.23, 0.25)
+	var ldef := GameState.location_def()
+	var a: Array = ldef.get("ambient_powered", ldef.get("ambient", [0.38, 0.37, 0.36])) if powered else ldef.get("ambient", [0.24, 0.23, 0.25])
+	return Color(float(a[0]), float(a[1]), float(a[2]))
 
 
 func _on_flag(f: String) -> void:
-	if f == "power" and not powered:
+	if f == String(GameState.location_def().get("powered_flag", "-")) and not powered:
 		powered = true
 		var tw := create_tween()
 		tw.tween_property(canvas_mod, "color", _ambient(), 2.5)

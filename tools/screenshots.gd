@@ -1,7 +1,7 @@
 extends Node
 ## Captures one gameplay screenshot per run for visual review (needs a display).
 ##   godot --path . -- --shots <output_dir> <scene>
-## scenes: menu creation races landing atrium generator powered labs xenolab boss inventory character terminal cutaway loot [aim: down|up|left|right] overview
+## scenes: menu creation races ship revive nav starmap_fly ship_overview landing atrium generator powered labs xenolab boss inventory character terminal cutaway loot [aim: down|up|left|right] overview
 ## add --variant N to pick a layout
 
 var main: Node
@@ -47,12 +47,35 @@ func _ready() -> void:
 		get_tree().quit()
 		return
 	GameState.new_game()
+	if scene == "revive":
+		GameState.credits = 420
+		GameState.apply_death()
+	if not scene in ["ship", "nav", "starmap_fly", "ship_overview", "revive"]:
+		GameState.location = "kharon"
 	main.call("start_game")
 	await frames(3)
 	var game: Game = main.get("current")
 	var p := game.player
 	var lvl := game.level
 	match scene:
+		"revive":
+			await frames(150)
+		"ship":
+			p.global_position = lvl.room_center("common") + Vector2(40, 0)
+			await frames(60)
+		"nav":
+			p.global_position = lvl.room_center("cockpit") + Vector2(-40, 30)
+			await frames(30)
+			Events.open_nav.emit()
+			await frames(20)
+		"starmap_fly":
+			p.global_position = lvl.room_center("cockpit") + Vector2(-40, 30)
+			await frames(30)
+			Events.open_nav.emit()
+			await frames(10)
+			game.star_map._select("kharon")
+			game.star_map.activate("kharon")
+			await frames(90)
 		"landing":
 			await frames(40)
 		"atrium":
@@ -182,7 +205,7 @@ func _ready() -> void:
 				game.camera.reset_smoothing()
 				game.set_process(false)
 				await frames(3)
-		"overview":
+		"overview", "ship_overview":
 			# whole layout, fully lit and zoomed out (compare the variants)
 			for e in get_tree().get_nodes_in_group("enemies"):
 				e.visible = false
@@ -207,7 +230,8 @@ func _ready() -> void:
 			while lvl.baker.pending() > 0:
 				await frames(5)
 			await frames(10)
-			scene = "overview_%d" % GameState.map_variant
+			if scene == "overview":
+				scene = "overview_%d" % GameState.map_variant
 		"cutaway":
 			# stand right behind (north of) a front wall to show the cutaway fade
 			GameState.set_flag("power")
