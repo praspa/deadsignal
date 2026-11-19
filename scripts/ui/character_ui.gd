@@ -5,6 +5,7 @@ extends Screen
 var rows: VBoxContainer
 var stats: RichTextLabel
 var header: Label
+var focus_idx := 0   # the selected row; survives the rebuild after assigning a point
 
 const ATTR_INFO := {
 	"str": ["STRENGTH", "Melee damage, max health, physical might."],
@@ -49,8 +50,6 @@ func _on_stats_changed() -> void:
 
 
 func refresh() -> void:
-	var focus := get_viewport().gui_get_focus_owner()
-	var fidx := focus.get_index() if focus != null and focus.get_parent() == rows else 0
 	header.text = "%s  —  Level %d %s %s     Attribute points: %d" % [GameState.player_name, GameState.level, GameState.race_title(), GameState.class_title(), GameState.attr_points]
 	for c in rows.get_children():
 		rows.remove_child(c)
@@ -67,8 +66,9 @@ func refresh() -> void:
 		rows.add_child(b)
 	var close_b := UiTheme.button("Close", close)
 	rows.add_child(close_b)
-	if fidx >= 0 and fidx < rows.get_child_count():
-		(rows.get_child(fidx) as Control).call_deferred("grab_focus")
+	for c in rows.get_children():
+		c.focus_entered.connect(func() -> void: focus_idx = c.get_index())
+	(rows.get_child(clampi(focus_idx, 0, rows.get_child_count() - 1)) as Control).call_deferred("grab_focus")
 	var s := ""
 	s += "[color=#c9a54a]VITALS[/color]\n"
 	s += "Max Health: %d\nMax Energy: %d\n" % [roundi(GameState.max_hp()), roundi(GameState.max_energy())]
@@ -85,5 +85,5 @@ func refresh() -> void:
 
 
 func _spend(a: String) -> void:
-	if GameState.spend_point(a):
-		refresh()
+	focus_idx = GameState.ATTRS.find(a)
+	GameState.spend_point(a)   # stats_changed -> refresh(), which restores the selection

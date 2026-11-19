@@ -13,6 +13,7 @@ var inspect: RichTextLabel
 var compare: RichTextLabel
 var creds: Label
 var hint: Label
+var junk_btn: Button
 var pending_sale: Dictionary = {}
 var _rebuilding := false
 
@@ -43,7 +44,18 @@ func _ready() -> void:
 	cols.add_child(left)
 	var mid := VBoxContainer.new()
 	mid.custom_minimum_size = Vector2(500, 0)
-	mid.add_child(UiTheme.title_label("Your pack (select to sell)", 16, UiTheme.TEXT_DIM))
+	var pack_head := HBoxContainer.new()
+	pack_head.add_theme_constant_override("separation", 12)
+	var pack_title := UiTheme.title_label("Your pack (select to sell)", 16, UiTheme.TEXT_DIM)
+	pack_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pack_head.add_child(pack_title)
+	junk_btn = UiTheme.button("Sell all junk", _sell_junk)
+	junk_btn.custom_minimum_size = Vector2(200, 32)
+	junk_btn.add_theme_font_size_override("font_size", 14)
+	junk_btn.focus_entered.connect(_show_junk)
+	junk_btn.mouse_entered.connect(_show_junk)
+	pack_head.add_child(junk_btn)
+	mid.add_child(pack_head)
 	pack_grid = GridContainer.new()
 	pack_grid.columns = 5
 	pack_grid.add_theme_constant_override("h_separation", 4)
@@ -128,6 +140,9 @@ func refresh() -> void:
 				vendor_grid.add_child(b)
 	for it in GameState.inventory:
 		_item_button(pack_grid, it, ItemDB.sell_price(it), _sell.bind(it))
+	var junk := GameState.junk_items()
+	junk_btn.text = "Sell all junk (%d)" % junk.size() if not junk.is_empty() else "Sell all junk"
+	junk_btn.disabled = junk.is_empty()
 	_rebuilding = false
 	if inspect.text == "" and tab == "gear" and not GameState.vendor_stock.is_empty():
 		_inspect(GameState.vendor_stock[0], false)
@@ -189,6 +204,31 @@ func _sell(it: Dictionary) -> void:
 		Audio.play_ui("pickup", 0.8)
 		Events.msg("Sold: %s (+%s)" % [String(it["name"]), GameState.fmt_uc(ItemDB.sell_price(it))], LootDrop.CREDIT_COLOR)
 	refresh()
+
+
+func _show_junk() -> void:
+	var junk := GameState.junk_items()
+	var total := 0
+	for it in junk:
+		total += ItemDB.sell_price(it)
+	inspect.text = "[b]Sell all junk[/b]\nSells every Common (gray) item in your pack. Uncommon and better are kept.\n\n%d item%s\n[color=#%s]Sells for: %s[/color]" % [
+		junk.size(), "" if junk.size() == 1 else "s", LootDrop.CREDIT_COLOR.to_html(false), GameState.fmt_uc(total)]
+	compare.text = ""
+
+
+func _sell_junk() -> void:
+	pending_sale = {}
+	var res := GameState.sell_junk()
+	if int(res[0]) > 0:
+		Audio.play_ui("pickup", 0.8)
+		Events.msg("Sold %d junk item%s (+%s)" % [int(res[0]), "" if int(res[0]) == 1 else "s", GameState.fmt_uc(int(res[1]))], LootDrop.CREDIT_COLOR)
+	refresh()
+	_show_junk()
+	# the button is now disabled; keep a controller selection somewhere useful
+	for g in [pack_grid, vendor_grid]:
+		if g.get_child_count() > 0 and (g.get_child(0) as Control).focus_mode != Control.FOCUS_NONE:
+			(g.get_child(0) as Control).grab_focus()
+			break
 
 
 func _buy_supply(id: String) -> void:

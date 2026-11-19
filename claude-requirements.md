@@ -246,7 +246,7 @@ Additional interfaces:
 
 Inventory.
 Equipment.
-Character attributes.
+Character attributes. Assigning a point keeps the selection on that attribute (it doesn't jump back to the top), so several points can go into one attribute with repeated presses.
 Loot inspection.
 Dialogue and terminal interaction.
 
@@ -343,6 +343,7 @@ Gear stock: 12–16 items. Mostly Common and Uncommon, 1–2 Rare, never Experim
 Stock refreshes at the start of every session and every time the operative returns from a mission site.
 Supplies, always in stock: rifle ammo (30 rounds), shotgun shells (8), stim-pack. (Cipher keys join once decryption is built.)
 Selling: any pack item, for 25% of its value. Selling a Rare or Experimental item asks for confirmation.
+Sell all junk: one button above the pack sells every Common (gray) item in it at once. The button shows how many items and the total UC, and is greyed when there's no junk. Uncommon and better are never touched. Sold junk goes to Buyback like any sale.
 No item durability and no repairs: gear never wears out.
 Buyback: the last 10 items sold this session can be bought back at the price they sold for.
 
