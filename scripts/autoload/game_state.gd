@@ -8,6 +8,9 @@ const ATTRS := ["str", "dex", "int", "wil"]
 const POINTS_PER_LEVEL := 3
 const MAX_INVENTORY := 30
 const MAX_STASH := 50
+const START_ATTRIBUTES := {"str": 7, "dex": 6, "int": 4, "wil": 4}
+const BUYBACK_SIZE := 10
+const RESPEC_PRICE_PER_LEVEL := 100
 const XP_CURVE_BASE := 100.0   # XP to next level = base * level ^ exponent
 const XP_CURVE_EXP := 1.5
 const XP_FULL_GAP := 2         # full monster XP up to this many levels above the area level
@@ -67,6 +70,10 @@ var location := "ship"             # key into data/locations.json
 var reviving := false             # died: wake in the Lazarus Cradle on the next ship load
 var last_death_loss := [0, 0]      # [UC, XP] lost on the last death (for the wake-up message)
 var stash: Array = []              # items in the ship's cargo locker
+var vendor_stock: Array = []       # the Quartermaster's gear for sale
+var buyback: Array = []            # items sold this session, newest first
+var respecs := 0                   # attribute respecs bought from the Medic (first is free)
+var max_area_reached := 1          # highest area level visited (caps vendor / fence item level)
 var variants: Dictionary = {}      # location -> layout number, for locations with several layouts
 var beacon: Dictionary = {}        # recall beacon: {location, x, y, node} or empty
 var recall_cd := 0.0               # seconds until Recall is ready again
@@ -117,6 +124,9 @@ func new_game(p_name: String = DEFAULT_NAME, p_class: String = "combat_specialis
 	location = "ship"
 	ship_node = String(ItemDB.starmap.get("ship_start", ""))
 	stash = []
+	buyback = []
+	respecs = 0
+	max_area_reached = 1
 	reviving = false
 	beacon = {}
 	recall_cd = 0.0
@@ -136,6 +146,7 @@ func new_game(p_name: String = DEFAULT_NAME, p_class: String = "combat_specialis
 	loaded_from_save = false
 	if ItemDB.bases.is_empty():
 		return
+	refresh_vendor()
 	equipment["primary"] = ItemDB.generate("assault_rifle", 0, 1)
 	equipment["secondary"] = ItemDB.generate("power_maul", 0, 1)
 	equipment["body"] = ItemDB.generate("flak_carapace", 0, 1)
@@ -213,6 +224,8 @@ func map_base() -> String:
 ## Moves the character to another location. Floor loot of the place being left
 ## is kept so it is still there on the way back.
 func travel(dest: String) -> void:
+	if not is_hub() and bool(ItemDB.locations.get(dest, {}).get("hub", false)):
+		refresh_vendor()   # back from a mission: the Quartermaster has new stock
 	var here := pack_explored(explored)
 	here["ground_items"] = ground_items
 	areas[location] = here
@@ -223,6 +236,7 @@ func travel(dest: String) -> void:
 	areas.erase(dest)
 	player_pos = null
 	loaded_from_save = false
+	max_area_reached = maxi(max_area_reached, int(location_def().get("area_level", 1)))
 
 
 ## Minimap fog of war as JSON-safe data (deflated, base64).
@@ -259,7 +273,115 @@ func apply_death() -> void:
 	hp = max_hp()
 	energy = max_energy()
 	reviving = true
+	set_flag("revived_once")
 	Events.stats_changed.emit()
+
+
+# ---------------------------------------------------------------- crew services
+
+## Item level for vendor and fence goods: keeps pace with the character but
+## never outruns where they've actually been.
+func shop_ilvl() -> int:
+	return clampi(level, 1, max_area_reached + 2)
+
+
+## New Quartermaster stock: 12-16 items, mostly Common / Uncommon, 1-2 Rare.
+func refresh_vendor() -> void:
+	if ItemDB.bases.is_empty():
+		return
+	vendor_stock = []
+	var il := shop_ilvl()
+	var n := randi_range(12, 16)
+	var rares := randi_range(1, 2)
+	for i in n:
+		var r := ItemDB.RARITY_RARE if i < rares else (ItemDB.RARITY_UNCOMMON if randf() < 0.4 else ItemDB.RARITY_COMMON)
+		vendor_stock.append(ItemDB.generate(ItemDB.random_base_id(), r, il))
+	vendor_stock.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return String(a["slot"]) < String(b["slot"]))
+
+
+func _pay(price: int) -> bool:
+	if credits < price:
+		Events.msg("Not enough creds (%s needed)." % fmt_uc(price), Color(0.9, 0.4, 0.3))
+		return false
+	credits -= price
+	Events.stats_changed.emit()
+	return true
+
+
+func buy_item(item: Dictionary, from_buyback := false) -> bool:
+	var src: Array = buyback if from_buyback else vendor_stock
+	if not src.has(item):
+		return false
+	if inventory.size() >= MAX_INVENTORY:
+		Events.msg("Pack is full.", Color(0.9, 0.4, 0.3))
+		return false
+	var price := ItemDB.sell_price(item) if from_buyback else ItemDB.buy_price(item)
+	if not _pay(price):
+		return false
+	src.erase(item)
+	add_item(item)
+	return true
+
+
+func sell_item(item: Dictionary) -> bool:
+	if not inventory.has(item):
+		return false
+	remove_item(item)
+	add_credits(ItemDB.sell_price(item))
+	buyback.push_front(item)
+	if buyback.size() > BUYBACK_SIZE:
+		buyback.resize(BUYBACK_SIZE)
+	return true
+
+
+func buy_supply(id: String) -> bool:
+	var s: Dictionary = ItemDB.SUPPLIES.get(id, {})
+	if s.is_empty() or not _pay(int(s["price"])):
+		return false
+	if s.has("ammo"):
+		ammo[String(s["ammo"])] = int(ammo.get(String(s["ammo"]), 0)) + int(s["amount"])
+	else:
+		stims += 1
+	Events.inventory_changed.emit()
+	return true
+
+
+func respec_price() -> int:
+	return 0 if respecs == 0 else RESPEC_PRICE_PER_LEVEL * level
+
+
+## Refunds every spent attribute point (Medic). False if unaffordable / nothing to refund.
+func respec() -> bool:
+	var spent := 0
+	for a in ATTRS:
+		spent += int(attributes[a]) - int(START_ATTRIBUTES[a])
+	if spent <= 0:
+		Events.msg("No attribute points to refund.", UiTheme.TEXT_DIM)
+		return false
+	if not _pay(respec_price()):
+		return false
+	var hp_ratio := hp / max_hp()
+	attributes = START_ATTRIBUTES.duplicate()
+	attr_points += spent
+	respecs += 1
+	hp = max_hp() * hp_ratio
+	_clamp_vitals()
+	Events.stats_changed.emit()
+	return true
+
+
+## Fence: buys and opens a sealed crate; returns the item ({} if it failed).
+func buy_crate(cat: String) -> Dictionary:
+	if inventory.size() >= MAX_INVENTORY:
+		Events.msg("Pack is full.", Color(0.9, 0.4, 0.3))
+		return {}
+	var il := shop_ilvl()
+	if not _pay(ItemDB.fence_price(cat, il)):
+		return {}
+	var slots: Array = ItemDB.FENCE_CATEGORIES[cat]["slots"]
+	var item := ItemDB.generate(ItemDB.random_base_in(slots), ItemDB.roll_weighted(ItemDB.FENCE_ODDS), il)
+	add_item(item)
+	return item
 
 
 # ---------------------------------------------------------------- stash
@@ -607,7 +729,7 @@ func save_game(pos: Variant) -> bool:
 		"attributes": attributes, "hp": hp, "energy": energy,
 		"inventory": inventory, "equipment": equipment,
 		"ammo": ammo, "stims": stims, "credits": credits, "flags": flags,
-		"location": location, "areas": areas, "ship_node": ship_node, "stash": stash, "reviving": reviving, "variants": variants, "beacon": beacon, "recall_cd": recall_cd,
+		"location": location, "areas": areas, "ship_node": ship_node, "stash": stash, "vendor_stock": vendor_stock, "buyback": buyback, "respecs": respecs, "max_area_reached": max_area_reached, "reviving": reviving, "variants": variants, "beacon": beacon, "recall_cd": recall_cd,
 		"ground_items": ground_items,
 		"player_pos": pp,
 		"map_variant": map_variant,
@@ -664,6 +786,10 @@ func load_game() -> bool:
 	areas = d.get("areas", {})
 	ship_node = String(d.get("ship_node", ""))
 	stash = d.get("stash", [])
+	vendor_stock = d.get("vendor_stock", [])
+	buyback = d.get("buyback", [])
+	respecs = int(d.get("respecs", 0))
+	max_area_reached = int(d.get("max_area_reached", 1))
 	reviving = bool(d.get("reviving", false))
 	beacon = d.get("beacon", {})
 	recall_cd = float(d.get("recall_cd", 0.0))
@@ -729,6 +855,8 @@ func start_session() -> void:
 	beacon = {}
 	location = "ship"
 	player_pos = null
+	buyback = []
+	refresh_vendor()
 	session_started = true
 
 

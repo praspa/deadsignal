@@ -52,6 +52,72 @@ static func load_json(path: String) -> Dictionary:
 	return {}
 
 
+# ---------------------------------------------------------------- prices
+# One place to tune the economy (requirements 15.2.7).
+
+const VALUE_BASE := 20.0
+const VALUE_RARITY := [1.0, 2.5, 6.0, 15.0]
+const SELL_RATE := 0.25
+const SUPPLIES := {
+	"rifle": {"name": "Rifle ammo (30 rounds)", "price": 15, "ammo": "rifle", "amount": 30},
+	"shell": {"name": "Shotgun shells (8)", "price": 15, "ammo": "shell", "amount": 8},
+	"stim": {"name": "Stim-pack", "price": 40},
+}
+const FENCE_CATEGORIES := {
+	"weapon": {"name": "Weapon crate", "slots": ["primary", "secondary"], "mult": 1.2},
+	"armour": {"name": "Armour crate", "slots": ["head", "body", "gloves", "boots"], "mult": 1.0},
+	"utility": {"name": "Utility crate", "slots": ["utility"], "mult": 1.0},
+}
+const FENCE_ODDS := [50.0, 33.0, 14.0, 3.0]   # Common / Uncommon / Rare / Experimental
+
+
+func item_value(item: Dictionary) -> int:
+	var r := clampi(int(item.get("rarity", 0)), 0, 3)
+	var il := float(item.get("ilvl", 1))
+	var n_aff := float((item.get("affixes", []) as Array).size()) if item.has("affixes") else float((item.get("stats", {}) as Dictionary).size())
+	return roundi(VALUE_BASE * float(VALUE_RARITY[r]) * (1.0 + 0.15 * (il - 1.0)) * (1.0 + 0.1 * n_aff))
+
+
+func buy_price(item: Dictionary) -> int:
+	return item_value(item)
+
+
+func sell_price(item: Dictionary) -> int:
+	return maxi(1, roundi(item_value(item) * SELL_RATE))
+
+
+func fence_price(cat: String, ilvl: int) -> int:
+	return roundi(150.0 * (1.0 + 0.2 * float(ilvl - 1)) * float(FENCE_CATEGORIES[cat]["mult"]))
+
+
+## A random base whose slot is one of `slots` (weighted like drops).
+func random_base_in(slots: Array) -> String:
+	var ids: Array = []
+	var total := 0.0
+	for id in bases:
+		if String(bases[id]["slot"]) in slots:
+			ids.append(id)
+			total += float(bases[id].get("weight", 1))
+	var r := rng.randf() * total
+	for id in ids:
+		r -= float(bases[id].get("weight", 1))
+		if r <= 0.0:
+			return id
+	return String(ids[0])
+
+
+func roll_weighted(weights: Array) -> int:
+	var total := 0.0
+	for w in weights:
+		total += float(w)
+	var r := rng.randf() * total
+	for i in weights.size():
+		r -= float(weights[i])
+		if r <= 0.0:
+			return i
+	return 0
+
+
 func rarity_color(r: int) -> Color:
 	if r < 0 or r >= rarities.size():
 		return Color.WHITE

@@ -295,6 +295,7 @@ Still out of scope:
 Multiplayer.
 Crafting.
 Companion management / hirelings (undecided whether the game wants this at all).
+Item durability and repairs (not wanted).
 Ship repair or ship upgrade progression (not wanted for now).
 Multiple playable characters.
 Extensive dialogue trees.
@@ -320,21 +321,106 @@ Rooms: engineering, common deck, cargo hold, medbay, cockpit.
 Footlocker stash in the bunk area (to do).
 Needs its own visual identity (to do) — it currently reuses the outpost's walls and floors.
 
-15.2 Crew                                                    [placeholders DONE — services to do]
+15.2 Crew                                                    [DONE — decryption deferred]
 
-Five crew members, each with a Diablo town role. Dialogue lines react to story flags.
+Five crew members, each with a Diablo town role. Names are placeholders.
 
-Quartermaster (Dov Harrow) — vendor: buys / sells gear for UC, repairs.
-Signals Tech (Ines Ruhl) — identify: decrypts "signal-corrupted" loot.
+Quartermaster (Dov Harrow) — trade: buys and sells gear and supplies for UC.
+Signals Tech (Ines Ruhl) — decrypts "signal-corrupted" loot (Diablo's identify). Deferred: see 15.2.2.
 Medic (Oskar Venn) — heals; attribute respec for a UC fee.
-Fence (Kesh) — gambler: sells sealed salvage crates opened blind.
-Pilot (Mara Quill) — flies the ship; flavour and dialogue.
+Fence (Kesh) — sealed salvage crates, opened blind (Diablo's gambler).
+Pilot (Mara Quill) — flies the ship; talking to her opens the star map as a shortcut.
 
-Names are placeholders. Currently they stand at their posts and talk; services are not built yet.
+There is also the cargo locker (stash) in the hold. [DONE]
 
-Identify mechanic: Rare and Experimental drops come out of missions "signal-corrupted", with affixes shown as static (e.g. "▒▒▒ +?? Damage"). The Signals Tech decrypts them for free aboard the ship. A consumable cipher key decrypts in the field.
+Talking to crew (all of them):
+Interact opens a crew screen: portrait-style name plate, one line of dialogue, and buttons for their services plus "Leave". Fully navigable with the controller (d-pad / stick, A, B to leave).
+Dialogue reacts to progress: each crew member has general lines plus lines unlocked by story flags (e.g. after the Brood Queen dies, after the first death and revival). Data in data/crew.json.
 
-There is also a ship cargo stash to hold items that need not be carried in inventory.
+15.2.1 Quartermaster — trade
+The screen: vendor stock on the left (tabs: Gear, Supplies), the operative's pack on the right, inspection and comparison with the equipped item, price on every item. Items the player can't afford are greyed.
+Gear stock: 12–16 items. Mostly Common and Uncommon, 1–2 Rare, never Experimental. Item level: the character's level, capped at the highest area level reached + 2 (so stock keeps pace with progress without outrunning it). Vendor gear is never signal-corrupted.
+Stock refreshes at the start of every session and every time the operative returns from a mission site.
+Supplies, always in stock: rifle ammo (30 rounds), shotgun shells (8), stim-pack. (Cipher keys join once decryption is built.)
+Selling: any pack item, for 25% of its value. Selling a Rare or Experimental item asks for confirmation.
+No item durability and no repairs: gear never wears out.
+Buyback: the last 10 items sold this session can be bought back at the price they sold for.
+
+15.2.2 Signals Tech — decryption                           [DEFERRED — not building signal corruption yet]
+Until this is built, all loot drops fully revealed and the Signals Tech only talks. The design below is kept for later.
+Signal corruption: Rare and Experimental items found on missions (drops, containers, bosses) come out signal-corrupted. Common and Uncommon items never are.
+A corrupted item shows its rarity colour and its base stats (damage, fire rate, armour), but its affixes and special are hidden: name "Corrupted <base name>", affix lines drawn as static ("▒▒▒ +?? ▒▒▒").
+It can be equipped, but its affixes and special do nothing until decrypted.
+On the ground and in the pack its label is prefixed with a static glyph.
+Decrypting aboard the ship: the Signals Tech decrypts everything in the pack and the cargo locker for free, one button ("Decrypt all"). Short reveal effect: the static resolves into the real name and affixes.
+Cipher keys: consumable, sold by the Quartermaster and an occasional drop. Used from the inventory screen on one corrupted item, anywhere. Counted like stims.
+
+15.2.3 Medic — healing and respec
+Heal: free. Restores full health and energy and clears status effects.
+Respec: refunds every spent attribute point so they can be placed again. The first respec is free; after that it costs 100 UC × character level. Asks for confirmation.
+Extra dialogue after the operative's first death and revival in the Lazarus Cradle.
+
+15.2.4 Fence — sealed salvage
+Sells sealed crates by category: Weapon, Armour (head / body / gloves / boots, random), Utility.
+Price scales with item level: about 150 UC × (1 + 0.2 × (item level − 1)); weapons cost 20% more. Item level follows the same rule as the Quartermaster's stock.
+Buying opens the crate on the spot: a short reveal, then the item goes into the pack (needs a free slot).
+Better rarity odds than drops: Common 50%, Uncommon 33%, Rare 14%, Experimental 3%. Crate items arrive already decrypted (the reveal is the fun).
+Available from the start.
+
+15.2.5 Pilot
+No shop. Talking to her offers "Open the star map" (same as the nav console) and flight-related banter that reacts to where the ship is on the star map.
+
+15.2.6 Crew look and personality                              [DONE — first pass]
+
+The crew are a mismatched bunch of odd ducks: each one should read instantly from silhouette, colour and one signature prop, and feel alive through an idle animation and a quirk. Drawn procedurally in the game's style (lit / shadow tones, no outlines), clearly distinct from each other and from the operative. Each gets a small accent light or glow so they pop in the ship's silver-blue rooms.
+
+Quartermaster — Dov Harrow ("the Old Man of the hold")
+Look: old, short and barrel-wide, grey mutton-chop whiskers, bald and scarred scalp. Heavy oil-stained leather apron hung with tools over a quilted work shirt. Right arm is a crude hydraulic prosthetic, brass and iron, hissing a little steam. An unlit cigar stub he never lights ("ship rules").
+Colours: brown leather, tarnished brass, a red rag in the back pocket.
+Prop / setting: stands behind a counter of crates in the cargo hold, a dataslate in his flesh hand; a votive candle and a column of tally marks on the crate beside him.
+Idle: counts stock on the dataslate, then knocks twice on a crate for luck; the prosthetic arm twitches and vents steam every so often.
+Personality: gruff, superstitious, secretly soft-hearted. Talks to the reactor as "her". Names every crate. Haggles out of habit even though his prices are fixed.
+
+Signals Tech — Ines Ruhl ("never sleeps")
+Look: young, thin, all elbows, pale with dark rings under the eyes. Oversized headphones wired straight into a port behind her ear, cables trailing to a backpack decoder rig stuffed with blinking boards. Goggles pushed up into a mess of dyed teal hair. Rumpled tech vest over a hoodie, sleeves pulled over her hands.
+Colours: grey hoodie, teal hair, teal and green status LEDs on the rig.
+Prop / setting: hunched on a stool at a bank of salvaged decoders in the common deck, screens of scrolling waveforms.
+Idle: fingers drum constantly; adjusts a dial, flinches at a burst of static, presses a headphone closer. Sometimes hums three notes under her breath (a nod to the Dead Signal) and stops herself.
+Personality: brilliant, jittery, laughs nervously, collects "found sounds" from dead channels. A bit too interested in things she should be afraid of.
+
+Medic — Oskar Venn ("the struck-off doctor")
+Look: very tall and gaunt, stooped, long grey ponytail, half-moon spectacles on the end of his nose. Off-white surgical coat with old rust-brown stains that never washed out, a faded red-cross armband, rubber gloves tucked in the breast pocket. A battered medical satchel on his hip.
+Colours: dirty white, faded red, steel.
+Prop / setting: beside the Lazarus Cradle in the medbay, a surgical lamp and a tray of instruments.
+Idle: polishes a bone saw with great care; takes a nip from a flask labelled ANTISEPTIC.
+Personality: dry, deadpan gallows humour, calm in any crisis. Lost his licence on Thessaly and won't say why. Treats the operative like a patient who keeps coming back.
+
+Fence — Kesh ("strictly a passenger")
+Look: a T'sa: small, quick, lizard-like, fine copper-green scales and big glossy eyes. Swamped in layered coats with far too many pockets, gold rings on every claw, a monocle scanner that clicks as it zooms. A sealed crate always within reach.
+Colours: deep purple coat, gold trinkets, copper-green scales.
+Prop / setting: perched on top of a stack of sealed crates in a corner of the cargo hold, never on the floor.
+Idle: never still: fidgets with a ring, checks a pocket, peers around through the monocle, tail flicking.
+Personality: fast-talking, charming, shameless, allergic to customs officers. Calls everyone "friend". Swears every crate is "a fortune, probably".
+
+Pilot — Mara Quill ("she flies, don't ask how")
+Look: lean, mid-thirties, close-cropped dark hair with a shaved stripe. A worn flight jacket covered in mismatched patches from every navy and outfit she's flown for. One eye is an amber cybernetic that glows faintly and refocuses with a whirr.
+Colours: olive jacket, amber eye glow, patches in every colour.
+Prop / setting: slouched in the pilot's chair in the cockpit with her boots up on the console, beside the nav console.
+Idle: flips a coin and catches it without looking; chews ration gum; pats the console and mutters to the ship.
+Personality: cocky, laid-back, superstitious about the Mule ("she knows when you're rude to her"), loyal under the jokes.
+
+Details for all of them:
+Height and build differ so they read at a glance (Kesh smallest, Oskar tallest, Dov widest).
+They face the operative when spoken to, and turn back to their idle afterwards.
+A short ambient bark the first time the operative walks past them in a visit (e.g. Dov: "Mind the crates."), once per visit so it never nags.
+Their name shows above them on hover / when in interact range.
+
+15.2.7 Prices (first pass, tunable in one place)
+Item value = 20 × rarity multiplier (Common 1, Uncommon 2.5, Rare 6, Experimental 15) × (1 + 0.15 × (item level − 1)) × (1 + 0.1 × number of affixes).
+Buy price = value. Sell price = 25% of value.
+Supplies: 30 rifle rounds 15 UC, 8 shells 15 UC, stim-pack 40 UC (later: cipher key 30 UC).
+Examples at item level 3: Common ~26 UC, Uncommon ~70 UC, Rare ~190 UC, Experimental ~500 UC.
+Target feel: one Kessar IV run (drops + 500 UC bounty) affords a Rare from the Quartermaster or two or three Fence crates.
 
 15.3 OVERWATCH                                               [DONE — briefing / debrief]
 
@@ -528,7 +614,7 @@ Both the curve and the falloff are tunable constants.
 2. Star map UI on the nav console.   [DONE]
 3. Recall button and beacon.   [DONE]
 4. First mission: planet surface + hive, new enemies, Brood Queen. (Kharon Outpost stays as a secondary destination.)   [first cut DONE]
-5. Crew services: vendor, decryption / identify, medic, fence. Cargo stash.   [stash DONE]
+5. Crew services: crew screen, Quartermaster trade, Medic heal / respec, Fence crates, Pilot shortcut, crew look and personality. Cargo stash.   [stash DONE]  (Signal corruption / decryption deferred.)   [DONE]
 6. Death and revival in the Lazarus Cradle.   [DONE]
 7. Re-entrant areas: reset on each session, area levels, diminishing XP, new XP curve.   [DONE]
 
