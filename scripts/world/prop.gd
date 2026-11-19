@@ -4,6 +4,7 @@ extends StaticBody2D
 ##  o obstacle (crates/barrels/cogitator bank)   p gothic pillar
 ##  g generator machinery   t specimen tank   l lamp post (light)
 ##  v steam vent   z sparking conduit
+##  i boulder (Kessar)   j resin growth (decor)   f glowing fungus (light)
 
 var level: Level
 var cell := Vector2i.ZERO
@@ -32,8 +33,8 @@ func _ready() -> void:
 	collision_mask = 0
 	t = randf() * 10.0
 	cv = IsoView.attach(self, false)
-	if kind == "v":
-		cv.z_index = -1   # floor grate
+	if kind == "v" or kind == "j":
+		cv.z_index = -1   # floor grate / resin crust
 	if Level.SOLID_PROPS.contains(kind):
 		var cs := CollisionShape2D.new()
 		var r := RectangleShape2D.new()
@@ -94,6 +95,17 @@ func _ready() -> void:
 			p.color_ramp = g
 			p.z_index = 10
 			cv.add_child(p)
+		"f":
+			light = PointLight2D.new()
+			light.range_item_cull_mask = 3   # also lights the floor layer
+			light.height = 150.0
+			light.texture = LightUtil.radial(128)
+			light.texture_scale = 1.9
+			light.position = Vector2(0, -10)
+			light.color = Color(0.35, 0.95, 0.75) if variant != 1 else Color(0.6, 0.4, 1.0)
+			light.energy = 1.1
+			light.scale = Vector2(1.0, 0.6)
+			cv.add_child(light)
 		"z":
 			var s := CPUParticles2D.new()
 			s.amount = 10
@@ -131,7 +143,7 @@ func set_powered(on: bool) -> void:
 
 func _process(delta: float) -> void:
 	t += delta
-	if (kind == "t" or kind == "g" or kind == "l") and cv != null:
+	if (kind == "t" or kind == "g" or kind == "l" or kind == "f") and cv != null:
 		cv.redraw_if_visible()
 	if light == null:
 		return
@@ -168,10 +180,52 @@ func _render() -> void:
 			_draw_tank()
 		"l":
 			_draw_lamp()
+		"i":
+			_draw_boulder()
+		"j":
+			_draw_resin()
+		"f":
+			_draw_fungus()
 		"z":
 			cv.draw_rect(Rect2(-12, -30, 24, 10), Color(0.12, 0.11, 0.1))
 			cv.draw_line(Vector2(-10, -25), Vector2(10, -25), Color(0.4, 0.3, 0.15), 2.0)
 			cv.draw_line(Vector2(4, -20), Vector2(7, -8), Color(0.08, 0.08, 0.08), 2.0)
+
+
+func _draw_boulder() -> void:
+	var c := Color(0.2, 0.18, 0.16).lerp(Color(0.26, 0.23, 0.2), float(variant) / 2.0)
+	var h := 14.0 + variant * 5.0
+	Iso.box(cv, Vector2(0, 1), Vector2(12, 10), h, c.lightened(0.12), c, c.darkened(0.35))
+	Iso.box(cv, Vector2(-3, -2), Vector2(7, 6), 7.0, c.lightened(0.18), c.lightened(0.04), c.darkened(0.25), Color(0, 0, 0, 0), h)
+	cv.draw_line(Vector2(-6, -h + 4), Vector2(2, -h * 0.4), c.darkened(0.4), 1.0)
+
+
+func _draw_resin() -> void:
+	# glistening brood resin creeping over the ground
+	var c := Color(0.32, 0.27, 0.22)
+	Iso.ground(cv)
+	var hsh := Level.hash2(cell.x, cell.y)
+	for i in 4:
+		var hh := (hsh >> (i * 4)) & 15
+		var o := Vector2(float(hh % 5) * 5.0 - 10.0, float(hh / 5) * 5.0 - 7.0)
+		cv.draw_circle(o, 5.0 + float(hh % 3) * 2.0, c.lightened(float(i) * 0.04))
+	cv.draw_circle(Vector2(-2, -2), 3.0, Color(0.6, 0.65, 0.45, 0.4))
+	if variant == 0:
+		cv.draw_circle(Vector2(5, 3), 2.0, Color(0.6, 1.0, 0.35, 0.5))
+	cv.draw_set_transform(Vector2.ZERO)
+
+
+func _draw_fungus() -> void:
+	var col := Color(0.35, 0.95, 0.75) if variant != 1 else Color(0.6, 0.4, 1.0)
+	var pulse := 0.75 + 0.25 * sin(t * 1.5 + float(variant))
+	for i in 3:
+		var base := Vector2((i - 1) * 7.0, (i % 2) * 3.0)
+		var hgt := 9.0 + i * 4.0
+		cv.draw_line(base, base + Vector2(0, -hgt), Color(0.3, 0.32, 0.28), 2.0)
+		cv.draw_set_transform(base + Vector2(0, -hgt), 0.0, Vector2(1.0, 0.55))
+		cv.draw_circle(Vector2.ZERO, 5.0 - i * 0.6, Color(col.r * 0.5, col.g * 0.5, col.b * 0.5))
+		cv.draw_circle(Vector2(0, -1), 3.5 - i * 0.5, Color(col.r, col.g, col.b, pulse))
+		cv.draw_set_transform(Vector2.ZERO)
 
 
 func _draw_obstacle() -> void:

@@ -7,6 +7,9 @@ const BASE_SPEED := 205.0
 const ROLL_SPEED := 560.0
 const ROLL_TIME := 0.3
 const INTERACT_RANGE := 58.0
+const RECALL_CHANNEL := 2.0       # seconds standing still to recall to the ship
+const RECALL_COOLDOWN := 60.0
+const RECALL_FAIL_CD := 3.0       # after an interrupted recall
 
 const ABIL := {
 	"roll":       {"cd": 2.0,  "cost": 10.0, "name": "Tactical Roll"},
@@ -35,6 +38,7 @@ var interact_target: Node = null
 var hovered_enemy: Node = null
 var controls_enabled := true
 var holstered := false             # aboard the ship: no weapons or combat abilities
+var recall_t := 0.0                # > 0 while channeling Recall (seconds left)
 var death_t := 0.0
 var _light: PointLight2D       # lights the floor, casts wall shadows
 var _cone: PointLight2D        # flashlight on the floor, casts wall shadows
@@ -160,6 +164,7 @@ func _tick_timers(delta: float) -> void:
 			reload_t[s] = float(reload_t[s]) - delta
 			if float(reload_t[s]) <= 0.0:
 				_finish_reload(s)
+	GameState.recall_cd = maxf(0.0, GameState.recall_cd - delta)
 	muzzle_t = maxf(0.0, muzzle_t - delta)
 	swing_t = maxf(0.0, swing_t - delta)
 	invuln_t = maxf(0.0, invuln_t - delta)
@@ -213,6 +218,13 @@ func _handle_movement(delta: float) -> void:
 	var input := Vector2.ZERO
 	if controls_enabled:
 		input = Iso.input_to_world(Input.get_vector("move_left", "move_right", "move_up", "move_down"))
+	if recall_t > 0.0:
+		if input.length() > 0.3:
+			cancel_recall("moved")
+		else:
+			velocity = apply_knockback(delta)
+			move_and_slide()
+			return
 	if roll_t > 0.0:
 		roll_t -= delta
 		velocity = roll_dir * ROLL_SPEED
@@ -249,6 +261,16 @@ func _handle_actions() -> void:
 		if Input.is_action_just_pressed("swap_weapons"):
 			GameState.swap_weapons()
 		return
+	if Input.is_action_just_pressed("recall"):
+		start_recall()
+	if recall_t > 0.0:
+		for a in ["roll", "overcharge", "pulse", "fire_primary", "fire_secondary", "reload", "use_stim"]:
+			if Input.is_action_just_pressed(a):
+				cancel_recall("interrupted")
+				break
+		if recall_t > 0.0:
+			_channel_recall(get_physics_process_delta_time())
+			return
 	if Input.is_action_just_pressed("roll"):
 		_try_roll()
 	if Input.is_action_just_pressed("overcharge"):
@@ -582,6 +604,39 @@ func _try_pulse() -> void:
 			n.queue_free()
 
 
+# ---------------------------------------------------------------- recall
+
+func start_recall() -> void:
+	if recall_t > 0.0 or roll_t > 0.0:
+		return
+	if holstered or GameState.is_hub():
+		_hint("Already aboard the ship.")
+		return
+	if GameState.recall_cd > 0.0:
+		_hint("Recall recharging (%ds)." % ceili(GameState.recall_cd))
+		return
+	recall_t = RECALL_CHANNEL
+	Audio.play("overcharge", global_position, 0.6, -4.0)
+
+
+func cancel_recall(why: String) -> void:
+	if recall_t <= 0.0:
+		return
+	recall_t = 0.0
+	GameState.recall_cd = maxf(GameState.recall_cd, RECALL_FAIL_CD)
+	Events.msg("Recall %s." % why, Color(1.0, 0.55, 0.35))
+
+
+func _channel_recall(delta: float) -> void:
+	recall_t -= delta
+	if recall_t <= 0.0:
+		recall_t = 0.0
+		Fx.ring(get_parent(), Iso.sp(global_position, 10), 70.0, Color(0.5, 0.85, 1.0), 0.5, 10.0)
+		Fx.burst(get_parent(), Iso.sp(global_position, 30), Color(0.6, 0.9, 1.0), 26, 260.0)
+		Audio.play("pulse", global_position, 1.4)
+		Events.recall_done.emit(global_position)
+
+
 func _use_stim() -> void:
 	if GameState.stims <= 0:
 		_hint("No stim-packs left.")
@@ -655,6 +710,8 @@ func _show_damage(amount: float, _crit: bool, _col: Color) -> void:
 
 func _on_damaged(hit: Dictionary, amount: float) -> void:
 	GameState.hp = hp
+	if recall_t > 0.0 and not hit.get("dot", false):
+		cancel_recall("interrupted")
 	Events.player_hurt.emit(amount)
 	if not hit.get("dot", false):
 		Audio.play_ui("player_hurt")
@@ -730,6 +787,19 @@ func _render() -> void:
 	_render_body()
 	facing = wf
 	aim_dir = wa
+	if recall_t > 0.0:
+		_render_recall()
+
+
+## Recall channel: a column of blue light, and a ring on the floor closing in.
+func _render_recall() -> void:
+	var k := 1.0 - recall_t / RECALL_CHANNEL
+	var a := 0.15 + 0.35 * k
+	cv.draw_rect(Rect2(-14, -90, 28, 90), Color(0.45, 0.8, 1.0, a * 0.5))
+	cv.draw_rect(Rect2(-6, -110, 12, 110), Color(0.7, 0.9, 1.0, a))
+	Iso.ground(cv)
+	cv.draw_arc(Vector2.ZERO, 44.0 * (1.0 - k) + 10.0, 0, TAU, 28, Color(0.5, 0.85, 1.0, 0.8), 2.5)
+	cv.draw_set_transform(Vector2.ZERO)
 
 
 func _render_body() -> void:

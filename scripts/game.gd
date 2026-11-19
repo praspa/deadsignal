@@ -71,17 +71,38 @@ func _ready() -> void:
 	var revived := hub and GameState.reviving and level.revive_point != Vector2.ZERO
 	if revived:
 		player.position = level.revive_point
+	elif GameState.arrive_at is Vector2:
+		player.position = GameState.arrive_at   # teleport pad: back on the recall beacon
+	elif GameState.arrive_at is String and GameState.arrive_at == "hive_hole" and level.hive_hole != null:
+		player.position = _open_spot(level.hive_hole.global_position)
 	elif GameState.loaded_from_save and GameState.player_pos != null:
 		player.position = GameState.player_pos
 	else:
 		player.position = level.player_start
+	GameState.arrive_at = null
 	player.holstered = hub
 	world.add_child(player)
-	if not hub:
+	var ldef := GameState.location_def()
+	if not hub and not bool(ldef.get("no_shuttle", false)):
 		var pad := ShuttlePad.new()
 		pad.position = _pad_spot()
 		pad.board.connect(_on_board_shuttle)
 		world.add_child(pad)
+	if level.hive_hole != null:
+		level.hive_hole.use.connect(_on_hive_hole)
+	if level.teleport_pad != null:
+		level.teleport_pad.teleport.connect(_on_teleport_pad)
+	if not GameState.beacon.is_empty() and String(GameState.beacon.get("location", "")) == GameState.location:
+		var mark := RecallBeacon.new()
+		mark.position = Vector2(float(GameState.beacon["x"]), float(GameState.beacon["y"]))
+		world.add_child(mark)
+	# arriving somewhere can complete an objective (before comms are queued)
+	match GameState.location:
+		"kessar_surface":
+			GameState.set_flag("kessar:landed")
+		"kessar_hive":
+			for f in ["kessar:landed", "kessar:hive_found", "kessar:hive"]:
+				GameState.set_flag(f)
 
 	camera = Camera2D.new()
 	camera.process_mode = Node.PROCESS_MODE_PAUSABLE
@@ -108,7 +129,8 @@ func _ready() -> void:
 	dust.texture = LightUtil.radial(32)
 	dust.scale_amount_min = 0.06
 	dust.scale_amount_max = 0.14
-	dust.color = Color(0.75, 0.68, 0.6, 0.18)
+	var dc: Array = GameState.location_def().get("dust", [0.75, 0.68, 0.6, 0.18])
+	dust.color = Color(float(dc[0]), float(dc[1]), float(dc[2]), float(dc[3]))
 	dust.z_index = 40
 	add_child(dust)
 
@@ -163,6 +185,7 @@ func _ready() -> void:
 	Events.open_terminal.connect(_on_open_terminal)
 	Events.open_nav.connect(_on_open_nav)
 	Events.open_stash.connect(_on_open_stash)
+	Events.recall_done.connect(_on_recall_done)
 	Events.player_died.connect(_on_player_died)
 	Events.flag_set.connect(_on_flag_set)
 	Events.screen_shake.connect(_on_shake)
@@ -176,6 +199,11 @@ func _ready() -> void:
 		_wake_in_cradle()
 	elif GameState.loaded_from_save:
 		Events.msg("Save loaded.", UiTheme.TEXT_DIM)
+		if GameState.session_started:
+			GameState.session_started = false
+			Events.msg("New session: mission areas have been repopulated. Loot left on the floor is gone.", Color(0.85, 0.7, 0.45))
+		if hub:
+			_hub_comms()   # e.g. saved after the kill, before the debrief
 	elif hub:
 		_hub_comms()
 	else:
@@ -189,7 +217,7 @@ func _exit_tree() -> void:
 		Iso.fx_root = null
 		Iso.cull_rect = Rect2()
 	# autoload signals outlive this node; disconnect to avoid stale callbacks
-	for pair in [[Events.open_terminal, _on_open_terminal], [Events.open_nav, _on_open_nav], [Events.open_stash, _on_open_stash], [Events.player_died, _on_player_died],
+	for pair in [[Events.open_terminal, _on_open_terminal], [Events.open_nav, _on_open_nav], [Events.open_stash, _on_open_stash], [Events.recall_done, _on_recall_done], [Events.player_died, _on_player_died],
 			[Events.flag_set, _on_flag_set], [Events.screen_shake, _on_shake]]:
 		var sig: Signal = pair[0]
 		if sig.is_connected(pair[1]):
@@ -234,7 +262,13 @@ func _on_shake(amount: float) -> void:
 
 
 func _mission_triggers() -> void:
-	if player.dead or GameState.location != "kharon":
+	if player.dead:
+		return
+	if GameState.location == "kessar_surface" and level.hive_hole != null and not GameState.has_flag("kessar:hive_found") \
+			and player.global_position.distance_to(level.hive_hole.global_position) < 260.0:
+		GameState.set_flag("kessar:hive_found")
+		Events.msg("A sinkhole crusted with resin. Warm air breathes out of it.", Color(0.7, 0.9, 0.5))
+	if GameState.location != "kharon":
 		return
 	var p := player.global_position
 	# inside once off the exterior ground (past the airlock) on any layout
@@ -248,14 +282,14 @@ func _mission_triggers() -> void:
 
 
 func _on_flag_set(f: String) -> void:
-	if GameState.location != "kharon":
+	if GameState.mission_id() == "":
 		return
 	var idx := GameState.objective_index()
 	if idx != last_obj:
 		last_obj = idx
 		Events.objective_changed.emit(GameState.current_objective_text())
 		_queue_comms(idx)
-	if f in ["power", "research", "cause", "boss"]:
+	if f in ["power", "research", "cause", "boss", "kessar:hive_found", "kessar:queen"]:
 		_save.call_deferred(true)
 	if f == "power":
 		Events.msg("Primary reactor online. Bulkheads unlocked.", Color(0.5, 1.0, 0.6))
@@ -287,6 +321,9 @@ func _hub_comms() -> void:
 	if not GameState.has_flag("briefed"):
 		key = "intro_comms"
 		GameState.set_flag("briefed")
+	elif GameState.has_flag("kessar:queen") and not GameState.has_flag("kessar:done"):
+		_debrief("kessar")
+		return
 	elif GameState.has_flag("escape") and not GameState.has_flag("debriefed"):
 		key = "debrief_comms"
 		GameState.set_flag("debriefed")
@@ -296,8 +333,25 @@ func _hub_comms() -> void:
 		delay = 3.5
 
 
+## Mission complete: OVERWATCH pays the bounty and unlocks what comes next.
+func _debrief(mid: String) -> void:
+	var m: Dictionary = ItemDB.missions.get(mid, {})
+	GameState.set_flag(mid + ":done")
+	var bounty := int(m.get("bounty", 0))
+	if bounty > 0:
+		GameState.add_credits(bounty)
+		Events.msg("Bounty received: +" + GameState.fmt_uc(bounty), LootDrop.CREDIT_COLOR)
+	for f in m.get("unlocks", []):
+		GameState.set_flag(String(f))
+	var delay := 1.2
+	for line in m.get("debrief", []):
+		comms.append([String(line), delay])
+		delay = 3.5
+	_save.call_deferred(false)
+
+
 func _queue_comms(idx: int) -> void:
-	var objs: Array = ItemDB.mission.get("objectives", [])
+	var objs: Array = ItemDB.missions.get(GameState.mission_id(), {}).get("objectives", [])
 	if idx < 0 or idx >= objs.size():
 		return
 	var delay := 1.2
@@ -418,6 +472,41 @@ func _on_board_shuttle() -> void:
 ## Leaves this location; Main builds a fresh Game at the destination.
 func _travel(dest: String) -> void:
 	request.emit("travel:" + dest)
+
+
+func _on_hive_hole(dest: String) -> void:
+	if open_screen != null or player.dead:
+		return
+	if dest == "kessar_surface":
+		GameState.arrive_at = "hive_hole"
+	_travel(dest)
+
+
+## Ship's teleport pad: back down onto the recall beacon (which is used up).
+func _on_teleport_pad() -> void:
+	if open_screen != null or GameState.beacon.is_empty():
+		return
+	var b := GameState.beacon
+	GameState.beacon = {}
+	GameState.arrive_at = Vector2(float(b["x"]), float(b["y"]))
+	_travel(String(b["location"]))
+
+
+## Recall finished channeling: leave a beacon here and pull back to the ship.
+func _on_recall_done(pos: Vector2) -> void:
+	GameState.beacon = {"location": GameState.location, "x": pos.x, "y": pos.y, "node": GameState.ship_node}
+	GameState.recall_cd = Player.RECALL_COOLDOWN
+	Events.msg("Recall beacon set. Teleport pad in the cargo hold returns you here.", Color(0.5, 0.8, 1.0))
+	_travel("ship")
+
+
+## Nearest walkable spot around `p` (arrivals next to things).
+func _open_spot(p: Vector2) -> Vector2:
+	for off in [Vector2(48, 0), Vector2(-48, 0), Vector2(0, 48), Vector2(0, -48), Vector2(48, 48), Vector2(-48, -48)]:
+		var q: Vector2 = p + off
+		if not level.astar.is_point_solid(level.world_to_cell(q)):
+			return q
+	return p
 
 
 ## A walkable spot beside the start point for the return shuttle.

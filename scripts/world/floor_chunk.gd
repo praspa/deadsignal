@@ -70,7 +70,7 @@ func _draw_tile(x: int, y: int) -> void:
 	var c := level.ch(x, y)
 	match style:
 		",":
-			var base := Color(0.13, 0.115, 0.1).lerp(Color(0.17, 0.15, 0.13), v)
+			var base := Color(0.13, 0.115, 0.1).lerp(Color(0.17, 0.15, 0.13), v if WallTile.natural == "" else 0.4 + v * 0.15)
 			ci.draw_rect(r, base)
 			for i in 3:
 				var hh := Level.hash2(x * 7 + i, y * 13 - i)

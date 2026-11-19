@@ -170,11 +170,12 @@ func _draw_hud() -> void:
 	_draw_weapon_panel(Rect2(158, by + 8, 300, 26), "primary", "fire_primary")
 	_draw_weapon_panel(Rect2(158, by + 36, 300, 26), "secondary", "fire_secondary")
 	# --- abilities
-	var ax := vs.x * 0.5 - 132.0
+	var ax := vs.x * 0.5 - 165.0
 	var abil := [["roll", "roll"], ["overcharge", "overcharge"], ["pulse", "pulse"]]
 	for i in abil.size():
 		_draw_ability(Rect2(ax + i * 66, by + 8, 56, 56), String(abil[i][0]), String(abil[i][1]))
 	_draw_stim(Rect2(ax + 3 * 66, by + 8, 56, 56))
+	_draw_recall(Rect2(ax + 4 * 66, by + 8, 56, 56))
 	# --- level / points
 	var lx := vs.x - 450.0
 	_text(Vector2(lx, by + 26), "LEVEL %d  %s" % [GameState.level, GameState.class_title().to_upper()], 15, UiTheme.BRASS)
@@ -302,6 +303,29 @@ func _draw_ability(r: Rect2, id: String, action: String) -> void:
 	d.draw_rect(r, border, false, 2.0 if not active else 3.0)
 	_text(r.position + Vector2(3, 13), InputSetup.key_hint(action), 11, UiTheme.BRASS)
 	_text(Vector2(r.position.x, r.end.y - 3), "%d" % roundi(cost), 10, Color(0.5, 0.7, 1.0), HORIZONTAL_ALIGNMENT_RIGHT, r.size.x - 3)
+
+
+## Recall: beam-up icon, cooldown sweep, progress while channeling.
+func _draw_recall(r: Rect2) -> void:
+	var d := draw_node
+	var cd := GameState.recall_cd
+	var aboard := GameState.is_hub()
+	var is_ready := cd <= 0.0 and not aboard
+	d.draw_rect(r, Color(0.06, 0.055, 0.06))
+	var icol := Color(0.5, 0.8, 1.0) if is_ready else Color(0.25, 0.35, 0.45)
+	var c := r.get_center() + Vector2(0, -3)
+	d.draw_rect(Rect2(c + Vector2(-3, -14), Vector2(6, 22)), Color(icol.r, icol.g, icol.b, 0.5))
+	d.draw_colored_polygon(PackedVector2Array([c + Vector2(0, -18), c + Vector2(-8, -8), c + Vector2(8, -8)]), icol)
+	d.draw_arc(c + Vector2(0, 10), 10.0, PI * 0.1, PI * 0.9, 10, icol, 2.0)
+	if player.recall_t > 0.0:
+		var f := 1.0 - player.recall_t / Player.RECALL_CHANNEL
+		d.draw_rect(Rect2(r.position.x, r.end.y - r.size.y * f, r.size.x, r.size.y * f), Color(0.4, 0.75, 1.0, 0.35))
+	elif cd > 0.0:
+		var f2 := clampf(cd / Player.RECALL_COOLDOWN, 0.0, 1.0)
+		d.draw_rect(Rect2(r.position.x, r.position.y + r.size.y * (1.0 - f2), r.size.x, r.size.y * f2), Color(0, 0, 0, 0.65))
+		_text(Vector2(r.position.x, r.get_center().y + 6), "%d" % ceili(cd), 15, Color(1, 1, 1), HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
+	d.draw_rect(r, UiTheme.BRASS if is_ready else UiTheme.BRASS_DIM, false, 2.0)
+	_text(r.position + Vector2(3, 13), InputSetup.key_hint("recall"), 11, UiTheme.BRASS)
 
 
 func _draw_stim(r: Rect2) -> void:

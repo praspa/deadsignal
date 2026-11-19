@@ -1,0 +1,19 @@
+{
+ "variant": 1,
+ "name": "Brood Warren I",
+ "rooms": {
+  "arrival": [
+   16,
+   43,
+   22,
+   49
+  ],
+  "queen": [
+   43,
+   4,
+   59,
+   20
+  ]
+ },
+ "dirs": {}
+}
