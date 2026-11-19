@@ -186,9 +186,7 @@ func run() -> void:
 		if n is Terminal and (n as Terminal).term_id == "nav":
 			nav = n
 	check(nav != null, "nav console aboard")
-	var crew0 := get_tree().get_first_node_in_group("crew") as CrewNpc
-	crew0.interact(game.player)
-	check(game.hud.messages.any(func(m: Array) -> bool: return String(m[0]).begins_with(crew0.display_name())), "crew member talks")
+	await _crew_service_tests()
 	var locker: StashLocker = null
 	for n in game.world.get_children():
 		if n is StashLocker:
@@ -836,6 +834,98 @@ func _kessar_tests() -> void:
 
 func _count_kind(k: String) -> int:
 	return get_tree().get_nodes_in_group("enemies").filter(func(e: Node) -> bool: return (e as Enemy).kind == k).size()
+
+
+func _crew(id: String) -> CrewNpc:
+	for n in get_tree().get_nodes_in_group("crew"):
+		if (n as CrewNpc).crew_id == id:
+			return n
+	return null
+
+
+func _crew_service_tests() -> void:
+	print("== crew services")
+	var pl := game.player
+	var q := _crew("Q")
+	q.interact(pl)
+	await frames(2)
+	check(game.crew_ui.visible and game.crew_ui.title_lbl.text.contains("DOV") and game.crew_ui.quote.text.length() > 4, "talking opens the crew screen with a line of dialogue")
+	game.crew_ui.trade.emit()
+	await frames(2)
+	check(game.trade_ui.visible and not game.crew_ui.visible and GameState.vendor_stock.size() >= 12, "Quartermaster trade screen (%d items in stock)" % GameState.vendor_stock.size())
+	check(GameState.vendor_stock.all(func(it: Dictionary) -> bool: return int(it["rarity"]) <= ItemDB.RARITY_RARE) and GameState.vendor_stock.any(func(it: Dictionary) -> bool: return int(it["rarity"]) == ItemDB.RARITY_RARE), "stock: never Experimental, at least one Rare")
+	GameState.credits = 5000
+	var it: Dictionary = GameState.vendor_stock[0]
+	var price := ItemDB.buy_price(it)
+	var inv0 := GameState.inventory.size()
+	game.trade_ui._buy(it, false)
+	check(GameState.inventory.size() == inv0 + 1 and GameState.credits == 5000 - price and not GameState.vendor_stock.has(it), "buying gear (%s)" % GameState.fmt_uc(price))
+	game.trade_ui._sell(it)
+	if GameState.inventory.has(it):
+		game.trade_ui._sell(it)   # Rare: second press confirms
+	check(not GameState.inventory.has(it) and GameState.buyback.has(it) and GameState.credits == 5000 - price + ItemDB.sell_price(it), "selling for 25%% of value, into buyback")
+	game.trade_ui._buy(it, true)
+	check(GameState.inventory.has(it) and not GameState.buyback.has(it), "buying back a sold item")
+	var rare := ItemDB.generate("shotgun", ItemDB.RARITY_RARE, 3)
+	GameState.add_item(rare)
+	game.trade_ui._sell(rare)
+	check(GameState.inventory.has(rare), "selling a Rare asks for confirmation")
+	game.trade_ui._sell(rare)
+	check(not GameState.inventory.has(rare), "second press sells it")
+	var st0 := GameState.stims
+	var am0 := int(GameState.ammo["rifle"])
+	game.trade_ui._buy_supply("stim")
+	game.trade_ui._buy_supply("rifle")
+	check(GameState.stims == st0 + 1 and int(GameState.ammo["rifle"]) == am0 + 30, "buying supplies (stims, ammo)")
+	GameState.credits = 0
+	check(not GameState.buy_item(GameState.vendor_stock[0]), "can't buy without the creds")
+	game.trade_ui.close()
+	await frames(2)
+	print("== medic, fence, pilot")
+	var m := _crew("M")
+	m.interact(pl)
+	await frames(2)
+	pl.hp = 10.0
+	game.crew_ui._heal()
+	check(pl.hp >= pl.max_hp - 0.1, "Medic heals for free")
+	GameState.attributes["str"] = int(GameState.attributes["str"]) + 3
+	var pts0 := GameState.attr_points
+	game.crew_ui._respec()
+	game.crew_ui._respec()
+	check(GameState.attr_points == pts0 + 3 and int(GameState.attributes["str"]) == 7 and GameState.credits == 0, "first respec is free and refunds spent points")
+	GameState.attributes["dex"] = int(GameState.attributes["dex"]) + 1
+	GameState.attr_points -= 1
+	check(GameState.respec_price() == 100 * GameState.level and not GameState.respec(), "later respecs cost 100 UC x level")
+	game.crew_ui.close()
+	await frames(2)
+	_crew("F").interact(pl)
+	await frames(2)
+	GameState.credits = 2000
+	var inv1 := GameState.inventory.size()
+	game.crew_ui._crate("weapon")
+	var got: Dictionary = GameState.inventory[GameState.inventory.size() - 1]
+	check(GameState.inventory.size() == inv1 + 1 and String(got["slot"]) in ["primary", "secondary"] and GameState.credits == 2000 - ItemDB.fence_price("weapon", GameState.shop_ilvl()), "Fence sells a sealed weapon crate, opened on the spot")
+	game.crew_ui.close()
+	await frames(2)
+	_crew("P").interact(pl)
+	await frames(2)
+	game.crew_ui.starmap.emit()
+	await frames(2)
+	check(game.star_map.visible and not game.crew_ui.visible, "Pilot opens the star map")
+	game.star_map.close()
+	await frames(2)
+	var uids := GameState.vendor_stock.map(func(i: Dictionary) -> int: return int(i["uid"]))
+	var keep_ground := GameState.ground_items
+	var keep_areas := GameState.areas.duplicate(true)
+	var keep_explored := GameState.explored
+	GameState.location = "kharon"
+	GameState.travel("ship")
+	GameState.ground_items = keep_ground
+	GameState.areas = keep_areas
+	GameState.explored = keep_explored
+	check(GameState.vendor_stock.map(func(i: Dictionary) -> int: return int(i["uid"])) != uids, "returning from a mission refreshes the Quartermaster's stock")
+	GameState.credits = 0
+	GameState.stims = 2
 
 
 func _saved_location() -> String:

@@ -18,6 +18,8 @@ var character_ui: CharacterUI
 var terminal_ui: TerminalUI
 var star_map: StarMapUI
 var stash_ui: StashUI
+var crew_ui: CrewUI
+var trade_ui: TradeUI
 var hub := false
 var pause_menu: PauseMenu
 var end_screen: EndScreen
@@ -167,9 +169,11 @@ func _ready() -> void:
 	terminal_ui = TerminalUI.new()
 	star_map = StarMapUI.new()
 	stash_ui = StashUI.new()
+	crew_ui = CrewUI.new()
+	trade_ui = TradeUI.new()
 	pause_menu = PauseMenu.new()
 	end_screen = EndScreen.new()
-	for s in [inventory_ui, character_ui, terminal_ui, star_map, stash_ui, pause_menu, end_screen]:
+	for s in [inventory_ui, character_ui, terminal_ui, star_map, stash_ui, crew_ui, trade_ui, pause_menu, end_screen]:
 		ui_layer.add_child(s)
 		s.hide()
 	inventory_ui.closed.connect(_on_screen_closed)
@@ -177,6 +181,10 @@ func _ready() -> void:
 	terminal_ui.closed.connect(_on_terminal_closed)
 	star_map.closed.connect(_on_screen_closed)
 	stash_ui.closed.connect(_on_screen_closed)
+	crew_ui.closed.connect(_on_screen_closed)
+	trade_ui.closed.connect(_on_screen_closed)
+	crew_ui.trade.connect(_switch_screen.bind(trade_ui))
+	crew_ui.starmap.connect(_switch_screen.bind(star_map))
 	star_map.travel.connect(_on_nav_travel)
 	pause_menu.closed.connect(_on_screen_closed)
 	pause_menu.action.connect(_on_pause_action)
@@ -185,6 +193,7 @@ func _ready() -> void:
 	Events.open_terminal.connect(_on_open_terminal)
 	Events.open_nav.connect(_on_open_nav)
 	Events.open_stash.connect(_on_open_stash)
+	Events.open_crew.connect(_on_open_crew)
 	Events.recall_done.connect(_on_recall_done)
 	Events.player_died.connect(_on_player_died)
 	Events.flag_set.connect(_on_flag_set)
@@ -217,7 +226,7 @@ func _exit_tree() -> void:
 		Iso.fx_root = null
 		Iso.cull_rect = Rect2()
 	# autoload signals outlive this node; disconnect to avoid stale callbacks
-	for pair in [[Events.open_terminal, _on_open_terminal], [Events.open_nav, _on_open_nav], [Events.open_stash, _on_open_stash], [Events.recall_done, _on_recall_done], [Events.player_died, _on_player_died],
+	for pair in [[Events.open_terminal, _on_open_terminal], [Events.open_nav, _on_open_nav], [Events.open_stash, _on_open_stash], [Events.open_crew, _on_open_crew], [Events.recall_done, _on_recall_done], [Events.player_died, _on_player_died],
 			[Events.flag_set, _on_flag_set], [Events.screen_shake, _on_shake]]:
 		var sig: Signal = pair[0]
 		if sig.is_connected(pair[1]):
@@ -451,6 +460,21 @@ func _on_open_nav() -> void:
 	if open_screen != null:
 		return
 	_open(star_map)
+
+
+func _on_open_crew(id: String) -> void:
+	if open_screen != null:
+		return
+	crew_ui.show_crew(id, player)
+	_open(crew_ui)
+
+
+## From one menu straight into another without unpausing in between.
+func _switch_screen(to: Screen) -> void:
+	if open_screen != null:
+		open_screen.hide()
+		open_screen = null
+	_open(to)
 
 
 func _on_open_stash() -> void:

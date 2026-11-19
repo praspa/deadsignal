@@ -9,9 +9,20 @@
     ],
     "lines": [
       "Hold's a mess, I know where everything is. Mostly.",
-      "Bring me salvage, I'll bring you creds. Counter's not open yet, though.",
-      "Don't lean on the reactor housing. She bites."
-    ]
+      "Bring me salvage, I'll bring you creds.",
+      "Don't lean on the reactor housing. She bites.",
+      "Prices are fixed. Doesn't mean we can't haggle."
+    ],
+    "title": "Quartermaster",
+    "bark": "Mind the crates. They bite back.",
+    "services": [
+      "trade"
+    ],
+    "lines_after": {
+      "kessar:queen": [
+        "Bug guts on my deck plates. Wipe your boots, hero."
+      ]
+    }
   },
   "T": {
     "name": "Signals Tech Ines Ruhl",
@@ -22,10 +33,19 @@
       0.36
     ],
     "lines": [
-      "Anything you pull out of the dark comes back scrambled. I unscramble it.",
+      "Anything you pull out of the dark comes back scrambled. I'll unscramble it, once the rig's up.",
       "Decoder bank's still warming up. Give me time.",
-      "If a piece of gear starts humming at you, bring it straight to me. Don't listen to it."
-    ]
+      "If a piece of gear starts humming at you, bring it straight to me. Don't listen to it.",
+      "I found a dead channel that only plays rain. Isn't that nice?"
+    ],
+    "title": "Signals Tech",
+    "bark": "Shh. Listening.",
+    "services": [],
+    "lines_after": {
+      "kessar:queen": [
+        "The hive was talking, you know. All that chittering. I recorded some. For science."
+      ]
+    }
   },
   "M": {
     "name": "Medic Oskar Venn",
@@ -44,7 +64,21 @@
       "Easy. Easy. You were dead for a bit. Don't make a habit of it.",
       "The Cradle put you back together. Mostly the right way round.",
       "Welcome back. That's another one I'm not filing paperwork for."
-    ]
+    ],
+    "title": "Medic",
+    "bark": "Bleeding? Over here. Not on the floor.",
+    "services": [
+      "heal",
+      "respec"
+    ],
+    "lines_after": {
+      "revived_once": [
+        "You've been in my Cradle once already. It remembers you. That should worry you more than it does."
+      ],
+      "kessar:queen": [
+        "Acid burns, bite wounds, and something growing in your boot. Standard."
+      ]
+    }
   },
   "F": {
     "name": "Kesh, a fence",
@@ -56,9 +90,15 @@
     ],
     "lines": [
       "Passenger. Strictly passenger. Don't ask what's in the crates.",
-      "Sealed salvage, operative. Could be junk. Could be a fortune. That's the fun.",
-      "I'll have stock once we hit a port with fewer customs officers."
-    ]
+      "Sealed salvage, friend. Could be junk. Could be a fortune. Probably a fortune.",
+      "Customs officers? Never met one. Lovely people, I hear."
+    ],
+    "title": "Fence",
+    "bark": "Friend! Come, look, no obligation.",
+    "services": [
+      "fence"
+    ],
+    "lines_after": {}
   },
   "P": {
     "name": "Pilot Mara Quill",
@@ -70,8 +110,18 @@
     ],
     "lines": [
       "She flies. Don't ask me how. Don't ask her either.",
-      "Pick a heading on the nav console and I'll get us there. Probably in one piece.",
+      "Pick a heading and I'll get us there. Probably in one piece.",
       "Third coolant leak this week. That's a record. A good one."
-    ]
+    ],
+    "title": "Pilot",
+    "bark": "Boots off the console? Make me.",
+    "services": [
+      "starmap"
+    ],
+    "lines_after": {
+      "kessar:done": [
+        "Kessar's behind us. Good. That rock smelled like a wet dog on fire."
+      ]
+    }
   }
 }

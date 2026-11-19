@@ -13,6 +13,7 @@ signal boss_bar(name: String, hp: float, max_hp: float, visible: bool)
 signal open_terminal(terminal_id: String, terminal: Node)
 signal open_nav
 signal open_stash
+signal open_crew(crew_id: String)
 signal recall_done(pos: Vector2)
 signal player_died
 signal mission_complete

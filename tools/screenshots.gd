@@ -54,7 +54,7 @@ func _ready() -> void:
 		GameState.location = "kessar_surface"
 	elif scene in ["hive", "queen", "hive_overview"]:
 		GameState.location = "kessar_hive"
-	elif not scene in ["ship", "nav", "starmap_fly", "ship_overview", "revive"]:
+	elif not scene in ["ship", "nav", "starmap_fly", "ship_overview", "revive", "crew_q", "crew_t", "crew_m", "crew_f", "crew_p", "crew_screen", "trade"]:
 		GameState.location = "kharon"
 	main.call("start_game")
 	await frames(3)
@@ -64,6 +64,27 @@ func _ready() -> void:
 	match scene:
 		"revive":
 			await frames(150)
+		"crew_q", "crew_t", "crew_m", "crew_f", "crew_p":
+			var cid := scene.substr(5, 1).to_upper()
+			for n in get_tree().get_nodes_in_group("crew"):
+				if (n as CrewNpc).crew_id == cid:
+					p.global_position = (n as Node2D).global_position + Vector2(70, -70)
+					game.camera.set_process(false)
+					game.set_process(false)
+					game.camera.position_smoothing_enabled = false
+					game.camera.global_position = Iso.sp((n as Node2D).global_position, 24)
+					game.hud.visible = false
+			game.camera.zoom = Vector2(3.2, 3.2)
+			await frames(80)
+		"crew_screen":
+			Events.open_crew.emit("M")
+			await frames(30)
+		"trade":
+			GameState.credits = 640
+			Events.open_crew.emit("Q")
+			await frames(10)
+			game.crew_ui.trade.emit()
+			await frames(30)
 		"kessar":
 			await frames(60)
 		"camp":
