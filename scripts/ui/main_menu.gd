@@ -9,7 +9,7 @@ WASD — move        Mouse — aim
 LMB — primary weapon        RMB — secondary / melee
 Space — Tactical Roll        Q — Overcharge        F — Disruptor Pulse
 R — reload        E — interact / pick up        H — use stim-pack
-X — swap primary/secondary        I / Tab — inventory        C — character
+X — swap primary/secondary        I / Tab — inventory        C — character        J — journal
 Esc — pause        F5 — quick save        F9 — quick load        Alt (hold) — show all loot names
 
 [color=#c9a54a]CONTROLLER[/color]
@@ -17,7 +17,7 @@ Left stick — move        Right stick — aim (with light aim assist)
 RT — primary        LT — secondary        A — roll
 LB — Overcharge        RB — Disruptor Pulse        X — reload
 Y — interact        D-Up — stim        D-Down — swap weapons
-D-Left — character        D-Right / Back — inventory        Start — pause        L3 (hold) — loot names
+D-Left — character        D-Right / Back — inventory        Start — pause (Journal is in the pause menu)        L3 (hold) — loot names
 Menus: d-pad / left stick to move, A to select, B to go back
 [color=#888]PlayStation: A = Cross, B = Circle, X = Square, Y = Triangle, Back = Share, Start = Options[/color]"""
 

@@ -1,4 +1,5 @@
 {
+  "open_flag": "lastwater_open",
   "title": "Last Water",
   "complete_flag": "lastwater:governors",
   "objectives": [

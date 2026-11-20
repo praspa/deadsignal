@@ -20,6 +20,7 @@ const KEYS := {
 	"use_stim": [KEY_H],
 	"inventory": [KEY_I, KEY_TAB],
 	"character": [KEY_C],
+	"journal": [KEY_J],
 	"pause": [KEY_ESCAPE],
 	"quicksave": [KEY_F5],
 	"quickload": [KEY_F9],
