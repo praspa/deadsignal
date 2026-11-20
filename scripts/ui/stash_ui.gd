@@ -86,15 +86,10 @@ func _fill(g: GridContainer, items: Array, cap: int, from_pack: bool) -> void:
 		g.remove_child(c)
 		c.queue_free()
 	for i in cap:
-		var b := Button.new()
-		b.custom_minimum_size = Vector2(78, 46)
-		b.clip_text = true
-		b.add_theme_font_size_override("font_size", 11)
-		if i < items.size():
-			var it: Dictionary = items[i]
-			b.text = _short(it)
+		var it: Dictionary = items[i] if i < items.size() else {}
+		var b := ItemSlot.make(it, "", false, Vector2(78, 50))
+		if not it.is_empty():
 			b.tooltip_text = String(it["name"])
-			b.add_theme_color_override("font_color", ItemDB.rarity_color(int(it["rarity"])))
 			b.focus_entered.connect(_inspect.bind(it))
 			b.mouse_entered.connect(_inspect.bind(it))
 			b.pressed.connect(_move.bind(it, from_pack))

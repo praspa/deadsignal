@@ -19,6 +19,16 @@ var selected: Dictionary = {}
 var selected_slot := ""   # non-empty when an equipment slot is selected
 var _rebuilding := false
 
+## Dim silhouettes for empty equipment slots, so you can see what goes where.
+const GHOSTS := {
+	"primary": {"slot": "primary", "weapon": {"type": "rifle"}},
+	"secondary": {"slot": "secondary", "base": "power_maul", "weapon": {"type": "melee"}},
+	"head": {"slot": "head", "base": "sallet_helm"},
+	"body": {"slot": "body"},
+	"gloves": {"slot": "gloves"},
+	"boots": {"slot": "boots"},
+	"utility": {"slot": "utility", "base": "auspex"},
+}
 const SLOT_NAMES := {"primary": "Primary", "secondary": "Secondary", "head": "Head", "body": "Body", "gloves": "Gloves", "boots": "Boots", "utility": "Utility"}
 
 
@@ -119,33 +129,22 @@ func refresh() -> void:
 		c.queue_free()
 	for s in GameState.SLOTS:
 		var it: Dictionary = GameState.equipment.get(s, {})
-		var b := Button.new()
-		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		b.custom_minimum_size = Vector2(300, 40)
-		b.clip_text = true
-		b.text = "%s:  %s" % [SLOT_NAMES[s], "—" if it.is_empty() else String(it["name"])]
-		if not it.is_empty():
-			b.add_theme_color_override("font_color", ItemDB.rarity_color(int(it["rarity"])))
+		var b := ItemSlot.make(it, "%s\n%s" % [SLOT_NAMES[s], "—" if it.is_empty() else String(it["name"])], true, Vector2(300, 50))
+		b.ghost = GHOSTS.get(s, {})
 		b.focus_entered.connect(_select_slot.bind(s))
 		b.mouse_entered.connect(_select_slot.bind(s))
 		b.pressed.connect(_on_slot_pressed.bind(s))
 		equip_box.add_child(b)
 	for i in GameState.MAX_INVENTORY:
-		var b := Button.new()
-		b.custom_minimum_size = Vector2(82, 52)
-		b.clip_text = true
-		b.add_theme_font_size_override("font_size", 11)
-		if i < GameState.inventory.size():
-			var it: Dictionary = GameState.inventory[i]
-			b.text = _short(it)
+		var it: Dictionary = GameState.inventory[i] if i < GameState.inventory.size() else {}
+		var b := ItemSlot.make(it, "", false, Vector2(82, 56))
+		if not it.is_empty():
 			b.tooltip_text = String(it["name"])
-			b.add_theme_color_override("font_color", ItemDB.rarity_color(int(it["rarity"])))
 			b.focus_entered.connect(_select_item.bind(i))
 			b.mouse_entered.connect(_select_item.bind(i))
 			b.pressed.connect(_on_item_pressed.bind(i))
 			b.gui_input.connect(_on_item_gui_input.bind(i))
 		else:
-			b.text = ""
 			b.focus_entered.connect(_select_none)
 		grid.add_child(b)
 	info.text = "Armor %d   Crit %d%%   Evasion %d%%\nAmmo: %d rifle  /  %d shells   Stims: %d\nCreds: %s" % [
