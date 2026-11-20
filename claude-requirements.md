@@ -223,6 +223,14 @@ There will be , say 5 classes to hover over with class descriptions.
 Combat specialist is the only one with details now (the rest grayed out).
 
 Choose a Race (the character model does get affected by the race)
+Each race also gives a small attribute adjustment that sums to zero (shown on the creation screen and in the character sheet as "+N race"). Human is the middle of the road with none. Tunable in GameState.RACES ("attr_mod"):
+  Human     no adjustments
+  Ossari    -2 STR  +1 INT  +1 WIL   (psionic, non-violent)
+  Halvex    -1 STR  +2 INT  -1 WIL   (cybernetic, machine-minded)
+  Nyxari    +2 DEX  -1 INT  -1 WIL   (nocturnal hunters, low-tech world)
+  Zessk     -1 STR  +1 DEX  +1 INT  -1 WIL   (small, quick, tinkerers)
+  Ursathi   +2 STR  -1 DEX  -1 INT   (towering warriors)
+The adjustment is applied on top of spent points (like gear), so respec only refunds spent points.
 * Human: The baseline, adaptable species—most widespread across the Stellar Nations.
 * Fraal: Slender, pale, large-eyed humanoids modeled after classic "grey" aliens. They are deeply spiritual, generally non-violent, and naturally psionic.   
 * Mechalus: Humanoid aliens (also called Aleerians) who bond with cybernetic technology from a young age. They can interface directly with computers and networks.   
@@ -246,7 +254,7 @@ Additional interfaces:
 
 Inventory.
 Equipment.
-Character attributes. Assigning a point keeps the selection on that attribute (it doesn't jump back to the top), so several points can go into one attribute with repeated presses.
+Character attributes. Each attribute has an icon beside it: STR a dumbbell, DEX a crosshair, INT a brain, WIL a shield. Assigning a point keeps the selection on that attribute (it doesn't jump back to the top), so several points can go into one attribute with repeated presses.
 Loot inspection.
 Dialogue and terminal interaction.
 
