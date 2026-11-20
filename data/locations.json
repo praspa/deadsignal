@@ -142,6 +142,7 @@
       0.15
     ],
     "no_shuttle": true,
-    "area_level": 3
+    "area_level": 3,
+    "landing_beacon": true
   }
 }

@@ -30,6 +30,10 @@ var status_t := 0.0
 var t := 0.0
 var _nav_cd := 0.0
 var _stars: Array = []          # [Vector2 (0..1), size, phase]
+var choosing := false           # Descend pressed at a node with several landing points
+var choice: Array = []          # landing points shown: {loc, name, open}
+var choice_i := 0
+var choice_rects: Array = []    # Rect2 per row (mouse)
 
 
 func _ready() -> void:
@@ -115,12 +119,33 @@ static func _ancestors(id: String) -> Array:
 	return out
 
 
-## The node whose mission site is `location`, if any.
+## The node whose landing zone or beacon zones include `location`, if any.
 static func node_for_location(location: String) -> String:
 	for k in nodes():
-		if String(nodes()[k].get("location", "")) == location:
+		if landing_of(k) == location or location in node(k).get("beacons", []):
 			return k
 	return ""
+
+
+## The zone a node lands in by default ("" if nothing to land on).
+static func landing_of(id: String) -> String:
+	var n := node(id)
+	return String(n.get("landing", n.get("location", "")))
+
+
+## Every landing point of a node: the landing zone (always open) and its
+## beacon zones (open once their landing beacon has been activated).
+static func landing_points(id: String) -> Array:
+	var out: Array = []
+	var land := landing_of(id)
+	if land == "":
+		return out
+	var prefix := String(node(id).get("name", "")) + " — "
+	out.append({"loc": land, "name": GameState.location_name(land).trim_prefix(prefix), "open": true, "kind": "landing zone"})
+	for b in node(id).get("beacons", []):
+		var open := GameState.has_flag("beacon:" + String(b))
+		out.append({"loc": String(b), "name": GameState.location_name(String(b)).trim_prefix(prefix) if open else "???", "open": open, "kind": "beacon" if open else "undiscovered"})
+	return out
 
 
 # ---------------------------------------------------------------- layout
@@ -202,11 +227,20 @@ func _input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed \
 			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		if choosing:
+			for i in choice_rects.size():
+				if (choice_rects[i] as Rect2).has_point((event as InputEventMouseButton).position) and bool(choice[i]["open"]):
+					_land(String(choice[i]["loc"]))
+					get_viewport().set_input_as_handled()
+					return
 		var c := _node_at((event as InputEventMouseButton).position)
 		if c != "":
 			_select(c)
 			activate(c)
 			get_viewport().set_input_as_handled()
+		return
+	if choosing:
+		_choice_input(event)
 		return
 	if event.is_action_pressed("ui_accept"):
 		activate(selected)
@@ -253,7 +287,31 @@ func _move_selection(dir: Vector2) -> void:
 		_select(best)
 
 
+func _choice_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_accept"):
+		if bool(choice[choice_i]["open"]):
+			_land(String(choice[choice_i]["loc"]))
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("ui_cancel"):
+		choosing = false
+		_update_buttons()
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("ui_up") or event.is_action_pressed("ui_down"):
+		if event is InputEventJoypadMotion and _nav_cd > 0.0:
+			return
+		_nav_cd = NAV_REPEAT
+		var step := -1 if event.is_action_pressed("ui_up") else 1
+		var i := choice_i
+		for k in choice.size():
+			i = wrapi(i + step, 0, choice.size())
+			if bool(choice[i]["open"]):
+				break
+		choice_i = i
+		get_viewport().set_input_as_handled()
+
+
 func _select(id: String) -> void:
+	choosing = false
 	selected = id
 	status_flash = ""
 	_update_buttons()
@@ -264,7 +322,7 @@ func activate(id: String) -> void:
 	if not flight.is_empty() or id == "":
 		return
 	if not is_unlocked(id):
-		_flash("Uncharted. OVERWATCH hasn't cleared this route.")
+		_flash("Locked: %s." % String(node(id).get("locked_reason", "OVERWATCH hasn't cleared this route")))
 		return
 	if id == ship_at:
 		if can_descend():
@@ -287,14 +345,26 @@ func activate(id: String) -> void:
 
 
 func can_descend() -> bool:
-	return flight.is_empty() and selected == ship_at and String(node(ship_at).get("location", "")) != "" \
-		and is_unlocked(ship_at)
+	return flight.is_empty() and selected == ship_at and landing_of(ship_at) != "" and is_unlocked(ship_at)
 
 
+## Descend: lands directly when there's one landing point, else lists them.
 func _descend() -> void:
 	if not can_descend():
 		return
-	var loc := String(node(ship_at).get("location", ""))
+	var pts := landing_points(ship_at)
+	var open := pts.filter(func(p: Dictionary) -> bool: return bool(p["open"]))
+	if open.size() <= 1:
+		_land(String(open[0]["loc"]))
+		return
+	choosing = true
+	choice = pts
+	choice_i = 0
+	_update_buttons()
+
+
+func _land(loc: String) -> void:
+	choosing = false
 	hide()
 	travel.emit(loc)
 
@@ -307,7 +377,7 @@ func _flash(msg: String) -> void:
 func _update_buttons() -> void:
 	if descend_btn == null:
 		return
-	descend_btn.visible = can_descend()
+	descend_btn.visible = can_descend() and not choosing
 	descend_btn.position = Vector2(size.x - INFO_W - 20 + 20, 420)
 	var cb := get_node_or_null("CloseBtn") as Control
 	if cb != null:
@@ -476,7 +546,22 @@ func _draw_info(d: Control, font: Font) -> void:
 	var kinds := {"universe": "KNOWN SPACE", "galaxy": "GALAXY", "system": "STAR SYSTEM", "planet": "PLANET", "station": "STATION / INSTALLATION"}
 	d.draw_string(font, Vector2(x, r.position.y + 32), String(kinds.get(String(n.get("type", "")), "")), HORIZONTAL_ALIGNMENT_LEFT, w, 12, UiTheme.BRASS)
 	d.draw_string(font, Vector2(x, r.position.y + 60), String(n.get("name", selected)) if open else "Uncharted", HORIZONTAL_ALIGNMENT_LEFT, w, 22, UiTheme.TEXT)
-	var desc := String(n.get("description", "")) if open else "No survey data. OVERWATCH has not cleared this route."
+	var desc := String(n.get("description", "")) if open else "No survey data. " + String(n.get("locked_reason", "OVERWATCH has not cleared this route")) + "."
+	choice_rects.clear()
+	if choosing:
+		var accept0 := "A" if InputSetup.using_pad else "Enter"
+		d.draw_string(font, Vector2(x, r.position.y + 90), "Choose landing point", HORIZONTAL_ALIGNMENT_LEFT, w, 13, UiTheme.BRASS)
+		for i in choice.size():
+			var row := Rect2(x - 6, r.position.y + 100 + i * 30, w + 12, 26)
+			choice_rects.append(row)
+			var c: Dictionary = choice[i]
+			if i == choice_i:
+				d.draw_rect(row, Color(0.62, 0.48, 0.22, 0.25))
+				d.draw_rect(row, UiTheme.BRASS, false, 1.0)
+			var txt := ("> " if i == choice_i else "  ") + String(c["name"]) + "  (" + String(c["kind"]) + ")"
+			d.draw_string(font, row.position + Vector2(8, 18), txt, HORIZONTAL_ALIGNMENT_LEFT, w, 14, UiTheme.TEXT if bool(c["open"]) else UiTheme.TEXT_DIM)
+		d.draw_string(font, Vector2(x, r.end.y - 22), "[%s] Land    [%s] Back" % [accept0, "B" if InputSetup.using_pad else "Esc"], HORIZONTAL_ALIGNMENT_LEFT, w, 14, Color(0.5, 1.0, 0.6))
+		return
 	d.draw_multiline_string(font, Vector2(x, r.position.y + 92), desc, HORIZONTAL_ALIGNMENT_LEFT, w, 14, 7, UiTheme.TEXT_DIM)
 	var status := ""
 	var sc := UiTheme.TEXT
@@ -485,14 +570,15 @@ func _draw_info(d: Control, font: Font) -> void:
 		status = status_flash
 		sc = Color(1.0, 0.55, 0.35)
 	elif not open:
-		status = "LOCKED"
+		status = "LOCKED — " + String(n.get("locked_reason", "not cleared"))
 		sc = Color(0.75, 0.35, 0.3)
 	elif not flight.is_empty():
 		status = "In transit..."
 		sc = Color(0.4, 0.8, 1.0)
 	elif selected == ship_at:
-		if String(n.get("location", "")) != "":
-			status = "Ship in orbit.  [%s] Descend" % accept
+		if landing_of(selected) != "":
+			var n_open := landing_points(selected).filter(func(p: Dictionary) -> bool: return bool(p["open"])).size()
+			status = "Ship in orbit.  [%s] Descend" % accept + ("  (%d landing points)" % n_open if n_open > 1 else "")
 			sc = Color(0.5, 1.0, 0.6)
 		else:
 			status = "The %s is here." % GameState.location_name("ship")

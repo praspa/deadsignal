@@ -20,7 +20,8 @@
       "description": "Contested space. OVERWATCH has not cleared you for it.",
       "requires": [
         "corvane_cleared"
-      ]
+      ],
+      "locked_reason": "Awaiting OVERWATCH clearance"
     },
     "drift": {
       "parent": "known_space",
@@ -29,7 +30,8 @@
       "description": "No beacons, no lanes, no records. Ships that go in come back late, or not at all.",
       "requires": [
         "drift_cleared"
-      ]
+      ],
+      "locked_reason": "Coordinates unknown"
     },
     "kessar": {
       "parent": "veil",
@@ -43,22 +45,28 @@
       "name": "Halcyon System",
       "description": "Former colony hub. Comms have been patchy for months.",
       "requires": [
-        "halcyon_cleared"
-      ]
+        "intel:halcyon"
+      ],
+      "locked_reason": "Coordinates unknown"
     },
     "kharon": {
       "parent": "kessar",
       "type": "station",
       "name": "Kharon Outpost",
       "description": "Research outpost. Silent for nine days. Security AI WARDEN not answering hails.",
-      "location": "kharon"
+      "location": "kharon",
+      "landing": "kharon"
     },
     "kessar_iv": {
       "parent": "kessar",
       "type": "planet",
       "name": "Kessar IV",
       "description": "Ash world with a small mining claim that stopped reporting a week ago. Heat signatures moving under the crust.",
-      "location": "kessar_surface"
+      "location": "kessar_surface",
+      "landing": "kessar_surface",
+      "beacons": [
+        "kessar_hive"
+      ]
     },
     "kessar_belt": {
       "parent": "kessar",
@@ -67,7 +75,8 @@
       "description": "Automated ore refinery. Still running. Nobody remembers who owns it.",
       "requires": [
         "belt_open"
-      ]
+      ],
+      "locked_reason": "Awaiting OVERWATCH clearance"
     },
     "halcyon_prime": {
       "parent": "halcyon",
