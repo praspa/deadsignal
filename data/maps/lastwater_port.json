@@ -8,5 +8,7 @@
    17
   ]
  },
- "dirs": {}
+ "dirs": {
+  "gate_dir": "east"
+ }
 }

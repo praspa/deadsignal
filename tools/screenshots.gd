@@ -50,11 +50,11 @@ func _ready() -> void:
 	if scene == "revive":
 		GameState.credits = 420
 		GameState.apply_death()
-	if scene == "lw_port":
+	if scene in ["lw_port", "lw_gate"]:
 		GameState.location = "lastwater_port"
-	elif scene in ["lw_streets", "lw_lt", "lw_overview"]:
+	elif scene in ["lw_streets", "lw_lt", "lw_overview", "lw_fountain"]:
 		GameState.location = "lastwater_streets"
-	elif scene == "lw_hall":
+	elif scene in ["lw_hall", "lw_cocoon", "lw_gov0", "lw_gov1", "lw_gov2"]:
 		GameState.location = "lastwater_hall"
 	elif scene in ["kessar", "camp", "recall", "kessar_overview"]:
 		GameState.location = "kessar_surface"
@@ -70,6 +70,27 @@ func _ready() -> void:
 	match scene:
 		"revive":
 			await frames(150)
+		"lw_fountain":
+			var fr: Rect2i = lvl.rooms["fountain"]
+			p.global_position = Vector2(fr.get_center()) * Level.T + Vector2(-60, 110)
+			for e in get_tree().get_nodes_in_group("enemies"):
+				if (e as Enemy).kind != "egg":
+					e.queue_free()
+			await frames(70)
+		"lw_cocoon", "lw_gov0", "lw_gov1", "lw_gov2":
+			for e in get_tree().get_nodes_in_group("enemies"):
+				e.queue_free()
+			var gi := 0 if scene == "lw_cocoon" else int(scene.substr(6, 1))
+			var co := get_tree().get_nodes_in_group("cocoon")[gi] as GovernorCocoon
+			if scene != "lw_cocoon":
+				GameState.set_flag(co.flag())
+				co.remove_from_group("interactable")
+			p.global_position = co.global_position + Vector2(70, 70)
+			game.camera.zoom = Vector2(2.4, 2.4)
+			await frames(70)
+		"lw_gate":
+			p.global_position = lvl.exit_points["Y"] + Vector2(-90, 0)
+			await frames(60)
 		"lw_port", "lw_streets":
 			p.global_position += Vector2(160, -40)
 			await frames(70)

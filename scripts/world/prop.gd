@@ -5,7 +5,8 @@ extends StaticBody2D
 ##  g generator machinery   t specimen tank   l lamp post (light)
 ##  v steam vent   z sparking conduit
 ##  i boulder (Kessar)   j resin growth (decor)   f glowing fungus (light)
-##  n wrecked vehicle   q barricade   x water tower (Last Water)
+##  n wrecked vehicle   q barricade   x water tower   % rubble   * smouldering fire
+##  & the desecrated Last Water fountain (Last Water)
 
 var level: Level
 var cell := Vector2i.ZERO
@@ -34,7 +35,7 @@ func _ready() -> void:
 	collision_mask = 0
 	t = randf() * 10.0
 	cv = IsoView.attach(self, false)
-	if kind == "v" or kind == "j":
+	if kind == "v" or kind == "j" or kind == "%":
 		cv.z_index = -1   # floor grate / resin crust
 	if Level.SOLID_PROPS.contains(kind):
 		var cs := CollisionShape2D.new()
@@ -96,6 +97,47 @@ func _ready() -> void:
 			p.color_ramp = g
 			p.z_index = 10
 			cv.add_child(p)
+		"*":
+			light = PointLight2D.new()
+			light.range_item_cull_mask = 3
+			light.height = 150.0
+			light.texture = LightUtil.radial(128)
+			light.texture_scale = 1.6
+			light.position = Vector2(0, -8)
+			light.color = Color(1.0, 0.5, 0.18)
+			light.energy = 0.9
+			light.scale = Vector2(1.0, 0.6)
+			cv.add_child(light)
+			var smoke := CPUParticles2D.new()
+			smoke.amount = 12
+			smoke.lifetime = 3.0
+			smoke.position = Vector2(0, -10)
+			smoke.direction = Vector2(0.2, -1)
+			smoke.spread = 14.0
+			smoke.gravity = Vector2(5, -10)
+			smoke.initial_velocity_min = 12.0
+			smoke.initial_velocity_max = 24.0
+			smoke.texture = LightUtil.radial(32)
+			smoke.scale_amount_min = 0.6
+			smoke.scale_amount_max = 1.4
+			smoke.color = Color(0.2, 0.18, 0.16, 0.35)
+			var sg := Gradient.new()
+			sg.offsets = PackedFloat32Array([0.0, 0.2, 1.0])
+			sg.colors = PackedColorArray([Color(1, 1, 1, 0), Color(1, 1, 1, 1), Color(1, 1, 1, 0)])
+			smoke.color_ramp = sg
+			smoke.z_index = 10
+			cv.add_child(smoke)
+		"&":
+			light = PointLight2D.new()
+			light.range_item_cull_mask = 3
+			light.height = 150.0
+			light.texture = LightUtil.radial(256)
+			light.texture_scale = 1.3
+			light.position = Vector2(0, -20)
+			light.color = Color(0.45, 0.85, 0.3)
+			light.energy = 0.55
+			light.scale = Vector2(1.0, 0.6)
+			cv.add_child(light)
 		"f":
 			light = PointLight2D.new()
 			light.range_item_cull_mask = 3   # also lights the floor layer
@@ -144,7 +186,7 @@ func set_powered(on: bool) -> void:
 
 func _process(delta: float) -> void:
 	t += delta
-	if (kind == "t" or kind == "g" or kind == "l" or kind == "f") and cv != null:
+	if (kind in ["t", "g", "l", "f", "*", "&"]) and cv != null:
 		cv.redraw_if_visible()
 	if light == null:
 		return
@@ -163,6 +205,8 @@ func _process(delta: float) -> void:
 				light.energy = randf_range(0.05, lamp_on * 0.6) if phase < 0.45 else lamp_on
 			else:
 				light.energy = lamp_on
+		"*":
+			light.energy = 0.75 + 0.25 * sin(t * 13.0) * sin(t * 5.3)   # smouldering flicker
 		"z":
 			light.energy = maxf(0.0, light.energy - delta * 4.0)
 			if randf() < delta * 1.2:
@@ -189,6 +233,12 @@ func _render() -> void:
 			_draw_fungus()
 		"n":
 			_draw_wreck()
+		"%":
+			_draw_rubble()
+		"*":
+			_draw_fire()
+		"&":
+			_draw_fountain()
 		"q":
 			_draw_barricade()
 		"x":
@@ -197,6 +247,72 @@ func _render() -> void:
 			cv.draw_rect(Rect2(-12, -30, 24, 10), Color(0.12, 0.11, 0.1))
 			cv.draw_line(Vector2(-10, -25), Vector2(10, -25), Color(0.4, 0.3, 0.15), 2.0)
 			cv.draw_line(Vector2(4, -20), Vector2(7, -8), Color(0.08, 0.08, 0.08), 2.0)
+
+
+func _draw_rubble() -> void:
+	# broken masonry, a twisted beam, dust
+	var hsh := Level.hash2(cell.x, cell.y)
+	var c := Color(0.5, 0.42, 0.33)
+	Iso.ground(cv)
+	cv.draw_circle(Vector2.ZERO, 12.0, Color(0.35, 0.3, 0.24, 0.35))
+	cv.draw_set_transform(Vector2.ZERO)
+	for i in 5:
+		var hh := (hsh >> (i * 3)) & 7
+		var o := Iso.to_screen(Vector2(float(hh) * 2.5 - 9.0, float((hsh >> (i * 2 + 1)) & 7) * 2.2 - 8.0))
+		var sz := 2.5 + float(hh % 3) * 1.5
+		Iso.box(cv, Iso.to_world(o), Vector2(sz, sz * 0.8), sz * 1.2, c.lightened(0.08 * (i % 2)), c.darkened(0.1), c.darkened(0.35))
+	if hsh % 3 == 0:
+		cv.draw_line(Vector2(-12, -2), Vector2(10, -9), Color(0.3, 0.26, 0.22), 2.5)
+
+
+func _draw_fire() -> void:
+	# a smouldering heap: charred debris, low flames, glowing embers
+	Iso.ground(cv)
+	cv.draw_circle(Vector2.ZERO, 13.0, Color(0.08, 0.06, 0.05, 0.7))
+	cv.draw_set_transform(Vector2.ZERO)
+	for i in 3:
+		cv.draw_line(Vector2(-10 + i * 7, -2), Vector2(-4 + i * 5, -8), Color(0.14, 0.1, 0.08), 3.0)
+	for i in 4:
+		var ph := t * 9.0 + i * 1.7
+		var h := 7.0 + 5.0 * absf(sin(ph))
+		var x := -7.0 + i * 4.5
+		cv.draw_colored_polygon(PackedVector2Array([Vector2(x - 3, -3), Vector2(x + 3, -3), Vector2(x + sin(ph) * 1.5, -3 - h)]), Color(1.0, 0.45 + 0.2 * sin(ph), 0.1, 0.85))
+		cv.draw_colored_polygon(PackedVector2Array([Vector2(x - 1.5, -3), Vector2(x + 1.5, -3), Vector2(x, -3 - h * 0.55)]), Color(1.0, 0.85, 0.4, 0.9))
+	for i in 3:
+		cv.draw_circle(Vector2(-6 + i * 6, -2), 1.2, Color(1.0, 0.5, 0.15, 0.5 + 0.5 * sin(t * 6.0 + i)))
+
+
+func _draw_fountain() -> void:
+	# Founders' Fountain: a stone basin and the founder's statue, now a brood
+	# vent: black-green water, resin crawling up the statue, its head gone
+	var stone := Color(0.55, 0.48, 0.4)
+	Iso.ground(cv)
+	cv.draw_circle(Vector2.ZERO, 40.0, Color(0.0, 0.0, 0.0, 0.3))
+	cv.draw_set_transform(Vector2.ZERO)
+	# octagonal basin rim (as an iso box ring) and the foul water inside
+	Iso.box(cv, Vector2.ZERO, Vector2(30, 30), 10.0, stone.lightened(0.08), stone.darkened(0.05), stone.darkened(0.3), Color(0.7, 0.62, 0.5))
+	var water := PackedVector2Array()
+	for i in 12:
+		water.append(Iso.to_screen(Vector2.from_angle(i * TAU / 12.0) * 25.0) + Vector2(0, -10))
+	cv.draw_colored_polygon(water, Color(0.08, 0.14, 0.06))
+	for i in 5:
+		var a := t * 0.6 + i * 1.3
+		cv.draw_circle(Iso.to_screen(Vector2.from_angle(a) * (10.0 + i * 3.0)) + Vector2(0, -10), 1.5 + 0.8 * sin(t * 3.0 + i), Color(0.5, 0.9, 0.25, 0.6))   # bubbling
+	# pedestal and the headless founder, arm still raised
+	Iso.box(cv, Vector2.ZERO, Vector2(6, 6), 22.0, stone, stone.darkened(0.15), stone.darkened(0.35), Color(0, 0, 0, 0), 10.0)
+	var fig := Vector2(0, -32)
+	Shade.poly(cv, PackedVector2Array([fig + Vector2(-5, 0), fig + Vector2(5, 0), fig + Vector2(4, -18), fig + Vector2(-4, -18)]), stone.lightened(0.05))
+	Shade.limb(cv, fig + Vector2(4, -16), fig + Vector2(11, -28), 3.0, stone)
+	cv.draw_line(fig + Vector2(-2, -18), fig + Vector2(2, -21), stone.darkened(0.4), 2.0)   # broken neck
+	# resin oozing up the statue and over the rim
+	for i in 6:
+		var a2 := i * TAU / 6.0 + 0.3
+		var p0 := Iso.to_screen(Vector2.from_angle(a2) * 29.0) + Vector2(0, -8)
+		Shade.ball(cv, p0, 3.5 + float(i % 3), Color(0.38, 0.35, 0.27))
+	cv.draw_line(fig + Vector2(-3, 0), fig + Vector2(-1, -14), Color(0.4, 0.38, 0.28), 4.0)
+	cv.draw_circle(fig + Vector2(-2, -8), 2.0, Color(0.6, 1.0, 0.3, 0.6))
+	# the town's name, carved in the rim
+	cv.draw_string(ThemeDB.fallback_font, Vector2(-28, 22), "LAST WATER", HORIZONTAL_ALIGNMENT_CENTER, 56, 7, Color(0.75, 0.68, 0.55, 0.8))
 
 
 func _draw_wreck() -> void:

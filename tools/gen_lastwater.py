@@ -10,6 +10,7 @@ Map characters beyond tools/gen_kessar.py's set (see scripts/world/level.gd):
   A  the Brood Lieutenant (carries the card)   a  Infested Militia   s  Wall Crawler (clings to walls)
   O  cocooned governor (1-3, in order)         n  wrecked vehicle    q  barricade    x  water tower
   J  log terminal (militia log)                l  street lamp (dead)
+  &  the desecrated Last Water fountain (city centre)   %  rubble   *  smouldering fire
 
 Every layout is validated: one connected walkable region, every key point reachable.
 Run:  python3 tools/gen_lastwater.py
@@ -26,7 +27,7 @@ from gen_kessar import Grid, compass, keep_largest, pack, scatter, validate, DIR
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "data", "maps")
 VARIANTS = 3
-SOLID = set("#goi" + "nqx")   # (s = Wall Crawler, not solid)
+SOLID = set("#goi" + "nqx&")   # (s = Wall Crawler, not solid)
 
 
 class CityGrid(Grid):
@@ -69,7 +70,7 @@ def gen_port():
             if x < 2 or y < 2 or x >= W - 2 or y >= H - 2:
                 g.g[y][x] = "#"
     # hangars and the control tower as building blocks
-    for (x0, y0, x1, y1) in [(6, 3, 13, 8), (6, 23, 13, 28), (30, 3, 37, 7), (30, 24, 37, 28), (21, 13, 24, 18)]:
+    for (x0, y0, x1, y1) in [(6, 3, 13, 8), (6, 23, 13, 28), (30, 3, 37, 7), (30, 24, 37, 28), (21, 9, 24, 12)]:
         for y in range(y0, y1 + 1):
             for x in range(x0, x1 + 1):
                 g.g[y][x] = "#"
@@ -87,11 +88,17 @@ def gen_port():
                        ((26, 22), "k"), ((35, 15), "k"), ((15, 20), "c"), ((33, 10), "c"), ((16, 11), "C"),
                        ((15, 15), "l"), ((28, 15), "l"), ((36, 17), "l"), ((20, 25), "x")]:
         g.g[y][x] = ch
-    mobs = pack(g, rng, "w", (38, 16), 3) + pack(g, rng, "w", (34, 21), 3) + scatter(g, rng, "a", 2, lambda x, y: x > 30)
+    scatter(g, rng, "%", 10, lambda x, y: g.get(x, y) == "," and next_to_wall(g, x, y))
+    scatter(g, rng, "*", 3, lambda x, y: x > 20 and g.get(x, y) == ",")
+    for x in range(lx + 3, ex):                # the road from the pad to the city gate
+        for y in (ey - 1, ey):
+            if g.g[y][x] == ",":
+                g.g[y][x] = "_"
+    mobs = pack(g, rng, "w", (38, 13), 3) + pack(g, rng, "w", (34, 21), 3) + scatter(g, rng, "a", 2, lambda x, y: x > 30)
     ok, why = validate(g, (lx, ly), [(ex, ey)] + mobs)
     if not ok:
         raise SystemExit("port: " + why)
-    meta = {"name": "Spaceport", "rooms": {"pad": [lx - 2, ly - 2, lx + 2, ly + 2]}, "dirs": {}}
+    meta = {"name": "Spaceport", "rooms": {"pad": [lx - 2, ly - 2, lx + 2, ly + 2]}, "dirs": {"gate_dir": compass(ex - lx, ey - ly)}}
     return g, meta
 
 
@@ -137,7 +144,12 @@ def gen_streets(variant):
                                 seen.add(n)
                                 stack.append(n)
                     blocks.append(cells)
+        # the central plaza (Founders' Plaza, with the fountain) plus two more
+        cxm, cym = W // 2, H // 2
+        centre = min(blocks, key=lambda cells: (sum(c[0] for c in cells) / len(cells) - cxm) ** 2 + (sum(c[1] for c in cells) / len(cells) - cym) ** 2)
+        blocks.remove(centre)
         rng.shuffle(blocks)
+        blocks.insert(0, centre)
         plazas = []
         for cells in blocks[:3]:
             for (cx, cy) in cells:
@@ -187,10 +199,21 @@ def gen_streets(variant):
         start = (sx + 1, sy)
         props = place_solid(g, rng, "n", 14, lambda x, y: away(x, y, 6) and g.open_around(x, y, 1), start)
         props += place_solid(g, rng, "q", 10, lambda x, y: away(x, y, 6) and g.open_around(x, y, 1), start)
-        for (px, py) in plazas:
+        fx, fy = plazas[0]
+        fountain = place_solid(g, rng, "&", 1, lambda x, y: (x, y) == (fx, fy), start)
+        if not fountain:
+            continue
+        for k in range(4):                       # the brood came up through the water mains
+            a = k * math.tau / 4 + 0.4
+            ex_, ey_ = int(round(fx + math.cos(a) * 3)), int(round(fy + math.sin(a) * 3))
+            if g.get(ex_, ey_) == ",":
+                g.g[ey_][ex_] = "e"
+        for (px, py) in plazas[1:]:
             place_solid(g, rng, "x", 1, lambda x, y, px=px, py=py: (x, y) == (px, py), start)
         scatter(g, rng, "l", 12, lambda x, y: next_to_wall(g, x, y) and away(x, y, 4))
         scatter(g, rng, "k", 9, lambda x, y: away(x, y, 5))
+        scatter(g, rng, "%", 45, lambda x, y: next_to_wall(g, x, y) or rng.random() < 0.25)
+        scatter(g, rng, "*", 12, lambda x, y: away(x, y, 6))
         mobs = []
         for _ in range(6):
             cands = [c for c in g.cells() if away(c[0], c[1], 16) and g.open_around(c[0], c[1], 1)]
@@ -200,6 +223,7 @@ def gen_streets(variant):
         mobs += scatter(g, rng, "s", 7, lambda x, y: away(x, y, 12) and next_to_wall(g, x, y))
         mobs += scatter(g, rng, "y", 4, lambda x, y: away(x, y, 16))
         mobs += scatter(g, rng, "G", 3, lambda x, y: ud.get((x, y), 99) < 14 and ud.get((x, y), 0) > 3)
+        mobs += pack(g, rng, "w", (fx + 2, fy + 2), 4)
         # resin thickens toward the Civic Hall
         for (cx, cy) in g.cells():
             d = ud.get((cx, cy))
@@ -217,7 +241,7 @@ def gen_streets(variant):
         meta = {
             "variant": variant,
             "name": ["Main Street", "Rail Yards", "Old Quarter"][variant - 1],
-            "rooms": {"arrival": [sx - 1, sy - 2, sx + 3, sy + 2], "hall_door": [ux - 1, uy - 1, ux + 1, uy + 1]},
+            "rooms": {"arrival": [sx - 1, sy - 2, sx + 3, sy + 2], "hall_door": [ux - 1, uy - 1, ux + 1, uy + 1], "fountain": [fx - 3, fy - 3, fx + 3, fy + 3]},
             "dirs": {"lt_dir": compass(ax - jx, ay - jy), "hall_dir": compass(ux - sx, uy - sy)},
         }
         return g, meta

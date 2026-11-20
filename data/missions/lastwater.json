@@ -9,7 +9,7 @@
     },
     {
       "flag": "lastwater:streets",
-      "text": "Fight your way into the city",
+      "text": "Fight your way into the city (the gate is {gate_dir})",
       "comms": [
         "[OVERWATCH] Spaceport's lost. The city's through that gate. The governors were last seen at the Civic Hall."
       ]

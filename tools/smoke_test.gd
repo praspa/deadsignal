@@ -205,6 +205,15 @@ func run() -> void:
 	game.stash_ui.close()
 	await frames(2)
 	check(not game.player._cone.enabled, "flashlight off aboard the well-lit ship")
+	await frames(20)   # past the input grace after closing the cargo locker
+	var en_roll := GameState.energy
+	var pos_roll := game.player.global_position
+	Input.action_press("roll")
+	await frames(3)
+	Input.action_release("roll")
+	check(game.player.roll_t > 0.0 or game.player.global_position.distance_to(pos_roll) > 30.0, "rolling works aboard the ship, just for fun")
+	check(GameState.energy >= en_roll - 0.01, "rolling aboard costs no energy")
+	await frames(30)
 	var cd0: float = game.player.cooldowns["pulse"]
 	Input.action_press("pulse")
 	await frames(3)
