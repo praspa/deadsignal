@@ -32,20 +32,28 @@ const CLASSES := [
 	{"id": "combat_medic", "name": "Combat Medic", "available": false},
 ]
 const DEFAULT_RACE := "human"
-## Playable races. Purely visual for now: each one changes how the operative
-## looks (see Player.RACE_LOOK), not their stats.
+## Playable races. Each changes how the operative looks (see Player.RACE_LOOK)
+## and nudges the attributes a little ("attr_mod", added on top of the spent
+## points like gear is, so respec and saves never see it). Every race's mods
+## sum to zero; Human is the baseline with none.
 const RACES := [
 	{"id": "human", "name": "Human",
+		"attr_mod": {},
 		"description": "The baseline species: adaptable, stubborn and everywhere. Human colonies and corporate holdings stretch across most of settled space, and so do their wars."},
 	{"id": "ossari", "name": "Ossari",
+		"attr_mod": {"str": -2, "int": 1, "wil": 1},
 		"description": "Slender, pale and large-eyed. The Ossari are a contemplative people who avoid violence where they can, and nearly all of them are born with some measure of psionic talent."},
 	{"id": "halvex", "name": "Halvex",
+		"attr_mod": {"int": 2, "wil": -1, "str": -1},
 		"description": "A humanoid people who graft symbiotic cybernetics into their children from infancy. A grown Halvex can feel a data network the way others feel a breeze, and talk to machines directly."},
 	{"id": "nyxari", "name": "Nyxari",
+		"attr_mod": {"dex": 2, "int": -1, "wil": -1},
 		"description": "Nocturnal hunters with leathery wings and a ring of eight small eyes around the head. They come from a low-tech world, glide with ease, and find bright light painful, so their visors run dark."},
 	{"id": "zessk", "name": "Zessk",
+		"attr_mod": {"dex": 1, "int": 1, "str": -1, "wil": -1},
 		"description": "Small, quick reptilians with sleek, finely scaled bodies. Endlessly curious, never still and always talking, the Zessk take apart any machine they can reach, and usually put it back together better."},
 	{"id": "ursathi", "name": "Ursathi",
+		"attr_mod": {"str": 2, "dex": -1, "int": -1},
 		"description": "Towering, heavily muscled and covered in fur, with claws and a thick mane. Over two metres tall and from a tribal warrior culture, the Ursathi hold to a strict code of honour."},
 ]
 const NAME_FIRST := ["Kade", "Vex", "Juno", "Rhys", "Talon", "Mira", "Orin", "Sable", "Dax", "Nyra", "Corvin", "Ilsa", "Brann", "Tamsin", "Zeke", "Rook", "Anya", "Cassius", "Lio", "Wren", "Thorne", "Yara", "Soren", "Ember"]
@@ -516,7 +524,23 @@ func current_objective_text() -> String:
 # ---------------------------------------------------------------- stats
 
 func attr(a: String) -> float:
-	return float(attributes.get(a, 0)) + equip_stat(a)
+	return float(attributes.get(a, 0)) + race_mod(a) + equip_stat(a)
+
+
+## The race's small attribute adjustment (0 for Human).
+func race_mod(a: String) -> int:
+	return int(race_info(race_id).get("attr_mod", {}).get(a, 0))
+
+
+## "+2 STR  -1 DEX  -1 INT", or "No adjustments" for Human.
+func race_mod_text(id: String) -> String:
+	var mods: Dictionary = race_info(id).get("attr_mod", {})
+	var parts := PackedStringArray()
+	for a in ATTRS:
+		var v := int(mods.get(a, 0))
+		if v != 0:
+			parts.append("%+d %s" % [v, a.to_upper()])
+	return "  ".join(parts) if not parts.is_empty() else "No adjustments"
 
 
 func equip_stat(stat: String) -> float:

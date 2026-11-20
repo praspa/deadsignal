@@ -241,7 +241,7 @@ func _show_race(id: String) -> void:
 	var chosen := id == selected_race
 	detail_status.text = "RACE  ·  SELECTED" if chosen else "RACE"
 	detail_status.add_theme_color_override("font_color", UiTheme.BRASS if chosen else UiTheme.TEXT_DIM)
-	detail_body.text = String(r["description"])
+	detail_body.text = String(r["description"]) + "\n\n[color=#c9a54a]Attributes:[/color]  " + GameState.race_mod_text(id)
 
 
 func _show_class(id: String) -> void:

@@ -99,6 +99,17 @@ func _key(code: Key) -> void:
 ## keyboard navigation, and name / race surviving a save / load.
 func _character_creation_test() -> void:
 	print("== character creation")
+	var race0 := GameState.race_id
+	var sums_zero := GameState.RACES.all(func(r: Dictionary) -> bool:
+		var t := 0
+		for v in r.get("attr_mod", {}).values():
+			t += int(v)
+		return t == 0)
+	check(sums_zero and GameState.race_info("human").get("attr_mod", {}).is_empty(), "race attribute mods are balanced; Human has none")
+	GameState.race_id = "ursathi"
+	var hu_str := float(GameState.attributes["str"]) + GameState.equip_stat("str")
+	check(GameState.attr("str") == hu_str + 2 and GameState.race_mod_text("ursathi").contains("+2 STR"), "Ursathi: +2 STR on top of points and gear")
+	GameState.race_id = race0
 	check(GameState.clean_name("   ") == GameState.DEFAULT_NAME, "blank name falls back to the default")
 	check(GameState.clean_name("  Vo\tss ") == "Voss", "name is trimmed and control characters dropped")
 	check(GameState.clean_name("x".repeat(40)).length() == GameState.NAME_MAX, "name is capped at %d characters" % GameState.NAME_MAX)

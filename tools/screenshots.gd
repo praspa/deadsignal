@@ -43,6 +43,10 @@ func _ready() -> void:
 	if scene == "creation":
 		main.call("show_character_creation")
 		await frames(30)
+		var cc = main.get("current")
+		if cc != null and cc.get("race_buttons") != null:
+			cc.race_buttons[5].grab_focus()   # Ursathi: shows the race's attribute adjustments
+			await frames(5)
 		await _shot()
 		get_tree().quit()
 		return

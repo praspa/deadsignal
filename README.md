@@ -170,6 +170,7 @@ where each image goes in Steam. It's rendered from a staged fight in the real ga
 
 ## Design notes
 
+- **Races.** Six playable races (`GameState.RACES`) change the operative's look and nudge their attributes by a small, balanced amount (`attr_mod`, summing to zero; Human has none). The adjustment is added on top of spent points like gear is, so respec and saves only deal with spent points. The creation screen lists each race's adjustments, and the character sheet shows them as "+N race".
 - **Isometric projection layer.**
   - The simulation is unchanged: physics, pathing, AI and combat all run on the square tile grid.
   - Rendering uses a 2:1 isometric projection, `screen = (x - y, (x + y) / 2)`, so a 32 px tile becomes a 64x32 diamond.

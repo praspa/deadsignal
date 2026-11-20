@@ -59,10 +59,17 @@ func refresh() -> void:
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.custom_minimum_size = Vector2(400, 70)
 		var base := int(GameState.attributes[a])
+		var mods := PackedStringArray()
+		var race := GameState.race_mod(a)
+		if race != 0:
+			mods.append("%+d race" % race)
 		var bonus := int(GameState.equip_stat(a))
-		var bonus_s := " (+%d gear)" % bonus if bonus != 0 else ""
+		if bonus != 0:
+			mods.append("%+d gear" % bonus)
+		var bonus_s := " (%s)" % ", ".join(mods) if not mods.is_empty() else ""
 		b.text = "%s   %d%s   %s\n%s" % [ATTR_INFO[a][0], base, bonus_s, "[ + ]" if GameState.attr_points > 0 else "", ATTR_INFO[a][1]]
 		b.pressed.connect(_spend.bind(a))
+		AttrIcon.attach(b, a)
 		rows.add_child(b)
 	var close_b := UiTheme.button("Close", close)
 	rows.add_child(close_b)
