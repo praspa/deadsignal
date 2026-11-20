@@ -600,6 +600,7 @@ func run() -> void:
 	game = main.get("current")
 	check(GameState.location == "ship" and game.hub, "extraction returns the operative to the ship")
 	check(GameState.has_flag("debriefed"), "OVERWATCH debrief aboard the ship")
+	check(GameState.has_flag("intel:halcyon") and StarMapUI.is_unlocked("halcyon"), "Kharon's nav data reveals the Halcyon System")
 	var kharon_loot: Array = GameState.areas.get("kharon", {}).get("ground_items", [])
 	check(not kharon_loot.is_empty(), "loot left at Kharon is kept while away")
 	check(GameState.explored.size() == game.level.w * game.level.h and int(GameState.areas["kharon"].get("explored_size", 0)) > 0, "minimap exploration kept per location")
@@ -763,6 +764,9 @@ func _kessar_tests() -> void:
 	player = game.player
 	check(GameState.location == "kessar_hive" and GameState.has_flag("kessar:hive"), "sinkhole leads down into the hive (%s)" % GameState.map_info.get("name", "?"))
 	check(GameState.current_objective_text() == "Kill the Brood Queen", "objective: " + GameState.current_objective_text())
+	await frames(4)
+	check(GameState.has_flag("beacon:kessar_hive") and get_tree().get_nodes_in_group("landing_beacon").size() == 1, "reaching the hive links its landing beacon")
+	check(StarMapUI.landing_points("kessar_iv").filter(func(p: Dictionary) -> bool: return bool(p["open"])).size() == 2, "Kessar IV now has two landing points")
 	var eggs: Array = get_tree().get_nodes_in_group("enemies").filter(func(e: Node) -> bool: return (e as Enemy).kind == "egg")
 	var n_sw := _count_kind("swarmling")
 	(eggs[0] as BroodEnemy).hatch()
@@ -829,9 +833,18 @@ func _kessar_tests() -> void:
 	main.call("_on_game_request", "load")
 	await frames(8)
 	GameState.ship_node = "kessar_iv"
-	main.call("_on_game_request", "travel:kessar_hive")
+	game = main.get("current")
+	check(GameState.has_flag("beacon:kessar_hive"), "landing beacons survive a new session")
+	Events.open_nav.emit()
+	await frames(3)
+	var sm := game.star_map
+	sm._select("kessar_iv")
+	sm._descend()
+	check(sm.choosing and sm.choice.size() == 2, "Descend lists the landing points (surface, hive)")
+	sm._land("kessar_hive")
 	await frames(8)
 	game = main.get("current")
+	check(GameState.location == "kessar_hive", "descending straight into the hive from the star map")
 	var queen2 := get_tree().get_first_node_in_group("boss") as BroodQueen
 	check(queen2 != null and not queen2.dead, "new session: the Brood Queen is back for another run")
 	var uc1 := GameState.credits

@@ -90,6 +90,12 @@ func _ready() -> void:
 		pad.position = _pad_spot()
 		pad.board.connect(_on_board_shuttle)
 		world.add_child(pad)
+	if bool(ldef.get("landing_beacon", false)):
+		var lb := LandingBeacon.new()
+		lb.zone = GameState.location
+		var spot := level.player_start + Vector2(0, 48)
+		lb.position = spot if not level.astar.is_point_solid(level.world_to_cell(spot)) else _open_spot(level.player_start)
+		world.add_child(lb)
 	if level.hive_hole != null:
 		level.hive_hole.use.connect(_on_hive_hole)
 	if level.teleport_pad != null:
@@ -336,6 +342,9 @@ func _hub_comms() -> void:
 	elif GameState.has_flag("escape") and not GameState.has_flag("debriefed"):
 		key = "debrief_comms"
 		GameState.set_flag("debriefed")
+		# Kharon's archives held nav data: a link to the next destination
+		GameState.set_flag("intel:halcyon")
+		Events.msg("Nav data recovered from Kharon: Halcyon System coordinates added to the star map.", Color(0.5, 0.85, 1.0))
 	var delay := 1.2
 	for line in ldef.get(key, []):
 		comms.append([String(line), delay])

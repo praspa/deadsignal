@@ -450,7 +450,7 @@ Locked nodes are drawn dim with a lock and "Uncharted"; their children stay hidd
 How it works:
 1. Select a node: d-pad / left stick moves the selection to the nearest node in that direction; the mouse selects by hovering.
 2. Plot a course: A / Enter / click on an unlocked node. The ship marker flies there along the tree's lines (up to the shared parent, then down), animated.
-3. Descend: when the ship is at a planet or station that has a mission site, A / Enter / click (or the Descend button) drops the operative to that location.
+3. Descend: when the ship is at a planet or station that has a mission site, A / Enter / click (or the Descend button) drops the operative to that location. If the destination has more than one discovered landing point, Descend first lists them to choose from (see 15.11).
 4. B / Esc closes the star map without travelling.
 
 The ship's position in the tree is saved. Moving within the tree is free; only descending changes location.
@@ -609,7 +609,93 @@ XP needed per level grows faster than now (today it is linear: 100 + 60 per leve
 Together with diminishing XP this pushes the player toward harder areas instead of farming the first one forever.
 Both the curve and the falloff are tunable constants.
 
-15.11 Build order
+15.11 Linked Zones, Landing Beacons and Links Between Destinations   [DONE — beacons, landing choice, lock reasons, intel unlock; data-driven exits and physical links (elevator, derelict, jump gate) to do]
+
+Diablo II's areas join edge to edge (Cold Plains -> Stony Field). Planets and stations don't, so Dead Signal splits "connection" in two: zones inside one destination are physically linked, and destinations are linked to each other mostly by information.
+
+Act structure, by analogy:
+  Diablo II act                      -> a star system (or galaxy)
+  chain of areas within an act       -> the zones inside one destination
+  waypoint                           -> a landing beacon the player activates
+  act boss opens the next act        -> the system's big threat opens its jump gate
+  town                               -> the Sable Mule
+
+1. Zones inside a destination
+A star map node (planet, station, derelict) is a small cluster of zones, each its own map, joined by physical transitions the player walks through:
+  planet: landing zone -> plains -> tunnels -> hive -> deep hive (sinkholes, cave mouths, mine shafts)
+  station: docking bay -> habitation deck -> reactor ring (lifts, airlocks)
+  derelict: bow -> spine -> engine section (crawlways, breached bulkheads)
+Kessar IV already works this way: Ashfall Flats <-> the Hive through the sinkhole.
+Each zone is one entry in data/locations.json and lists its exits (which zone, which arrival point).
+
+2. Landing beacons (waypoints)
+Some zones have an uplink beacon: a small interactable, usually near the zone's entrance. The first time the operative reaches it and activates it, it is added to that destination's landing points (short effect + message "Landing beacon linked: <zone>").
+The landing zone of every destination is always available.
+Activated beacons are permanent: they persist across sessions (like Diablo II waypoints), even though the areas themselves reset.
+Recall beacons (15.6) are separate and unchanged: a recall beacon returns to an exact spot; landing beacons are fixed points you can descend to any time.
+
+Choosing where to land (star map):
+With the ship at a destination, Descend shows that destination's landing points in the info panel, e.g.
+  KESSAR IV — choose landing point
+    > Ashfall Flats (landing zone)
+    > The Hive (beacon)
+    · ??? (undiscovered)
+Undiscovered beacons show as "???", so the player knows there is more to find. With only one landing point, Descend lands directly as now (no extra step).
+Controller: d-pad / stick to pick, A to land, B back to the map.
+
+Retrofit Kessar IV: an uplink beacon at the hive's arrival point (next to the climb-up hole), so after the first trip players can descend straight to the hive (and the Brood Queen) every session.
+
+3. Links between destinations
+Planets don't share borders, so most links are information:
+Nav data: finishing a mission or reading a terminal reveals another node's coordinates and unlocks it on the star map (e.g. Kharon's logs reveal Relay Station 9; the Kessar hive points at whatever seeded it). Gives story beats a mechanical payoff.
+OVERWATCH orders: unlocks by mission completion (as now).
+Access codes / keys: a station refuses docking until the codes are found somewhere else.
+Unlock conditions in data/starmap.json ("requires") use the same flags for all of these, e.g. "intel:relay_9", "kessar:done", "codes:belt_claim_7". The star map shows the reason a node is locked when known ("Coordinates unknown", "Docking codes required", "Awaiting OVERWATCH clearance").
+
+A few links are physical, used sparingly so they feel special:
+Space elevator: from a planet's surface zone up to its orbital station; walking into it moves to the other node's zone, and the ship's star map position follows.
+Docked derelict: boarded through a station's airlock zone.
+Jump gate: opens the next star system. Its key comes from the system's big threat (the act boss), so beating a system is what opens the next one.
+
+Data:
+data/starmap.json nodes list their zones: which is the landing zone, and which zones have beacons ("zones": ["kessar_surface", "kessar_hive"], "landing": "kessar_surface", "beacons": ["kessar_hive"]).
+data/locations.json zones list their exits ("exits": {"H": {"to": "kessar_hive", "arrive": "@"}}) and their beacon position, if any (map character).
+Activated beacons are saved as flags ("beacon:kessar_hive").
+
+15.12 Acts                                                  [to do]
+
+The star map is the outline of the whole game, not one act. Each galaxy is an act, like Diablo II's acts:
+
+  Act 1 — The Veil            open now (Kessar and Halcyon systems)
+  Act 2 — Corvane Reach       locked ("Awaiting OVERWATCH clearance")
+  Act 3 — The Drift           locked ("Coordinates unknown")
+More galaxies (acts) can be added to data/starmap.json later.
+
+Size of an act: roughly Diablo II's, about 6 main missions and 10–15 zones. A galaxy has 2–3 star systems, each with 2–3 destinations, each destination 1–4 linked zones (15.11).
+
+Act 1 — The Veil (draft):
+Kessar System
+  Kessar IV — the Brood Queen. First mission. [DONE]
+  Belt Claim 7 — automated ore refinery "talking to itself" (unlocked by Kessar IV).
+  Kharon Outpost — optional side destination (the old demo mission), WARDEN and the first trace of the Dead Signal.
+Halcyon System (coordinates from Kharon's nav data, or a later main mission)
+  Halcyon Prime — colony world, census overdue.
+  Relay Station 9 — act 1 finale. The relay has been repeating the same three notes since spring: the Dead Signal returns as act 1's big threat.
+Area levels rise through the act (Kessar IV 2–3, Kharon 5, finale around 10–12).
+
+Moving between acts:
+Known Space (the root of the star map) is not a place. Flying from one galaxy to another only passes through it on the chart.
+An act is opened by its gate, Diablo-style: defeating the previous act's final boss gives the jump gate key / OVERWATCH clearance for the next galaxy (a story flag, e.g. "act2_open"), and the next galaxy unlocks on the star map.
+OVERWATCH briefs the new act on the ship; the ship stays where it is until the player flies it there.
+
+Going back:
+Earlier acts stay open for good: the player can fly back to farm, finish side destinations or revisit landing beacons. Area levels and diminishing XP (15.10) make old acts stop paying off naturally.
+
+Star map presentation:
+When there are several acts, the star map opens zoomed onto the current act's galaxy; finished acts stay visible but collapsed, so the view doesn't clutter. The info panel of a galaxy node shows its act number.
+The HUD / pause menu shows the current act ("Act 1 — The Veil").
+
+15.13 Build order
 
 1. Ship hub, locations / travel, UC currency.   [DONE]
 2. Star map UI on the nav console.   [DONE]
@@ -618,6 +704,8 @@ Both the curve and the falloff are tunable constants.
 5. Crew services: crew screen, Quartermaster trade, Medic heal / respec, Fence crates, Pilot shortcut, crew look and personality. Cargo stash.   [stash DONE]  (Signal corruption / decryption deferred.)   [DONE]
 6. Death and revival in the Lazarus Cradle.   [DONE]
 7. Re-entrant areas: reset on each session, area levels, diminishing XP, new XP curve.   [DONE]
+8. Linked zones and landing beacons: beacon interactable, landing point choice on the star map, Kessar IV hive beacon; locked-node reasons on the star map; intel / access-code unlocks.   [DONE; exits in data + physical links later]
+9. Acts: act data on galaxy nodes, current act on the HUD / pause menu, act gate flag unlocking the next galaxy, star map focused on the current act. Then act 1 content: Belt Claim 7, Halcyon Prime, Relay Station 9 finale.
 
 
 ## Target platform
