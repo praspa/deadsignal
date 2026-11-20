@@ -662,7 +662,40 @@ data/starmap.json nodes list their zones: which is the landing zone, and which z
 data/locations.json zones list their exits ("exits": {"H": {"to": "kessar_hive", "arrive": "@"}}) and their beacon position, if any (map character).
 Activated beacons are saved as flags ("beacon:kessar_hive").
 
-15.12 Build order
+15.12 Acts                                                  [to do]
+
+The star map is the outline of the whole game, not one act. Each galaxy is an act, like Diablo II's acts:
+
+  Act 1 — The Veil            open now (Kessar and Halcyon systems)
+  Act 2 — Corvane Reach       locked ("Awaiting OVERWATCH clearance")
+  Act 3 — The Drift           locked ("Coordinates unknown")
+More galaxies (acts) can be added to data/starmap.json later.
+
+Size of an act: roughly Diablo II's, about 6 main missions and 10–15 zones. A galaxy has 2–3 star systems, each with 2–3 destinations, each destination 1–4 linked zones (15.11).
+
+Act 1 — The Veil (draft):
+Kessar System
+  Kessar IV — the Brood Queen. First mission. [DONE]
+  Belt Claim 7 — automated ore refinery "talking to itself" (unlocked by Kessar IV).
+  Kharon Outpost — optional side destination (the old demo mission), WARDEN and the first trace of the Dead Signal.
+Halcyon System (coordinates from Kharon's nav data, or a later main mission)
+  Halcyon Prime — colony world, census overdue.
+  Relay Station 9 — act 1 finale. The relay has been repeating the same three notes since spring: the Dead Signal returns as act 1's big threat.
+Area levels rise through the act (Kessar IV 2–3, Kharon 5, finale around 10–12).
+
+Moving between acts:
+Known Space (the root of the star map) is not a place. Flying from one galaxy to another only passes through it on the chart.
+An act is opened by its gate, Diablo-style: defeating the previous act's final boss gives the jump gate key / OVERWATCH clearance for the next galaxy (a story flag, e.g. "act2_open"), and the next galaxy unlocks on the star map.
+OVERWATCH briefs the new act on the ship; the ship stays where it is until the player flies it there.
+
+Going back:
+Earlier acts stay open for good: the player can fly back to farm, finish side destinations or revisit landing beacons. Area levels and diminishing XP (15.10) make old acts stop paying off naturally.
+
+Star map presentation:
+When there are several acts, the star map opens zoomed onto the current act's galaxy; finished acts stay visible but collapsed, so the view doesn't clutter. The info panel of a galaxy node shows its act number.
+The HUD / pause menu shows the current act ("Act 1 — The Veil").
+
+15.13 Build order
 
 1. Ship hub, locations / travel, UC currency.   [DONE]
 2. Star map UI on the nav console.   [DONE]
@@ -672,6 +705,7 @@ Activated beacons are saved as flags ("beacon:kessar_hive").
 6. Death and revival in the Lazarus Cradle.   [DONE]
 7. Re-entrant areas: reset on each session, area levels, diminishing XP, new XP curve.   [DONE]
 8. Linked zones and landing beacons: beacon interactable, landing point choice on the star map, Kessar IV hive beacon; locked-node reasons on the star map; intel / access-code unlocks.   [DONE; exits in data + physical links later]
+9. Acts: act data on galaxy nodes, current act on the HUD / pause menu, act gate flag unlocking the next galaxy, star map focused on the current act. Then act 1 content: Belt Claim 7, Halcyon Prime, Relay Station 9 finale.
 
 
 ## Target platform
