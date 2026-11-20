@@ -42,6 +42,8 @@
   ],
   "bounty": 500,
   "unlocks": [
-    "belt_open"
-  ]
+    "belt_open",
+    "intel:halcyon"
+  ],
+  "complete_flag": "kessar:queen"
 }

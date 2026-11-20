@@ -1,0 +1,22 @@
+{
+ "variant": 2,
+ "name": "Rail Yards",
+ "rooms": {
+  "arrival": [
+   2,
+   35,
+   6,
+   39
+  ],
+  "hall_door": [
+   84,
+   12,
+   86,
+   14
+  ]
+ },
+ "dirs": {
+  "lt_dir": "east",
+  "hall_dir": "east"
+ }
+}

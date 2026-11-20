@@ -5,6 +5,7 @@ extends StaticBody2D
 ##  g generator machinery   t specimen tank   l lamp post (light)
 ##  v steam vent   z sparking conduit
 ##  i boulder (Kessar)   j resin growth (decor)   f glowing fungus (light)
+##  n wrecked vehicle   q barricade   x water tower (Last Water)
 
 var level: Level
 var cell := Vector2i.ZERO
@@ -186,10 +187,46 @@ func _render() -> void:
 			_draw_resin()
 		"f":
 			_draw_fungus()
+		"n":
+			_draw_wreck()
+		"q":
+			_draw_barricade()
+		"x":
+			_draw_water_tower()
 		"z":
 			cv.draw_rect(Rect2(-12, -30, 24, 10), Color(0.12, 0.11, 0.1))
 			cv.draw_line(Vector2(-10, -25), Vector2(10, -25), Color(0.4, 0.3, 0.15), 2.0)
 			cv.draw_line(Vector2(4, -20), Vector2(7, -8), Color(0.08, 0.08, 0.08), 2.0)
+
+
+func _draw_wreck() -> void:
+	# a burnt-out ground car or tram section, resin over the bonnet
+	var body := Color(0.36, 0.3, 0.24).lerp(Color(0.32, 0.36, 0.38), float(variant) / 2.0)
+	Iso.box(cv, Vector2(0, 0), Vector2(15, 9), 12.0, body.lightened(0.1), body, body.darkened(0.35))
+	Iso.box(cv, Vector2(-2, 0), Vector2(8, 7), 8.0, body.darkened(0.1), body.darkened(0.25), body.darkened(0.45), Color(0, 0, 0, 0), 12.0)
+	cv.draw_line(Vector2(-10, -14), Vector2(-2, -18), Color(0.05, 0.06, 0.07), 2.0)   # smashed windscreen
+	for wx in [-12.0, 10.0]:
+		cv.draw_circle(Iso.to_screen(Vector2(wx, 9)), 3.5, Color(0.08, 0.08, 0.08))
+	cv.draw_circle(Vector2(6, -10), 4.0, Color(0.4, 0.38, 0.3, 0.6))
+
+
+func _draw_barricade() -> void:
+	# sandbags and a sheet-metal shield the militia put up
+	for i in 3:
+		Iso.box(cv, Vector2(-8 + i * 8, 2), Vector2(4, 5), 6.0, Color(0.55, 0.47, 0.34), Color(0.45, 0.38, 0.27), Color(0.33, 0.28, 0.2), Color(0, 0, 0, 0), 0.0)
+		Iso.box(cv, Vector2(-4 + i * 7, 2), Vector2(4, 5), 6.0, Color(0.57, 0.49, 0.36), Color(0.47, 0.4, 0.29), Color(0.35, 0.3, 0.22), Color(0, 0, 0, 0), 6.0)
+	cv.draw_rect(Rect2(-8, -24, 16, 12), Color(0.38, 0.38, 0.4))
+	cv.draw_line(Vector2(-8, -18), Vector2(8, -18), Color(0.6, 0.48, 0.1), 2.0)
+
+
+func _draw_water_tower() -> void:
+	# Last Water's landmark: a rusty tank on stilts
+	for lx in [-9.0, 9.0]:
+		cv.draw_line(Vector2(lx, 0), Vector2(lx * 0.7, -40), Color(0.35, 0.28, 0.2), 2.0)
+	cv.draw_line(Vector2(-7, -16), Vector2(7, -28), Color(0.3, 0.24, 0.18), 1.5)
+	cv.draw_line(Vector2(7, -16), Vector2(-7, -28), Color(0.3, 0.24, 0.18), 1.5)
+	Iso.box(cv, Vector2.ZERO, Vector2(9, 9), 18.0, Color(0.5, 0.36, 0.24), Color(0.44, 0.3, 0.2), Color(0.32, 0.22, 0.15), Color(0.6, 0.5, 0.35), 40.0)
+	cv.draw_colored_polygon(PackedVector2Array([Vector2(-13, -58), Vector2(13, -58), Vector2(0, -68)]), Color(0.38, 0.27, 0.18))
 
 
 func _draw_boulder() -> void:

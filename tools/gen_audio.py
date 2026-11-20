@@ -13,6 +13,7 @@ Music  audio/music/level.wav   100 BPM E-phrygian industrial loop (heartbeat int
                                chugging distorted 'MIDI guitar', clanking metal snare)
        audio/music/boss.wav    138 BPM relentless loop for the WARDEN fight
        audio/music/menu.wav    92 BPM title loop: a heartbeat that quickens into a halftime breakdown
+       audio/music/lastwater.wav 84 BPM spaghetti-western industrial loop for Last Water (twang, whistle, gallop, mission bell)
 SFX    audio/sfx/<name>_<n>.wav  (n = variant, picked at random in game)
 """
 import math
@@ -863,6 +864,134 @@ def menu_track():
     return tr.render()
 
 
+class WesternTrack(Track):
+    """Extra instruments for Last Water: a frontier town on a desert planet."""
+
+    def twang(self, i0, dur, f, amp=0.35, trem=0.0, send=0.5):
+        """Plucked, slightly bent 'twangy' guitar string; optional tremolo-arm wobble."""
+        n = int(dur * SR)
+        out = [0.0] * n
+        ph = 0.0
+        s1 = 0.0
+        for i in range(n):
+            t = i / SR
+            bend = 1.0 + 0.035 * math.exp(-t * 18)            # pick attack bends down into pitch
+            wob = 1.0 + (trem * 0.012 * math.sin(TAU * 5.2 * t) if t > 0.15 else 0.0)
+            ph = (ph + f * bend * wob / SR) % 1.0
+            x = (2 * ph - 1) * 0.6 + math.sin(TAU * ph) * 0.6 + math.sin(TAU * 2 * ph) * 0.25
+            fc = 500 + 3800 * math.exp(-t * 6)                # bright pluck that mellows
+            a = min(1.0, TAU * fc / SR)
+            s1 += a * (x - s1)
+            e = math.exp(-t * 1.6) * min(1.0, i / 25, (n - i) / 300)
+            out[i] = math.tanh(1.6 * s1) * e
+        self.put(i0, out, amp, send)
+
+    def whistle(self, i0, dur, f, amp=0.2, f_from=None):
+        """Lonely whistled lead: sine with breath, vibrato and a little slide in."""
+        n = int(dur * SR)
+        out = [0.0] * n
+        ph = 0.0
+        rng = self.rng
+        bs = 0.0
+        f0 = f_from or f * 0.94
+        for i in range(n):
+            t = i / SR
+            glide = f + (f0 - f) * math.exp(-t * 14)
+            vib = 1.0 + (0.008 * math.sin(TAU * 5.0 * t) * min(1.0, (t - 0.25) * 3) if t > 0.25 else 0.0)
+            ph = (ph + glide * vib / SR) % 1.0
+            nz = rng.uniform(-1, 1)
+            bs += 0.08 * (nz - bs)
+            e = min(1.0, i / (0.06 * SR), (n - i) / (0.12 * SR))
+            out[i] = (math.sin(TAU * ph) + bs * 0.35) * e
+        self.put(i0, out, amp, 0.55)
+
+    def bell(self, i0, f, amp=0.3):
+        """A cracked mission bell tolling somewhere across town."""
+        self.put(i0, metal(3.5, f, [1, 2.02, 2.41, 3.01, 4.17, 5.43], 1.1, self.rng), amp, 0.7)
+
+    def tom(self, i0, amp=0.6, f=95.0):
+        n = int(0.4 * SR)
+        out = [0.0] * n
+        ph = 0.0
+        for i in range(n):
+            t = i / SR
+            ph += (f + 60 * math.exp(-t * 25)) / SR
+            out[i] = math.tanh(1.8 * math.sin(TAU * ph) * math.exp(-t * 7))
+        self.put(i0, out, amp, 0.25)
+
+    def wind(self, i0, dur, amp=0.12):
+        """Desert wind: band-passed noise drifting in pitch and loudness."""
+        n = int(dur * SR)
+        src = noise(self.rng, n)
+        band = svf_bp(src, lambda u: 380 + 260 * math.sin(TAU * (u * 2.3)) + 120 * math.sin(TAU * u * 7.1), 0.35)
+        self.put(i0, [v * (0.55 + 0.45 * math.sin(TAU * (i / n) * 2.0 - 1.2)) for i, v in enumerate(band)], amp, 0.2)
+
+
+def lastwater_track():
+    """84 BPM, E minor with a phrygian-dominant edge: a spaghetti-western take on
+    the industrial sound. A: wind, a mission bell, a lone twanging guitar.
+    B: the gallop comes in with bass. C: the whistled melody. D: the swarm:
+    distorted chugs and metal under the whistle, then back to the wind."""
+    tr = WesternTrack(84, 16, 7)
+    s = tr.s16
+    chords = {'Em': ('E', ['E2', 'B2', 'E3', 'G3', 'B3']), 'Am': ('A', ['A2', 'E3', 'A3', 'C4', 'E4']),
+              'C': ('C', ['C3', 'G3', 'C4', 'E4']), 'B7': ('B', ['B2', 'F#3', 'A3', 'D#4']),
+              'F': ('F', ['F2', 'C3', 'F3', 'A3'])}
+    prog = ['Em', 'Em', 'Am', 'Em',  'C', 'B7', 'Em', 'Em',  'Am', 'Em', 'C', 'B7',  'Em', 'F', 'Em', 'B7']
+    tr.wind(0, tr.length, 0.2)
+    tr.bell(tr.at(0, 0), note('E3'), 0.32)
+    tr.bell(tr.at(12, 0), note('E3'), 0.3)
+    for b, c in enumerate(prog):
+        sec = b // 4
+        root, tones = chords[c]
+        bass_f = note(root + '1') if root not in ('C', 'B') else note(root + ('2' if root == 'C' else '1'))
+        # twanging arpeggio, sparse at first, then on every beat
+        steps = (0, 6, 12) if sec == 0 else (0, 3, 6, 8, 11, 14)
+        for k, st in enumerate(steps):
+            f = note(tones[(k + (b % 2)) % len(tones)])
+            tr.twang(tr.at(b, st), s * 7, f, 0.5 if sec == 0 else 0.22, trem=1.0 if sec == 0 else 0.4)
+        if sec == 0:
+            tr.twang(tr.at(b, 0), tr.bar * 1.2, note(tones[0]) / 2, 0.42, trem=1.0)      # low drone note
+            continue
+        # the gallop: da-da-DUM, da-da-DUM
+        for beat in range(4):
+            base = beat * 4
+            tr.tom(tr.at(b, base), 0.35, 110)
+            tr.tom(tr.at(b, base + 1), 0.3, 120)
+            tr.kick(tr.at(b, base + 2), 0.75 if sec < 3 else 0.95)
+        tr.snare(tr.at(b, 4), 0.35 if sec < 3 else 0.7, 0.4)
+        tr.snare(tr.at(b, 12), 0.35 if sec < 3 else 0.7, 0.4)
+        for st in range(0, 16, 2):
+            tr.hat(tr.at(b, st), 0.07 if sec < 3 else 0.12)
+        for st in (0, 6, 8, 14):
+            tr.bass(tr.at(b, st), s * 2, bass_f, 0.38, 0.3)
+        if sec == 3:
+            # the swarm arrives: distorted chugs and metal under the melody
+            g = note(root + '2')
+            for st in (0, 1, 2, 6, 8, 9, 10, 14):
+                tr.guitar(tr.at(b, st), s * 1.1, g, 0.42, True)
+            tr.clank(tr.at(b, 4), 0.35, 160)
+            tr.clank(tr.at(b, 12), 0.3, 250)
+            tr.pad(tr.at(b, 0), tr.bar + 0.4, [note(x) for x in tones[1:4]], 0.1)
+    # the whistled melody (C) and its darker answer over the swarm (D)
+    melody = [  # (bar, step, length in 16ths, note)
+        (8, 0, 6, 'B4'), (8, 6, 2, 'E5'), (8, 8, 8, 'B4'),
+        (9, 0, 4, 'A4'), (9, 4, 4, 'G4'), (9, 8, 8, 'E4'),
+        (10, 0, 6, 'G4'), (10, 6, 2, 'A4'), (10, 8, 8, 'C5'),
+        (11, 0, 12, 'B4'), (11, 12, 4, 'D#5'),
+        (12, 0, 8, 'E5'), (12, 8, 8, 'B4'),
+        (13, 0, 6, 'F5'), (13, 6, 2, 'E5'), (13, 8, 8, 'C5'),
+        (14, 0, 8, 'B4'), (14, 8, 8, 'G#4'),
+        (15, 0, 16, 'E4'),
+    ]
+    prev = None
+    for bar, st, ln, nm in melody:
+        f = note(nm)
+        tr.whistle(tr.at(bar, st), s * ln, f, 0.17, prev)
+        prev = f
+    return tr.render()
+
+
 def main():
     which = sys.argv[1] if len(sys.argv) > 1 else 'all'
     if which in ('all', 'sfx'):
@@ -875,6 +1004,9 @@ def main():
         print('music level')
         write(os.path.join(ROOT, 'music', 'boss.wav'), boss_track(), 0.8)
         print('music boss')
+    if which in ('all', 'music', 'lastwater'):
+        write(os.path.join(ROOT, 'music', 'lastwater.wav'), lastwater_track(), 0.8)
+        print('music lastwater')
     if which in ('all', 'music', 'menu'):
         write(os.path.join(ROOT, 'music', 'menu.wav'), menu_track(), 0.8)
         print('music menu')

@@ -77,5 +77,11 @@
       "Day 31. Bore team hit a void under the ash, forty metres down. Warm air coming up. Smells like meat.",
       "Day 33. Pell went down the void to take samples. Came back with eggs the size of his helmet. Says they're 'beautiful'. Locked them in the hauler.",
       "Day 35. The hauler's empty and Pell won't stop scratching. The void's grown a mouth. It's {hive_dir} of camp, past where the ash goes soft and sticky.\n\nIf anyone reads this: don't go down there. And don't let Pell near you."
+    ]},
+  "lastwater_log": {"title": "MILITIA LOG — Sgt. Hollis Barrow, Last Water Guard", "type": "log", "xp": 25,
+    "pages": [
+      "Day 2. They came up through the water mains. Nobody believed it till the fountain in Founders' Plaza started moving.",
+      "Day 3. The big one with the spines walked into the Civic Hall and came out with the governors. Alive. Carried them like groceries. It's wearing the Governor's access card in its shell. Swear to God.",
+      "Day 4. Spotted the big one again, {lt_dir} of here, with a pack around it. Nobody gets in that Hall without that card.\n\nIf you're reading this, I didn't make it back. Get the card. Get them out."
     ]}
 }

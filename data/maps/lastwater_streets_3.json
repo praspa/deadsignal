@@ -1,0 +1,22 @@
+{
+ "variant": 3,
+ "name": "Old Quarter",
+ "rooms": {
+  "arrival": [
+   3,
+   35,
+   7,
+   39
+  ],
+  "hall_door": [
+   79,
+   1,
+   81,
+   3
+  ]
+ },
+ "dirs": {
+  "lt_dir": "east",
+  "hall_dir": "north-east"
+ }
+}

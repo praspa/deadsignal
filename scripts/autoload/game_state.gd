@@ -77,7 +77,7 @@ var max_area_reached := 1          # highest area level visited (caps vendor / f
 var variants: Dictionary = {}      # location -> layout number, for locations with several layouts
 var beacon: Dictionary = {}        # recall beacon: {location, x, y, node} or empty
 var recall_cd := 0.0               # seconds until Recall is ready again
-var arrive_at: Variant = null      # Vector2: next arrival spot (teleport pad); String "hive_hole": beside the sinkhole
+var arrive_at: Variant = null      # Vector2: next arrival spot (teleport pad); "hive_hole": beside the sinkhole; "exit:<char>": beside that zone exit
 var ship_node := ""                # where the ship is on the star map (data/starmap.json node id)
 var areas: Dictionary = {}         # location -> {"ground_items": [...]} for places not currently loaded
 var ground_items: Array = []       # loot on the floor of the current location
@@ -499,6 +499,10 @@ func objective_index(mid: String = "") -> int:
 
 func current_objective_text() -> String:
 	if location == "ship":
+		if not has_flag("escape"):
+			return "Deploy to Kharon Outpost (star map, cockpit)"
+		if not has_flag("lastwater:governors"):
+			return "Deploy to Last Water on Kessar III (star map, cockpit)"
 		if not has_flag("kessar:queen"):
 			return "Deploy to Kessar IV (star map, cockpit)"
 		return "Await new orders from OVERWATCH"

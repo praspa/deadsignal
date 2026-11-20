@@ -75,6 +75,8 @@ func _ready() -> void:
 		player.position = level.revive_point
 	elif GameState.arrive_at is Vector2:
 		player.position = GameState.arrive_at   # teleport pad: back on the recall beacon
+	elif GameState.arrive_at is String and String(GameState.arrive_at).begins_with("exit:") and level.exit_points.has(String(GameState.arrive_at).trim_prefix("exit:")):
+		player.position = _open_spot(level.exit_points[String(GameState.arrive_at).trim_prefix("exit:")])
 	elif GameState.arrive_at is String and GameState.arrive_at == "hive_hole" and level.hive_hole != null:
 		player.position = _open_spot(level.hive_hole.global_position)
 	elif GameState.loaded_from_save and GameState.player_pos != null:
@@ -98,6 +100,8 @@ func _ready() -> void:
 		world.add_child(lb)
 	if level.hive_hole != null:
 		level.hive_hole.use.connect(_on_hive_hole)
+	for ex in level.exits.values():
+		(ex as ZoneExit).use.connect(_on_zone_exit)
 	if level.teleport_pad != null:
 		level.teleport_pad.teleport.connect(_on_teleport_pad)
 	if not GameState.beacon.is_empty() and String(GameState.beacon.get("location", "")) == GameState.location:
@@ -110,6 +114,14 @@ func _ready() -> void:
 			GameState.set_flag("kessar:landed")
 		"kessar_hive":
 			for f in ["kessar:landed", "kessar:hive_found", "kessar:hive"]:
+				GameState.set_flag(f)
+		"lastwater_port":
+			GameState.set_flag("lastwater:landed")
+		"lastwater_streets":
+			for f in ["lastwater:landed", "lastwater:streets"]:
+				GameState.set_flag(f)
+		"lastwater_hall":
+			for f in ["lastwater:landed", "lastwater:streets", "lastwater:card", "lastwater:hall"]:
 				GameState.set_flag(f)
 
 	camera = Camera2D.new()
@@ -304,7 +316,7 @@ func _on_flag_set(f: String) -> void:
 		last_obj = idx
 		Events.objective_changed.emit(GameState.current_objective_text())
 		_queue_comms(idx)
-	if f in ["power", "research", "cause", "boss", "kessar:hive_found", "kessar:queen"]:
+	if f in ["power", "research", "cause", "boss", "kessar:hive_found", "kessar:queen", "lastwater:card", "lastwater:governors"]:
 		_save.call_deferred(true)
 	if f == "power":
 		Events.msg("Primary reactor online. Bulkheads unlocked.", Color(0.5, 1.0, 0.6))
@@ -336,19 +348,28 @@ func _hub_comms() -> void:
 	if not GameState.has_flag("briefed"):
 		key = "intro_comms"
 		GameState.set_flag("briefed")
-	elif GameState.has_flag("kessar:queen") and not GameState.has_flag("kessar:done"):
-		_debrief("kessar")
+	elif _pending_debrief() != "":
+		_debrief(_pending_debrief())
 		return
 	elif GameState.has_flag("escape") and not GameState.has_flag("debriefed"):
 		key = "debrief_comms"
 		GameState.set_flag("debriefed")
-		# Kharon's archives held nav data: a link to the next destination
-		GameState.set_flag("intel:halcyon")
-		Events.msg("Nav data recovered from Kharon: Halcyon System coordinates added to the star map.", Color(0.5, 0.85, 1.0))
+		# Kharon done: OVERWATCH clears the next destination
+		GameState.set_flag("lastwater_open")
+		Events.msg("Star map updated: Kessar III (Last Water) cleared for landing.", Color(0.5, 0.85, 1.0))
 	var delay := 1.2
 	for line in ldef.get(key, []):
 		comms.append([String(line), delay])
 		delay = 3.5
+
+
+## A mission whose goal is done but hasn't been reported to OVERWATCH yet.
+func _pending_debrief() -> String:
+	for mid in ItemDB.missions:
+		var cf := String(ItemDB.missions[mid].get("complete_flag", ""))
+		if cf != "" and GameState.has_flag(cf) and not GameState.has_flag(mid + ":done"):
+			return mid
+	return ""
 
 
 ## Mission complete: OVERWATCH pays the bounty and unlocks what comes next.
@@ -507,6 +528,14 @@ func _travel(dest: String) -> void:
 	request.emit("travel:" + dest)
 
 
+## Walking through a zone exit (data/locations.json "exits") to the next zone.
+func _on_zone_exit(dest: String, arrive: String) -> void:
+	if open_screen != null or player.dead:
+		return
+	GameState.arrive_at = "exit:" + arrive
+	_travel(dest)
+
+
 func _on_hive_hole(dest: String) -> void:
 	if open_screen != null or player.dead:
 		return
@@ -603,6 +632,23 @@ func _on_player_died() -> void:
 	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui_layer.add_child(fade)
 	create_tween().tween_property(fade, "color:a", 1.0, 1.6).set_delay(0.3)
+
+
+## Quitting (to the menu, to the desktop, closing the window) always saves.
+## Dead mid-fade: the death resolves first (penalty, wake in the Lazarus Cradle),
+## so quitting can't dodge it.
+func save_on_quit() -> void:
+	if player == null:
+		return
+	Events.msg("Saving...", Color(0.5, 0.75, 1.0))
+	if player.dead:
+		if not GameState.reviving:
+			GameState.apply_death()
+		if GameState.location != "ship":
+			GameState.travel("ship")
+		GameState.save_game(null)
+	else:
+		GameState.save_game(player.global_position)
 
 
 func _save(checkpoint: bool) -> void:

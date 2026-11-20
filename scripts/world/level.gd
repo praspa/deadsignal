@@ -11,10 +11,12 @@ const WALL_H := 58.0
 const CUTAWAY_ALPHA := 0.22
 const MAP_DIR := "res://data/maps/"   # outpost_<n>.txt + .json, see tools/gen_maps.py
 
-const SOLID_PROPS := "opgti"
+const SOLID_PROPS := "opgtinqx"
 const ENEMY_CHARS := {"d": "drone", "r": "researcher", "h": "heavy", "B": "boss",
-	"w": "swarmling", "y": "spitter", "G": "broodguard", "m": "miner", "u": "burrower", "e": "egg", "K": "queen"}
-const BROOD := ["swarmling", "spitter", "broodguard", "miner", "burrower", "egg"]
+	"w": "swarmling", "y": "spitter", "G": "broodguard", "m": "miner", "u": "burrower", "e": "egg", "K": "queen",
+	"a": "militia", "s": "crawler", "A": "lieutenant"}
+const BROOD := ["swarmling", "spitter", "broodguard", "miner", "burrower", "egg", "militia", "crawler", "lieutenant"]
+const COCOON_CHAR := "O"      # a captive governor, cocooned in resin (Last Water)
 const HIVE_HOLE_CHAR := "H"   # Kessar sinkhole between the surface and the hive
 const TELEPORT_CHAR := "W"    # ship's teleport pad (returns to the recall beacon)
 const KESSAR_LOG_CHAR := "J"  # mining camp log terminal (id "kessar_log")
@@ -35,6 +37,8 @@ var _faded: Dictionary = {}     # Vector2i -> true (walls currently fading / fad
 var player_start := Vector2.ZERO
 var revive_point := Vector2.ZERO   # in front of the Lazarus Cradle (ship only)
 var hive_hole: HiveHole = null
+var exits: Dictionary = {}          # map char -> ZoneExit (zone transitions from data/locations.json)
+var exit_points: Dictionary = {}    # map char -> world position (arrivals)
 var teleport_pad: TeleportPad = null
 var rooms: Dictionary = {}           # room name -> Rect2i (tiles), from the layout metadata
 var exit_rect := Rect2()
@@ -76,7 +80,7 @@ func build(p_world: Node2D) -> void:
 		lamp_color = Color(float(lc[0]), float(lc[1]), float(lc[2]))
 	steady_lights = bool(ldef.get("steady_lights", false))
 	WallTile.ship_style = String(ldef.get("wall_style", "")) == "ship"
-	WallTile.natural = String(ldef.get("wall_style", "")) if String(ldef.get("wall_style", "")) in ["rock", "hive"] else ""
+	WallTile.natural = String(ldef.get("wall_style", "")) if String(ldef.get("wall_style", "")) in ["rock", "hive", "city"] else ""
 	_load_map()
 	floor_layer = Node2D.new()
 	floor_layer.name = "Floor"
@@ -247,7 +251,7 @@ func _build_occluders() -> void:
 	for y in h:
 		for x in w:
 			var c := ch(x, y)
-			if "ogti".contains(c) or c == "C":
+			if "ogtinqx".contains(c) or c == "C":
 				_add_occluder(occ_root, Rect2(x * T + 3, y * T + 3, T - 6, T - 6))
 
 
@@ -303,7 +307,7 @@ func _build_astar() -> void:
 	for y in h:
 		for x in w:
 			var c := ch(x, y)
-			if c == "#" or c == " " or SOLID_PROPS.contains(c) or c.is_valid_int() or c == "c" or c == "C" or c == NAV_CHAR or c == STASH_CHAR or c == CRADLE_CHAR or c == KESSAR_LOG_CHAR or CREW_CHARS.contains(c):
+			if c == "#" or c == " " or SOLID_PROPS.contains(c) or c.is_valid_int() or c == "c" or c == "C" or c == NAV_CHAR or c == STASH_CHAR or c == CRADLE_CHAR or c == KESSAR_LOG_CHAR or c == COCOON_CHAR or CREW_CHARS.contains(c):
 				astar.set_point_solid(Vector2i(x, y), true)
 			elif DOOR_REQ.has(c):
 				astar.set_point_solid(Vector2i(x, y), not GameState.has_flag(door_flag(x, y)))
@@ -328,6 +332,7 @@ static func door_flag(x: int, y: int) -> String:
 # ---------------------------------------------------------------- entities
 
 func _spawn_entities() -> void:
+	var n_cocoons := 0
 	var exit_min := Vector2(INF, INF)
 	var exit_max := Vector2(-INF, -INF)
 	for y in h:
@@ -361,8 +366,22 @@ func _spawn_entities() -> void:
 				world.add_child(d)
 			elif c.is_valid_int() or c == NAV_CHAR or c == KESSAR_LOG_CHAR:
 				var t := Terminal.new()
-				t.setup(self, "nav" if c == NAV_CHAR else ("kessar_log" if c == KESSAR_LOG_CHAR else c), Vector2i(x, y))
+				var log_id := String(GameState.location_def().get("log_id", "kessar_log"))
+				t.setup(self, "nav" if c == NAV_CHAR else (log_id if c == KESSAR_LOG_CHAR else c), Vector2i(x, y))
 				world.add_child(t)
+			elif GameState.location_def().get("exits", {}).has(c):
+				var ex := ZoneExit.new()
+				ex.setup(c, GameState.location_def()["exits"][c])
+				ex.position = pos
+				world.add_child(ex)
+				exits[c] = ex
+				exit_points[c] = pos
+			elif c == COCOON_CHAR:
+				var co := GovernorCocoon.new()
+				co.index = n_cocoons
+				n_cocoons += 1
+				co.position = pos
+				world.add_child(co)
 			elif c == HIVE_HOLE_CHAR:
 				hive_hole = HiveHole.new()
 				hive_hole.position = pos

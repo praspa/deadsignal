@@ -37,7 +37,7 @@ func _ready() -> void:
 	locations = load_json("res://data/locations.json")
 	crew = load_json("res://data/crew.json")
 	starmap = load_json("res://data/starmap.json")
-	missions = {"kharon": mission, "kessar": load_json("res://data/missions/kessar.json")}
+	missions = {"kharon": mission, "lastwater": load_json("res://data/missions/lastwater.json"), "kessar": load_json("res://data/missions/kessar.json")}
 
 
 static func load_json(path: String) -> Dictionary:

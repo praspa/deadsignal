@@ -192,7 +192,7 @@ Lighting and atmospheric effects.
 
 10. Demo Mission (archived)
 
-The Kharon Outpost mission below was the demo's test setting. It stays in the game as a placeholder destination on the star map and a secondary test destination (the smoke test plays through it). Kessar IV (section 15.9) becomes the first mission.
+The Kharon Outpost mission below was the demo's test setting. It is destination 1 of the full game: the intro mission (see 15.12), retuned for a fresh character (area level ~1–2). It also stays a test destination (the smoke test plays through it).
 
 The player investigates a research facility after communications cease.
 
@@ -507,14 +507,15 @@ Gear, inventory and the cargo stash are untouched; no corpse run.
 On revival, a message states what was lost (e.g. "-42 UC, -15 XP").
 Both percentages are tunable constants.
 
-15.9 First Mission: the Brood Queen (Kessar IV)               [first cut DONE — Brood Nurse, new audio/music, art polish to do]
+15.9 Destination 3: the Brood Queen (Kessar IV)               [first cut DONE, re-slotted as destination 3 — Brood Nurse, new audio/music, art polish to do]
 
-The starter quest, in the spirit of Diablo II's Den of Evil: a short outdoor area, then one cave, a boss at the end. Tuned for a fresh character, levels 1–4. It becomes the first destination; Kharon Outpost stays on the star map as a secondary destination.
+The source of the swarm, in the spirit of Diablo II's Den of Evil: an outdoor area, then one cave, a boss at the end. It is destination 3 of act 1, after Kharon Outpost (1) and Last Water (2, see 15.13): the liberated governors of Last Water tell OVERWATCH the swarm came from the neighbouring planet, and OVERWATCH sends the operative to wipe out the nest. Area levels move up to match (Ashfall Flats ~5, the Hive ~6).
+Monsters scale with area level: +15% health and damage per area level above 2 (Kharon is the baseline).
 
 Story and briefing:
 Kessar IV is an ash world with a small mining claim. The claim stopped reporting a week ago. A survey drone caught heat signatures moving under the crust before it went dark.
-OVERWATCH (new-game briefing, on the ship): "Mining claim on Kessar IV has gone quiet. Something's nesting under the ash. Find the nest, find whatever's laying the eggs, and kill it before it fills the planet."
-The star map opens with Kessar IV unlocked and the ship in orbit over the Kessar System.
+OVERWATCH (briefing after Last Water, on the ship): "The governors were right. The swarm came from Kessar IV, next door. There was a mining claim there; it stopped reporting a week before Last Water fell. Find the nest, find whatever's laying the eggs, and kill it before it fills another planet."
+Kessar IV unlocks on the star map when the governors are freed.
 
 Objectives (shown on the HUD in order):
 1. Land on Kessar IV.
@@ -592,6 +593,13 @@ Character: level, XP, attributes, inventory, equipment, cargo stash, UC.
 Story progress: completed objectives and missions, unlocked star map nodes, the ship's position on the star map.
 One-time rewards stay one-time: mission bounties and unlocks are paid only on the first completion; story terminals give their XP only the first time they are read.
 Re-killing a boss gives its loot and XP again, but no bounty and no story event (no new debrief).
+
+Saving when quitting:   [DONE]
+Quitting always autosaves: Quit to Main Menu, Quit to Desktop (pause menu, death screen) and closing the window (Alt+F4, the window's close button, exiting from the Steam Deck overlay) all save first, with a short "Saving..." message. The player never loses progress by quitting.
+This fits the session model: loading starts a new session aboard the ship anyway, so the save only needs the character, stash, UC and story progress, not the exact spot.
+While a menu is open the save still happens (the game is paused, nothing changes mid-save).
+If the operative is dead when quitting (during the fade before the Lazarus Cradle), the death is resolved first: the death penalty applies and the save puts them in the Cradle, so quitting can't dodge the penalty.
+Existing save points stay: travel, checkpoints, revival and the quick-save key.
 
 Area level:
 Every mission area has an area level (in data/locations.json), e.g. Ashfall Flats 2, the Hive 3, Kharon Outpost 5.
@@ -675,13 +683,15 @@ Size of an act: roughly Diablo II's, about 6 main missions and 10–15 zones. A 
 
 Act 1 — The Veil (draft):
 Kessar System
-  Kessar IV — the Brood Queen. First mission. [DONE]
+  1. Kharon Outpost — intro mission (the old demo): WARDEN and the first trace of the Dead Signal. Area level ~1–2.
+  2. Kessar III — Last Water: the overrun city; free the captive governors (15.13). Area level ~3–4.
+  3. Kessar IV — the Brood Queen's nest, source of the swarm (15.9). Area level ~5–6.
   Belt Claim 7 — automated ore refinery "talking to itself" (unlocked by Kessar IV).
-  Kharon Outpost — optional side destination (the old demo mission), WARDEN and the first trace of the Dead Signal.
-Halcyon System (coordinates from Kharon's nav data, or a later main mission)
+Halcyon System (coordinates from a later mission's nav data)
   Halcyon Prime — colony world, census overdue.
   Relay Station 9 — act 1 finale. The relay has been repeating the same three notes since spring: the Dead Signal returns as act 1's big threat.
-Area levels rise through the act (Kessar IV 2–3, Kharon 5, finale around 10–12).
+Area levels rise through the act (1–2 at Kharon up to around 10–12 at the finale).
+Story thread (optional): the Brood woke when the Dead Signal reached Kessar. Ines's recordings of the hive's chittering contain the same three notes, which points the way to Relay Station 9.
 
 Moving between acts:
 Known Space (the root of the star map) is not a place. Flying from one galaxy to another only passes through it on the chart.
@@ -695,7 +705,58 @@ Star map presentation:
 When there are several acts, the star map opens zoomed onto the current act's galaxy; finished acts stay visible but collapsed, so the view doesn't clutter. The info panel of a galaxy node shows its act number.
 The HUD / pause menu shows the current act ("Act 1 — The Veil").
 
-15.13 Build order
+15.13 Destination 2: Last Water (Kessar III)                     [first cut DONE]
+
+Last Water: a frontier boomtown on Kessar III, the last settlement before the deep desert, built around the planet's only deep aquifer (dusty, sun-bleached, a little Wild West: water towers, rail lines, saloon-style cantinas next to prefab towers). The Brood came up through its water mains and overran it. Second mission of act 1, area level ~3–4.
+
+Story:
+After Kharon, OVERWATCH picks up a mayday from Last Water: the city stopped answering two days ago, and the last transmissions talk about "bugs coming out of the water mains". The swarm has taken the streets and carried the city's governors off alive.
+Debrief / handoff: once freed, the governors talk with OVERWATCH over comms: the swarm came from the neighbouring planet, Kessar IV, where a mining claim went quiet first. OVERWATCH orders the nest eradicated and Kessar IV unlocks (15.9).
+
+Objectives:
+1. Land at Last Water's spaceport.
+2. Fight into the city.
+3. Find the Brood Lieutenant carrying the Civic Hall access card, and kill it.
+4. Open the Civic Hall (needs the access card).
+5. Free the captive governors.
+6. Return to the ship (the governors' report reaches OVERWATCH).
+
+Zones (15.11):
+Spaceport (landing zone): landing pads, cargo cranes, barricades the militia didn't hold. Return shuttle. Small and safe-ish: the first bugs arrive at its edge.
+City streets (main map): the big one. City blocks as walls, streets and alleys, plazas, a dry riverbed with a rail bridge, wrecked trams and ground cars, makeshift barricades, resin creeping up the walls and over the streets. Random layouts (3 to start), built by a street-and-block generator. The Civic Hall stands at the far end, its door sealed.
+Civic Hall (interior): reached through the sealed door. Offices and council chambers turned into a nest: resin everywhere, egg clusters, and the governors cocooned against the walls.
+Landing beacon at the Civic Hall entrance, so later sessions can land right there.
+
+The Brood Lieutenant (the access card):
+A named elite bug that roams the streets with an escort (the first of the Diablo-style champion packs): bigger than a Broodguard, its own name on a health bar (e.g. "Gutspike the Warden-Taker"), one modifier (e.g. Frenzied: faster attacks; or Armoured).
+It has the governors' Civic Hall access card fused into its carapace; killing it drops the card.
+Its position changes per layout, somewhere away from the spaceport; the minimap does not show it until seen. Rumours help: survivors' messages and dead militia's logs mention where it was last seen.
+
+The access card:
+A quest item: picking it up sets a flag ("lastwater:card") and shows on the HUD objective; it does not take a pack slot and can't be sold or dropped.
+The Civic Hall door is a flag-locked door (like Kharon's bulkheads): "Sealed. Civic Hall access card required." until the flag is set.
+Re-entrant areas (15.10): the card flag persists, so later sessions can walk straight in.
+
+The captive governors:
+Three of them (e.g. Governor Ada Calloway, Marshal Eli Brandt, Treasurer Ruth Okafor), each cocooned in resin somewhere in the Civic Hall, guarded by bugs and egg clusters.
+Freeing one: interact to cut the cocoon open (a short channel, ~1.5 s, interrupted by damage like Recall). Each freed governor gets a line of thanks and stays put (they are too weak to walk).
+When all three are free, the objective completes and the governors' conversation with OVERWATCH plays over comms.
+Freed governors persist (story flags); later sessions find the hall still nested but the cocoons empty.
+
+Creatures:
+The Kessar IV brood (Swarmlings, Spitters, Broodguard, egg clusters), plus urban variants:
+Wall Crawler: clings to building walls and drops onto the operative from above (telegraph: a shadow on the ground, then the drop).
+Infested Militia: like Infested Miners, in the city militia's dusters and hats; some still fire their old rifles, badly.
+Optional: Brood Nurses in the Civic Hall (15.9).
+
+Music: its own track, audio/music/lastwater.wav (tools/gen_audio.py): 84 BPM, E minor with a phrygian-dominant edge, a spaghetti-western take on the game's industrial sound: desert wind, a cracked mission bell, a twanging tremolo guitar, a galloping drum rhythm, a lonely whistled melody, and distorted chugs and metal when the swarm section kicks in. [DONE — track made, used once Last Water is built]
+Per-area music in general: every location names its track in data/locations.json; one track plays at a time (cross-faded), each generated loop is ~1–2 MB, so a track per area costs nothing noticeable. If the track count grows large, load tracks on demand instead of at startup.
+
+Rewards: OVERWATCH bounty, loot from the Lieutenant (good odds of Rare), the governors' thanks (UC reward from the city treasury), Kessar IV unlocked.
+
+New work: city wall / floor style (buildings, streets, signs, a western palette), street-and-block map generator, spaceport and Civic Hall maps, Brood Lieutenant (champion), quest-item pickup + flag-locked door, governors (cocoon interactable + dialogue), Wall Crawler and Infested Militia, mission data, re-slot Kharon (retune to area level 1–2, debrief unlocks Last Water) and Kessar IV (area levels up, briefing after Last Water).
+
+15.14 Build order
 
 1. Ship hub, locations / travel, UC currency.   [DONE]
 2. Star map UI on the nav console.   [DONE]
@@ -706,6 +767,7 @@ The HUD / pause menu shows the current act ("Act 1 — The Veil").
 7. Re-entrant areas: reset on each session, area levels, diminishing XP, new XP curve.   [DONE]
 8. Linked zones and landing beacons: beacon interactable, landing point choice on the star map, Kessar IV hive beacon; locked-node reasons on the star map; intel / access-code unlocks.   [DONE; exits in data + physical links later]
 9. Acts: act data on galaxy nodes, current act on the HUD / pause menu, act gate flag unlocking the next galaxy, star map focused on the current act. Then act 1 content: Belt Claim 7, Halcyon Prime, Relay Station 9 finale.
+10. Act 1 order: Kharon (intro, retuned) -> Last Water (new) -> Kessar IV (re-slotted). Last Water as in 15.13.   [first cut DONE]
 
 
 ## Target platform

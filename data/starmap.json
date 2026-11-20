@@ -57,6 +57,20 @@
       "location": "kharon",
       "landing": "kharon"
     },
+    "kessar_iii": {
+      "parent": "kessar",
+      "type": "planet",
+      "name": "Kessar III",
+      "description": "Desert world. Last Water, its only city, sits on the planet's one deep aquifer. Not answering hails.",
+      "landing": "lastwater_port",
+      "beacons": [
+        "lastwater_hall"
+      ],
+      "requires": [
+        "lastwater_open"
+      ],
+      "locked_reason": "Awaiting OVERWATCH clearance"
+    },
     "kessar_iv": {
       "parent": "kessar",
       "type": "planet",
@@ -66,7 +80,11 @@
       "landing": "kessar_surface",
       "beacons": [
         "kessar_hive"
-      ]
+      ],
+      "requires": [
+        "kessar_iv_open"
+      ],
+      "locked_reason": "Awaiting OVERWATCH clearance"
     },
     "kessar_belt": {
       "parent": "kessar",

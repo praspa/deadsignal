@@ -6,6 +6,7 @@ var current: Node = null
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	get_tree().set_auto_accept_quit(false)   # closing the window autosaves first (_notification)
 	if "--smoke" in OS.get_cmdline_user_args():
 		var t: Node = load("res://tools/smoke_test.gd").new()
 		add_child(t)
@@ -72,12 +73,25 @@ func _on_menu_action(id: String) -> void:
 			get_tree().quit()
 
 
+func _save_if_playing() -> void:
+	if current is Game and is_instance_valid(current):
+		(current as Game).save_on_quit()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_save_if_playing()
+		get_tree().quit()
+
+
 func _on_game_request(id: String) -> void:
 	if id.begins_with("travel:"):
 		GameState.travel(id.trim_prefix("travel:"))
 		GameState.save_game(null)   # arrive at the destination's start point
 		start_game.call_deferred()
 		return
+	if id in ["menu", "quit"]:
+		_save_if_playing()
 	match id:
 		"menu":
 			show_menu.call_deferred()
