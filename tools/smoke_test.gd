@@ -600,7 +600,7 @@ func run() -> void:
 	game = main.get("current")
 	check(GameState.location == "ship" and game.hub, "extraction returns the operative to the ship")
 	check(GameState.has_flag("debriefed"), "OVERWATCH debrief aboard the ship")
-	check(GameState.has_flag("intel:halcyon") and StarMapUI.is_unlocked("halcyon"), "Kharon's nav data reveals the Halcyon System")
+	check(GameState.has_flag("lastwater_open") and StarMapUI.is_unlocked("kessar_iii") and not StarMapUI.is_unlocked("kessar_iv"), "Kharon's debrief clears Last Water (Kessar IV still locked)")
 	var kharon_loot: Array = GameState.areas.get("kharon", {}).get("ground_items", [])
 	check(not kharon_loot.is_empty(), "loot left at Kharon is kept while away")
 	check(GameState.explored.size() == game.level.w * game.level.h and int(GameState.areas["kharon"].get("explored_size", 0)) > 0, "minimap exploration kept per location")
@@ -649,7 +649,33 @@ func run() -> void:
 	check(GameState.xp == 0 and GameState.level == lv_before, "death never drops below the start of the level")
 	GameState.reviving = false
 
+	await _lastwater_tests()
 	await _kessar_tests()
+
+	print("== autosave on quit")
+	GameState.travel("ship")
+	main.call("start_game")
+	await frames(6)
+	game = main.get("current")
+	GameState.credits = 4242
+	main.call("_on_game_request", "menu")
+	await frames(4)
+	check(main.get("current") is MainMenu, "quit to main menu returns to the menu")
+	GameState.credits = 0
+	GameState.load_game()
+	check(GameState.credits == 4242, "quitting to the menu autosaved")
+	main.call("_on_game_request", "travel:kharon")
+	await frames(8)
+	game = main.get("current")
+	GameState.credits = 1000
+	game.player.die()
+	await frames(2)
+	main.call("_on_game_request", "menu")
+	await frames(4)
+	GameState.credits = 0
+	GameState.load_game()
+	check(GameState.location == "ship" and GameState.reviving and GameState.credits == 900, "quitting while dead still costs the death penalty (wakes in the Cradle)")
+	GameState.reviving = false
 
 	print("== v1 save migration")
 	var v1 := {"version": 1, "level": 3, "flags": {"power": true, "k:5,5": true, "box:2,3": true}, "player_pos": [10, 10]}
@@ -670,7 +696,105 @@ func run() -> void:
 	print("  avg frame (headless, physics-bound) %.2f ms" % avg)
 
 
+func _lastwater_tests() -> void:
+	print("== Last Water: spaceport")
+	GameState.ship_node = "kessar_iii"
+	check(StarMapUI.is_unlocked("kessar_iii"), "Last Water (Kessar III) is open on the star map")
+	main.call("_on_game_request", "travel:lastwater_port")
+	await frames(8)
+	game = main.get("current")
+	check(GameState.location == "lastwater_port" and GameState.has_flag("lastwater:landed"), "landing at Last Water's spaceport")
+	check(game.level.exits.has("Y"), "a gate into the city")
+	game.level.exits["Y"].interact(game.player)
+	await frames(8)
+	game = main.get("current")
+	var level := game.level
+	var player := game.player
+	print("== Last Water: the streets")
+	check(GameState.location == "lastwater_streets" and player.global_position.distance_to(level.exit_points["Y"]) < 80.0, "through the gate into the streets (%s)" % GameState.map_info.get("name", "?"))
+	check(GameState.current_objective_text().begins_with("Find the Brood Lieutenant"), "objective: " + GameState.current_objective_text())
+	check(_count_kind("militia") >= 4 and _count_kind("crawler") >= 4 and _count_kind("lieutenant") == 1, "militia, wall crawlers and the Lieutenant are in the streets")
+	check(not GameState.fmt(String(ItemDB.terminals["lastwater_log"]["pages"][2])).contains("{"), "militia log points toward the Lieutenant")
+	var door: ZoneExit = level.exits["U"]
+	door.interact(player)
+	await frames(4)
+	check(GameState.location == "lastwater_streets" and not door.is_open(), "the Civic Hall is sealed without the card")
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if (e as Node2D).global_position.distance_to(player.global_position) < 900.0 and (e as Enemy).kind != "lieutenant":
+			e.queue_free()
+	await frames(2)
+	var cr := level.spawn_enemy("crawler", player.global_position + Vector2(300, 0), "test_crawler") as BroodEnemy
+	await frames(2)
+	check(cr.buried and not cr.take_hit(Combat.make_hit(5, null)), "Wall Crawler clings to the wall, out of reach")
+	cr.global_position = player.global_position + Vector2(80, 0)
+	for i in 80:
+		await frames(1)
+		if not cr.buried:
+			break
+	check(not cr.buried and cr.global_position.distance_to(player.global_position) < 60.0, "Wall Crawler drops onto the operative")
+	cr.take_hit(Combat.make_hit(9999, null))
+	var lt := get_tree().get_first_node_in_group("champion") as BroodEnemy
+	check(lt != null and lt.display_name.contains("Frenzied"), "the Lieutenant is a named champion: " + (lt.display_name if lt != null else "?"))
+	while not lt.dead:
+		lt.take_hit(Combat.make_hit(400, player))
+		await frames(1)
+	await frames(3)
+	var card: LootDrop = null
+	for n in game.world.get_children():
+		if n is LootDrop and String((n as LootDrop).entry.get("kind", "")) == "quest":
+			card = n
+	check(card != null, "the Lieutenant drops the Civic Hall access card")
+	for e in get_tree().get_nodes_in_group("enemies"):
+		e.queue_free()
+	player.global_position = card.global_position
+	await frames(6)
+	check(GameState.has_flag("lastwater:card") and door.is_open(), "picking up the card unseals the Civic Hall")
+	door.interact(player)
+	await frames(8)
+	game = main.get("current")
+	player = game.player
+	print("== Last Water: the Civic Hall")
+	check(GameState.location == "lastwater_hall" and GameState.has_flag("lastwater:hall"), "inside the Civic Hall")
+	check(GameState.has_flag("beacon:lastwater_hall"), "the Civic Hall's landing beacon links")
+	var cocoons := get_tree().get_nodes_in_group("cocoon")
+	check(cocoons.size() == 3, "three governors cocooned in the hall")
+	for e in get_tree().get_nodes_in_group("enemies"):
+		e.queue_free()
+	await frames(2)
+	var first := cocoons[0] as GovernorCocoon
+	player.global_position = first.global_position + Vector2(0, 30)
+	await frames(2)
+	first.interact(player)
+	await frames(10)
+	player.hp -= 5.0
+	await frames(3)
+	check(not first.freed() and first.cutting == 0.0, "getting hurt interrupts cutting a governor free")
+	for co in cocoons:
+		player.global_position = (co as Node2D).global_position + Vector2(0, 30)
+		await frames(2)
+		co.interact(player)
+		for i in 120:
+			await frames(1)
+			if (co as GovernorCocoon).freed():
+				break
+	check(GameState.has_flag("lastwater:governors"), "all three governors freed")
+	check(GameState.current_objective_text().begins_with("Return to the ship"), "objective: " + GameState.current_objective_text())
+	var uc0 := GameState.credits
+	GameState.recall_cd = 0.0
+	player.start_recall()
+	for i in 200:
+		await get_tree().physics_frame
+		if main.get("current") != game:
+			break
+	await frames(8)
+	game = main.get("current")
+	check(GameState.has_flag("lastwater:done") and GameState.credits >= uc0 + 600, "OVERWATCH debrief: the treasury pays")
+	check(StarMapUI.is_unlocked("kessar_iv"), "the governors' intel unlocks Kessar IV")
+	check(StarMapUI.landing_points("kessar_iii").filter(func(p: Dictionary) -> bool: return bool(p["open"])).size() == 2, "Kessar III now has two landing points (spaceport, Civic Hall)")
+
+
 func _kessar_tests() -> void:
+	GameState.set_flag("kessar_iv_open")   # cleared by Last Water's debrief in a real run
 	print("== Kessar IV: Ashfall Flats")
 	GameState.ship_node = "kessar_iv"
 	main.call("_on_game_request", "travel:kessar_surface")
@@ -820,13 +944,13 @@ func _kessar_tests() -> void:
 	var loc_keep := GameState.location
 	GameState.location = "kessar_hive"
 	var mults := []
-	for lv in [5, 7, 10, 13]:
+	for lv in [8, 10, 13, 16]:
 		GameState.level = lv
 		mults.append(snappedf(GameState.xp_mult(), 0.01))
 	var want := [1.0, 0.7, 0.25, 0.05]
 	check(range(4).all(func(i: int) -> bool: return is_equal_approx(float(mults[i]), float(want[i]))), "XP falls off once the character outlevels the area %s" % str(mults))
 	GameState.level = 5
-	check(GameState.xp_to_next() == 1118 and GameState.area_level() == 3, "XP curve 100 x level^1.5; the Hive is area level 3")
+	check(GameState.xp_to_next() == 1118 and GameState.area_level() == 6, "XP curve 100 x level^1.5; the Hive is area level 6")
 	GameState.level = lv_keep
 	GameState.location = loc_keep
 	GameState.save_game(null)

@@ -46,7 +46,7 @@ func setup(p_kind: String, p_level: Node, p_spawn_id: String) -> void:
 	spawn_id = p_spawn_id
 	def = ItemDB.enemies.get(kind, {})
 	display_name = String(def.get("name", kind))
-	max_hp = float(def.get("hp", 50))
+	max_hp = float(def.get("hp", 50)) * area_scale()
 	hp = max_hp
 	armor = float(def.get("armor", 0))
 	radius = float(def.get("radius", 12))
@@ -324,9 +324,19 @@ func _end_attack() -> void:
 		strafe_dir = -strafe_dir
 
 
+## Monsters get tougher with the area level (requirements 15.10 / 15.12):
+## +15% health and damage per area level above 2. Kharon (2) is the baseline.
+const AREA_SCALE_PER_LEVEL := 0.15
+const AREA_SCALE_BASE := 2
+
+
+static func area_scale() -> float:
+	return 1.0 + AREA_SCALE_PER_LEVEL * maxf(0.0, float(GameState.area_level() - AREA_SCALE_BASE)) if not GameState.is_hub() else 1.0
+
+
 func _make_hit(range_arr) -> Dictionary:
-	var lo := float(range_arr[0])
-	var hi := float(range_arr[1])
+	var lo := float(range_arr[0]) * area_scale()
+	var hi := float(range_arr[1]) * area_scale()
 	var h := Combat.make_hit(randf_range(lo, hi), self, false)
 	return h
 

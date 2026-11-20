@@ -41,7 +41,7 @@ func set_fade(target: float, delta: float) -> bool:
 
 
 static var ship_style := false   # aboard the ship: no skulls or banners on the walls
-static var natural := ""         # "rock" (planet surface) or "hive" (chitin / resin): no built walls at all
+static var natural := ""         # "rock" (planet surface), "hive" (chitin / resin) or "city" (frontier buildings)
 
 
 ## Deco category for a face: 0 none, 1 window, 2 skull, 3 pipes, 4 warning light, 5 banner.
@@ -139,6 +139,9 @@ func paint(target: CanvasItem) -> void:
 ## Rock ridge (surface) or chitin / resin wall (hive): lumpy faces with strata,
 ## cracks or glistening veins, and an uneven top.
 func _paint_natural(a: Vector2, b: Vector2, c: Vector2, d: Vector2, up: Vector2, hsh: int, v: float, south_open: bool, east_open: bool) -> void:
+	if natural == "city":
+		_paint_building(a, b, c, d, hsh, south_open, east_open)
+		return
 	var hive := natural == "hive"
 	var lit := Color(0.2, 0.18, 0.16).lerp(Color(0.24, 0.21, 0.18), v) if not hive else Color(0.17, 0.15, 0.16).lerp(Color(0.21, 0.18, 0.19), v)
 	var dark := lit.darkened(0.4)
@@ -159,6 +162,57 @@ func _paint_natural(a: Vector2, b: Vector2, c: Vector2, d: Vector2, up: Vector2,
 	ci.draw_polygon(PackedVector2Array([a2, b2, c2, d2]), PackedColorArray([top.lightened(0.06), top, top.darkened(0.25), top.lightened(0.03)]))
 	if hsh % 3 == 0:
 		ci.draw_circle((a2 + c2) * 0.5 + Vector2(float(hsh % 7) - 3.0, 0), 4.0 + float(hsh % 4), top.lightened(0.1))
+
+
+## Last Water's buildings: sun-bleached adobe / prefab blocks with windows,
+## awnings and painted signs, a flat roof with the odd water tank.
+func _paint_building(a: Vector2, b: Vector2, c: Vector2, d: Vector2, hsh: int, south_open: bool, east_open: bool) -> void:
+	var tone: Color = [Color(0.5, 0.4, 0.3), Color(0.46, 0.38, 0.32), Color(0.42, 0.38, 0.34), Color(0.52, 0.44, 0.34)][Level.hash2(cx / 4, cy / 4) % 4]
+	var H := 50.0   # one roof height: neighbouring tiles of a block must line up (no gaps)
+	var up := Vector2(0, -H)
+	if south_open:
+		Iso.face(ci, Vector2(-HS, HS), Vector2.RIGHT)
+		ci.draw_rect(Rect2(0, -H, T, H), tone)
+		_building_face(tone, hsh, H, level.is_floor(cx, cy + 1))
+		ci.draw_set_transform(Vector2.ZERO)
+	if east_open:
+		Iso.face(ci, Vector2(HS, -HS), Vector2.DOWN)
+		var sh: Color = tone.darkened(0.35)
+		ci.draw_rect(Rect2(0, -H, T, H), sh)
+		_building_face(sh, hsh / 7, H, level.is_floor(cx + 1, cy))
+		ci.draw_set_transform(Vector2.ZERO)
+	var roof := PackedVector2Array([a + up, b + up, c + up, d + up])
+	ci.draw_polygon(roof, PackedColorArray([tone.darkened(0.1), tone.darkened(0.2), tone.darkened(0.35), tone.darkened(0.15)]))
+	if not level.is_wall(cx, cy + 1):
+		ci.draw_line(c + up, d + up, tone.lightened(0.15), 2.0)   # parapet edge
+	if hsh % 23 == 0:
+		Iso.ground(ci, up)
+		ci.draw_circle(Vector2.ZERO, 6.0, Color(0.35, 0.27, 0.2))   # rooftop tank
+		ci.draw_set_transform(Vector2.ZERO)
+
+
+func _building_face(base: Color, hsh: int, H: float, street: bool) -> void:
+	# windows: dark, some shuttered, a few with a dying warm light
+	for row in range(1, int(H / 16.0)):
+		var wy := -H + row * 15.0
+		for k in 2:
+			var wx := 5.0 + k * 15.0
+			var w := (hsh >> (row + k * 3)) % 5
+			var col := Color(0.08, 0.07, 0.06) if w != 0 else Color(0.85, 0.6, 0.3, 0.8)
+			if w == 4:
+				col = base.darkened(0.25)   # shuttered
+			ci.draw_rect(Rect2(wx, wy, 8, 7), col)
+	if street:
+		if hsh % 4 == 0:
+			# a shop awning over the street
+			ci.draw_colored_polygon(PackedVector2Array([Vector2(1, -18), Vector2(T - 1, -18), Vector2(T + 2, -12), Vector2(-2, -12)]),
+				[Color(0.55, 0.2, 0.15), Color(0.2, 0.35, 0.45), Color(0.6, 0.5, 0.25)][hsh % 3])
+		elif hsh % 7 == 1:
+			ci.draw_rect(Rect2(4, -30, T - 8, 7), Color(0.25, 0.18, 0.12))   # painted sign board
+			ci.draw_line(Vector2(7, -26), Vector2(T - 7, -26), Color(0.85, 0.75, 0.5, 0.7), 1.0)
+		# grime at street level
+		ci.draw_polygon(PackedVector2Array([Vector2(0, -12), Vector2(T, -12), Vector2(T, 0), Vector2(0, 0)]),
+			PackedColorArray([Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0.45), Color(0, 0, 0, 0.45)]))
 
 
 func _natural_detail(p0: Vector2, p1: Vector2, q0: Vector2, q1: Vector2, base: Color, hsh: int, hive: bool) -> void:

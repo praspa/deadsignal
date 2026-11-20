@@ -1,0 +1,57 @@
+{
+  "title": "Last Water",
+  "complete_flag": "lastwater:governors",
+  "objectives": [
+    {
+      "flag": "lastwater:landed",
+      "text": "Land at Last Water's spaceport (Kessar III)",
+      "comms": []
+    },
+    {
+      "flag": "lastwater:streets",
+      "text": "Fight your way into the city",
+      "comms": [
+        "[OVERWATCH] Spaceport's lost. The city's through that gate. The governors were last seen at the Civic Hall."
+      ]
+    },
+    {
+      "flag": "lastwater:card",
+      "text": "Find the Brood Lieutenant and take the Civic Hall access card",
+      "comms": [
+        "[OVERWATCH] The Civic Hall's sealed and the governors' card is gone. Militia chatter says one of the big bugs took it. Find it.",
+        "[OVERWATCH] Check the militia's logs. They were tracking it."
+      ]
+    },
+    {
+      "flag": "lastwater:hall",
+      "text": "Open the Civic Hall",
+      "comms": [
+        "[OVERWATCH] You've got the card. The Civic Hall is {hall_dir} of the spaceport road."
+      ]
+    },
+    {
+      "flag": "lastwater:governors",
+      "text": "Free the captive governors (cut their cocoons open)",
+      "comms": [
+        "[OVERWATCH] Life signs inside. Three of them. They're alive, Operative. Get them out of that resin."
+      ]
+    },
+    {
+      "flag": "lastwater:done",
+      "text": "Return to the ship (Recall, or the spaceport shuttle)",
+      "comms": [
+        "[GOVERNOR CALLOWAY] OVERWATCH, this is Ada Calloway. The swarm didn't start here. It came from Kessar IV, next door.",
+        "[GOVERNOR CALLOWAY] There's a mining claim on Kessar IV. It went quiet a week before we did. Whatever's laying those eggs, it's there.",
+        "[OVERWATCH] Understood, Governor. Operative, return to the Mule. You're going to Kessar IV."
+      ]
+    }
+  ],
+  "debrief": [
+    "[OVERWATCH] Last Water's governors are safe and the city's militia is regrouping. The treasury sent their thanks in creds.",
+    "[OVERWATCH] Kessar IV is on your star map. Find the nest. Kill whatever's in charge."
+  ],
+  "bounty": 600,
+  "unlocks": [
+    "kessar_iv_open"
+  ]
+}

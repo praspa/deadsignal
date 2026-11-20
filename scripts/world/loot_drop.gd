@@ -14,6 +14,7 @@ var lift_px := 0.0   # current pop height (read by LootLabels)
 
 static var _font: Font
 const CREDIT_COLOR := Color(0.95, 0.8, 0.38)
+const QUEST_COLOR := Color(1.0, 0.62, 0.25)
 
 
 func _ready() -> void:
@@ -52,6 +53,8 @@ func label_text() -> String:
 			return "Stim-pack"
 		"credits":
 			return GameState.fmt_uc(int(entry["amount"]))
+		"quest":
+			return String(entry.get("name", "Quest item"))
 	return "?"
 
 
@@ -65,6 +68,8 @@ func color() -> Color:
 			return Color(0.5, 1.0, 0.55)
 		"credits":
 			return CREDIT_COLOR
+		"quest":
+			return QUEST_COLOR
 	return Color.WHITE
 
 
@@ -105,6 +110,10 @@ func _process(delta: float) -> void:
 		elif kind == "stim":
 			GameState.stims += int(entry.get("amount", 1))
 			Events.msg("+%d stim-pack" % int(entry.get("amount", 1)), color())
+		elif kind == "quest":
+			GameState.set_flag(String(entry["flag"]))
+			Events.msg("Picked up: %s" % String(entry.get("name", "quest item")), QUEST_COLOR)
+			Audio.play_ui("terminal", 1.2)
 		elif kind == "credits":
 			GameState.add_credits(int(entry["amount"]))
 			Events.msg("+" + GameState.fmt_uc(int(entry["amount"])), color())
@@ -135,6 +144,13 @@ func _render() -> void:
 		cv.draw_arc(Vector2.ZERO, 11.0, 0, TAU, 20, Color(c.r, c.g, c.b, 0.35), 1.0)
 		cv.draw_set_transform(Vector2.ZERO)
 		ItemIcon.draw(cv, entry["item"], base + Vector2(0, -6 + bob), 0.85, c)
+	elif kind == "quest":
+		# a keycard, glowing so it can't be missed
+		var pq := base + Vector2(0, -6 + bob)
+		cv.draw_circle(pq, 10.0, Color(c.r, c.g, c.b, 0.2 + 0.1 * sin(t * 4.0)))
+		cv.draw_rect(Rect2(pq - Vector2(7, 4.5), Vector2(14, 9)), Color(0.85, 0.7, 0.3))
+		cv.draw_rect(Rect2(pq - Vector2(5, 2.5), Vector2(4, 3)), Color(0.3, 0.25, 0.15))
+		cv.draw_rect(Rect2(pq - Vector2(7, 4.5), Vector2(14, 9)), c, false, 1.0)
 	elif kind == "credits":
 		# a short stack of credit chits
 		var pc := base + Vector2(0, -3 + bob)

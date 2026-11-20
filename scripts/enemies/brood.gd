@@ -6,7 +6,11 @@ extends Enemy
 ##   charge (Broodguard) telegraphed straight-line rush; stunned + vulnerable on hitting a wall
 ##   hatch  (Egg)        hatches Swarmlings when the operative comes close
 ##   ambush (Burrower)   buried under the ash until the operative is near
-## Infested Miners behave like Mutated Researchers with their own look.
+##   drop   (Wall Crawler) clings to a wall, then drops onto the operative (shadow telegraph)
+## Infested Miners behave like Mutated Researchers with their own look; Infested
+## Militia fire their old rifles, badly. Champions ("champion" in the data, e.g.
+## the Brood Lieutenant) get a named health bar; the Lieutenant drops Last
+## Water's Civic Hall access card.
 
 var buried := false          # burrower under the ash
 var emerge_t := 0.0          # > 0: ash bubbling, about to erupt
@@ -14,13 +18,18 @@ var hatch_t := 0.0           # > 0: egg wobbling, about to hatch
 var charge_dir := Vector2.ZERO
 var charge_hit := false
 var vulnerable_t := 0.0      # broodguard after slamming into a wall
+var drop_target := Vector2.ZERO   # wall crawler: where it will land
 
 
 func _ready() -> void:
 	super._ready()
-	if bool(def.get("ambush", false)) and spawn_id != "":
+	var amb = def.get("ambush", false)
+	if spawn_id != "" and ((amb is bool and amb) or amb is String):
 		buried = true
 		collision_layer = 0
+	if def.has("champion"):
+		display_name = "%s [%s]" % [display_name, String(def["champion"])]
+		add_to_group("champion")
 
 
 func _physics_process(delta: float) -> void:
@@ -34,14 +43,21 @@ func _physics_process(delta: float) -> void:
 			if emerge_t <= 0.0:
 				_emerge()
 		elif _target_alive() and global_position.distance_to(target.global_position) < float(def.get("detect", 110)):
-			emerge_t = 0.45   # the telegraph: ash bubbles, then it erupts
-			Audio.play("zombie_snarl", global_position, 0.7)
+			if str(def.get("ambush", "")) == "drop":
+				drop_target = target.global_position   # the shadow on the ground is the warning
+				emerge_t = 0.6
+				Audio.play("zombie_snarl", global_position, 1.5)
+			else:
+				emerge_t = 0.45   # the telegraph: ash bubbles, then it erupts
+				Audio.play("zombie_snarl", global_position, 0.7)
 		queue_redraw()
 		return
 	if kind == "egg" and not dead:
 		_egg_step(delta)
 		return
 	super._physics_process(delta)
+	if def.has("champion") and not dead and aggro:
+		Events.boss_bar.emit(display_name, hp, max_hp, true)
 
 
 func take_hit(hit: Dictionary) -> bool:
@@ -67,6 +83,9 @@ func _modify_incoming(amount: float, hit: Dictionary) -> float:
 func _emerge() -> void:
 	buried = false
 	collision_layer = Combat.LAYER_ENEMY
+	if str(def.get("ambush", "")) == "drop":
+		_drop_from_wall()
+		return
 	Fx.burst(get_parent(), Iso.sp(global_position, 4), Color(0.45, 0.42, 0.38), 22, 200.0)
 	Events.screen_shake.emit(4.0)
 	Audio.play("explosion", global_position, 1.6, -10.0)
@@ -77,6 +96,32 @@ func _emerge() -> void:
 		attack_variant = "lunge"
 		attack_cd = 0.0
 		_begin_attack()
+
+
+## Wall Crawler lands where its shadow was: hurts and knocks back on a hit.
+func _drop_from_wall() -> void:
+	if level != null and not level.astar.is_point_solid(level.world_to_cell(drop_target)):
+		global_position = drop_target
+	Fx.burst(get_parent(), Iso.sp(global_position, 4), Color(0.5, 0.45, 0.38), 14, 160.0)
+	Audio.play("impact_flesh", global_position, 1.3)
+	if _target_alive() and target.global_position.distance_to(global_position) < 40.0:
+		var h := _make_hit(def.get("drop_dmg", [10, 16]))
+		h["dir"] = (target.global_position - global_position).normalized()
+		h["knockback"] = 200.0
+		target.call("take_hit", h)
+	super.become_aggro()
+	attack_cd = 0.4
+
+
+func die() -> void:
+	if dead:
+		return
+	super.die()
+	if def.has("champion"):
+		Events.boss_bar.emit(display_name, 0.0, max_hp, false)
+	if kind == "lieutenant" and level != null:
+		# the Civic Hall access card, fused into its carapace
+		level.call("drop_item", global_position + Vector2(0, 18), {"kind": "quest", "flag": "lastwater:card", "name": "Civic Hall access card"})
 
 
 func _egg_step(delta: float) -> void:
@@ -126,6 +171,10 @@ func _start_telegraph() -> void:
 
 func _begin_attack() -> void:
 	match attack_variant:
+		"bolt":
+			state = S.ATTACK
+			_shoot(telegraph_target, Color(1.0, 0.75, 0.3), 3.0, float(def.get("spread", 0.04)))
+			_end_attack()
 		"spit":
 			state = S.ATTACK
 			_spit(telegraph_target)
@@ -203,6 +252,12 @@ func _render_body() -> void:
 			_draw_burrower()
 		"egg":
 			_draw_egg()
+		"militia":
+			_draw_militia()
+		"crawler":
+			_draw_crawler()
+		"lieutenant":
+			_draw_lieutenant()
 	if not dead and not buried:
 		_draw_overlay()
 
@@ -410,3 +465,101 @@ func _draw_egg() -> void:
 	cv.draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, 0.45))
 	cv.draw_circle(Vector2.ZERO, 13.0, Color(0.25, 0.22, 0.15, 0.4))   # resin base
 	cv.draw_set_transform(Vector2.ZERO)
+
+
+## Infested Militia: duster coat and wide-brimmed hat, growths through the
+## coat, still carrying a long rifle they fire wildly.
+func _draw_militia() -> void:
+	var fx := 1.0 if cos(facing) >= 0.0 else -1.0
+	var coat := Color(0.42, 0.33, 0.22)
+	if dead:
+		var f := minf(dead_t * 2.5, 1.0)
+		cv.draw_set_transform(Vector2(0, -4), PI * 0.5 * f * fx, Vector2.ONE)
+		cv.draw_rect(Rect2(-6, -24, 12, 24), coat)
+		cv.draw_set_transform(Vector2.ZERO)
+		cv.draw_line(Vector2(-14 * fx, -2), Vector2(4 * fx, 2), Color(0.3, 0.22, 0.14), 4.0)   # hat on the ground
+		return
+	_shadow(12.0)
+	var tele := state == S.TELEGRAPH
+	var walk := sin(anim_t * 10.0) * 3.0 if velocity.length() > 20 else 0.0
+	cv.draw_line(Vector2(-3, -13), Vector2(-4 + walk * 0.5, 0), _col(Color(0.24, 0.2, 0.16)), 3.5)
+	cv.draw_line(Vector2(3, -13), Vector2(4 - walk * 0.5, 0), _col(Color(0.24, 0.2, 0.16)), 3.5)
+	var top := Vector2(2 * fx, -32)
+	var duster := PackedVector2Array([top + Vector2(-7, 0), top + Vector2(7, 0), Vector2(10, -6), Vector2(-10, -6)])
+	Shade.poly(cv, duster, _col(coat))
+	cv.draw_line(top + Vector2(-2, 4), Vector2(-3, -10), Color(0.25, 0.18, 0.12), 1.0)
+	Shade.ball(cv, top + Vector2(-5 * fx, 6), 3.5, _col(Color(0.42, 0.38, 0.3)))             # growth bursting out
+	cv.draw_circle(top + Vector2(-5 * fx, 5), 1.4, Color(0.7, 1.0, 0.3, 0.7))
+	# rifle levelled at the target
+	var aim := Vector2.from_angle(facing) if tele or state == S.ATTACK else Vector2(fx, 0.35).normalized()
+	var grip := top + Vector2(5 * fx, 7)
+	cv.draw_line(grip - aim * 6.0, grip + aim * 20.0, _col(Color(0.18, 0.16, 0.15)), 3.0)
+	cv.draw_line(grip - aim * 6.0, grip + aim * 4.0, _col(Color(0.35, 0.22, 0.12)), 4.0)
+	Shade.limb(cv, top + Vector2(5 * fx, 2), grip, 3.5, _col(coat))
+	var head := top + Vector2(2 * fx, -6)
+	Shade.ball(cv, head, 5.5, _col(Color(0.55, 0.45, 0.38)))
+	cv.draw_line(head + Vector2(-9, -2), head + Vector2(9, -2), _col(Color(0.3, 0.22, 0.14)), 3.0)  # hat brim
+	cv.draw_rect(Rect2(head + Vector2(-5, -8), Vector2(10, 6)), _col(Color(0.32, 0.24, 0.15)))
+	cv.draw_circle(head + Vector2(3 * fx, 1), 1.4, Color(1.0, 0.2, 0.1) if tele else Color(0.6, 1.0, 0.3))
+	if tele:
+		cv.draw_circle(grip + aim * 20.0, 4.0, Color(1.0, 0.7, 0.3, 0.5))
+
+
+## Wall Crawler: a long flat many-legged bug. Before it drops it clings high on
+## a wall; its shadow appears on the ground where it will land.
+func _draw_crawler() -> void:
+	var c := Color(0.3, 0.27, 0.22)
+	if buried:
+		var up := Vector2(0, -44)
+		if emerge_t > 0.0:
+			var off := Iso.to_screen(drop_target - global_position)
+			var k := 1.0 - emerge_t / 0.6
+			cv.draw_set_transform(off, 0.0, Vector2(1.0, 0.45))
+			cv.draw_circle(Vector2.ZERO, 8.0 + 12.0 * k, Color(0, 0, 0, 0.25 + 0.35 * k))
+			cv.draw_set_transform(Vector2.ZERO)
+		for i in 3:
+			cv.draw_line(up + Vector2(-7, -3 + i * 3), up + Vector2(7, -3 + i * 3), _chitin(c.darkened(0.3)), 1.2)
+		Shade.ball(cv, up, 5.0, _chitin(c))
+		Shade.ball(cv, up + Vector2(0, -6), 3.5, _chitin(c.lightened(0.1)))
+		return
+	if dead:
+		_corpse(10.0, c)
+		return
+	_shadow(10.0)
+	var fx := 1.0 if cos(facing) >= 0.0 else -1.0
+	var body := Vector2(0, -6)
+	_legs(body + Vector2(0, 2), 10.0, 4, _chitin(c.darkened(0.3)), 1.6)
+	for i in 3:
+		Shade.ball(cv, body + Vector2((-6 + i * 5) * fx, 0), 4.5, _chitin(c.lightened(i * 0.04)))
+	cv.draw_line(body + Vector2(9 * fx, -1), body + Vector2(15 * fx, -4), _chitin(Color(0.75, 0.7, 0.55)), 1.5)
+
+
+## The Brood Lieutenant: an oversized, spined Broodguard with the Civic Hall's
+## access card glinting in its carapace.
+func _draw_lieutenant() -> void:
+	var c := Color(0.3, 0.2, 0.18)
+	if dead:
+		_corpse(22.0, c)
+		return
+	_shadow(23.0)
+	var tele := state == S.TELEGRAPH
+	var charging := state == S.ATTACK and attack_variant == "charge"
+	var fx := 1.0 if cos(facing) >= 0.0 else -1.0
+	var body := Vector2(0, -22)
+	_legs(body + Vector2(0, 10), 20.0, 3, _chitin(c.darkened(0.3)), 0.9 if not charging else 2.2)
+	Shade.ball(cv, body + Vector2(-8 * fx, 0), 16.0, _chitin(c))
+	Shade.ball(cv, body + Vector2(5 * fx, -3), 14.0, _chitin(c.lightened(0.06)))
+	for i in 5:
+		var sp := body + Vector2((-16 + i * 7) * fx, -12 - absf(i - 2) * 2.0)
+		cv.draw_line(sp, sp + Vector2(-2 * fx, -12 + absf(i - 2) * 2.0), _chitin(Color(0.75, 0.68, 0.5)), 2.5)   # spines
+	# the access card, fused into the carapace
+	var card := body + Vector2(-2 * fx, -6)
+	cv.draw_rect(Rect2(card - Vector2(4, 3), Vector2(8, 6)), Color(0.85, 0.7, 0.3))
+	cv.draw_rect(Rect2(card - Vector2(3, 2), Vector2(3, 2)), Color(0.3, 0.25, 0.15))
+	var head := body + Vector2(17 * fx, 3 + (5 if charging else 0))
+	Shade.ball(cv, head, 9.0, _chitin(c.lightened(0.12)))
+	cv.draw_line(head + Vector2(4 * fx, -4), head + Vector2(18 * fx, -12), _chitin(Color(0.8, 0.74, 0.6)), 4.0)
+	cv.draw_line(head + Vector2(4 * fx, 2), head + Vector2(16 * fx, 6), _chitin(Color(0.8, 0.74, 0.6)), 3.0)
+	cv.draw_circle(head + Vector2(3 * fx, -4), 2.0, Color(1.0, 0.25, 0.1) if tele or charging else Color(1.0, 0.6, 0.15))
+	cv.draw_arc(Vector2(0, -2), radius + 8.0, 0, TAU, 24, Color(1.0, 0.6, 0.2, 0.25 + 0.15 * sin(anim_t * 4.0)), 2.0)   # champion aura
+

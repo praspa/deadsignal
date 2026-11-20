@@ -1,0 +1,22 @@
+{
+ "variant": 1,
+ "name": "Main Street",
+ "rooms": {
+  "arrival": [
+   3,
+   35,
+   7,
+   39
+  ],
+  "hall_door": [
+   72,
+   2,
+   74,
+   4
+  ]
+ },
+ "dirs": {
+  "lt_dir": "east",
+  "hall_dir": "north-east"
+ }
+}

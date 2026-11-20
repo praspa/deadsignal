@@ -12,11 +12,13 @@
     "music": "",
     "intro_comms": [
       "[OVERWATCH] Operative, welcome aboard the Sable Mule. She's ugly, but she's yours for the duration.",
-      "[OVERWATCH] First tasking: the mining claim on Kessar IV has gone quiet. Something's nesting under the ash.",
-      "[OVERWATCH] Plot a course on the star map in the cockpit. Kessar IV is in this system."
+      "[OVERWATCH] First tasking: Kharon Outpost has been silent for nine days. Find out why.",
+      "[OVERWATCH] Plot a course on the star map in the cockpit. Kharon is in this system."
     ],
     "debrief_comms": [
-      "[OVERWATCH] Good work at Kharon, Operative. Stand by on the Mule while we sort out your next tasking."
+      "[OVERWATCH] Good work at Kharon, Operative. And now we have a bigger problem.",
+      "[OVERWATCH] Mayday from Last Water on Kessar III. The city stopped answering two days ago. Last transmissions talk about bugs coming out of the water mains.",
+      "[OVERWATCH] Get down there. Last Water is on your star map."
     ],
     "palette": {
       "dark": [
@@ -63,7 +65,7 @@
     ],
     "music": "level",
     "mission": "kharon",
-    "area_level": 5
+    "area_level": 2
   },
   "kessar_surface": {
     "name": "Kessar IV \u2014 Ashfall Flats",
@@ -102,7 +104,7 @@
       0.5,
       0.35
     ],
-    "area_level": 2
+    "area_level": 5
   },
   "kessar_hive": {
     "name": "Kessar IV \u2014 The Hive",
@@ -142,7 +144,163 @@
       0.15
     ],
     "no_shuttle": true,
-    "area_level": 3,
+    "area_level": 6,
     "landing_beacon": true
+  },
+  "lastwater_port": {
+    "name": "Last Water \u2014 Spaceport",
+    "map": "lastwater_port",
+    "hub": false,
+    "mission": "lastwater",
+    "area_level": 3,
+    "ambient": [
+      0.62,
+      0.5,
+      0.4
+    ],
+    "palette": {
+      "dark": [
+        0.08,
+        0.06,
+        0.04
+      ],
+      "light": [
+        0.78,
+        0.62,
+        0.44
+      ],
+      "gain": 3.4,
+      "amount": 0.75
+    },
+    "post": {
+      "grade": 0.45,
+      "saturation": 0.85
+    },
+    "wall_style": "city",
+    "music": "lastwater",
+    "dust": [
+      0.75,
+      0.62,
+      0.45,
+      0.3
+    ],
+    "lamp_color": [
+      1.0,
+      0.7,
+      0.4
+    ],
+    "exits": {
+      "Y": {
+        "to": "lastwater_streets",
+        "arrive": "Y",
+        "text": "Into the city",
+        "look": "gate"
+      }
+    }
+  },
+  "lastwater_streets": {
+    "name": "Last Water \u2014 The Streets",
+    "map": "lastwater_streets_{variant}",
+    "variants": 3,
+    "hub": false,
+    "mission": "lastwater",
+    "area_level": 3,
+    "ambient": [
+      0.58,
+      0.46,
+      0.37
+    ],
+    "palette": {
+      "dark": [
+        0.08,
+        0.06,
+        0.04
+      ],
+      "light": [
+        0.78,
+        0.62,
+        0.44
+      ],
+      "gain": 3.4,
+      "amount": 0.75
+    },
+    "post": {
+      "grade": 0.45,
+      "saturation": 0.85
+    },
+    "wall_style": "city",
+    "music": "lastwater",
+    "dust": [
+      0.75,
+      0.62,
+      0.45,
+      0.3
+    ],
+    "no_shuttle": true,
+    "log_id": "lastwater_log",
+    "exits": {
+      "Y": {
+        "to": "lastwater_port",
+        "arrive": "Y",
+        "text": "Back to the spaceport",
+        "look": "gate"
+      },
+      "U": {
+        "to": "lastwater_hall",
+        "arrive": "U",
+        "text": "Enter the Civic Hall",
+        "look": "door",
+        "requires": "lastwater:card",
+        "locked": "Sealed. Civic Hall access card required."
+      }
+    }
+  },
+  "lastwater_hall": {
+    "name": "Last Water \u2014 Civic Hall",
+    "map": "lastwater_hall",
+    "hub": false,
+    "mission": "lastwater",
+    "area_level": 4,
+    "ambient": [
+      0.4,
+      0.34,
+      0.3
+    ],
+    "palette": {
+      "dark": [
+        0.06,
+        0.05,
+        0.04
+      ],
+      "light": [
+        0.62,
+        0.52,
+        0.42
+      ],
+      "gain": 3.4,
+      "amount": 0.7
+    },
+    "post": {
+      "grade": 0.6,
+      "saturation": 0.85
+    },
+    "music": "lastwater",
+    "no_shuttle": true,
+    "landing_beacon": true,
+    "exits": {
+      "U": {
+        "to": "lastwater_streets",
+        "arrive": "U",
+        "text": "Out to the streets",
+        "look": "door"
+      }
+    },
+    "wall_style": "city",
+    "powered": true,
+    "lamp_color": [
+      1.0,
+      0.7,
+      0.42
+    ]
   }
 }

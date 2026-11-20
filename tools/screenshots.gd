@@ -50,7 +50,13 @@ func _ready() -> void:
 	if scene == "revive":
 		GameState.credits = 420
 		GameState.apply_death()
-	if scene in ["kessar", "camp", "recall", "kessar_overview"]:
+	if scene == "lw_port":
+		GameState.location = "lastwater_port"
+	elif scene in ["lw_streets", "lw_lt", "lw_overview"]:
+		GameState.location = "lastwater_streets"
+	elif scene == "lw_hall":
+		GameState.location = "lastwater_hall"
+	elif scene in ["kessar", "camp", "recall", "kessar_overview"]:
 		GameState.location = "kessar_surface"
 	elif scene in ["hive", "queen", "hive_overview"]:
 		GameState.location = "kessar_hive"
@@ -64,6 +70,22 @@ func _ready() -> void:
 	match scene:
 		"revive":
 			await frames(150)
+		"lw_port", "lw_streets":
+			p.global_position += Vector2(160, -40)
+			await frames(70)
+		"lw_lt":
+			var lt := get_tree().get_first_node_in_group("champion") as Node2D
+			p.global_position = lt.global_position + Vector2(-120, 120)
+			await frames(40)
+			p.hp = p.max_hp
+		"lw_hall":
+			var co := get_tree().get_nodes_in_group("cocoon")[0] as Node2D
+			for e in get_tree().get_nodes_in_group("enemies"):
+				if (e as Node2D).global_position.distance_to(co.global_position) < 200.0:
+					e.queue_free()
+			GameState.set_flag("lastwater:gov_2")
+			p.global_position = co.global_position + Vector2(-50, 60)
+			await frames(70)
 		"landing":
 			GameState.set_flag("beacon:kessar_hive")
 			GameState.ship_node = "kessar_iv"
@@ -269,7 +291,7 @@ func _ready() -> void:
 				game.camera.reset_smoothing()
 				game.set_process(false)
 				await frames(3)
-		"overview", "ship_overview", "kessar_overview", "hive_overview":
+		"overview", "ship_overview", "kessar_overview", "hive_overview", "lw_overview":
 			# whole layout, fully lit and zoomed out (compare the variants)
 			for e in get_tree().get_nodes_in_group("enemies"):
 				e.visible = false
