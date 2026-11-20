@@ -161,6 +161,12 @@ func _draw() -> void:
 		var a := p + (Vector2(0, t * 0.5) if across_x else Vector2(t * 0.5, 0))
 		var b := a + (Vector2(t, 0) if across_x else Vector2(0, t))
 		draw_line(a, b, C_DOOR_OPEN if open else C_DOOR, -1.0)
+	# zone exits (city gates, doors to the next zone): bright pulsing markers once seen
+	for ex in level.exits.values():
+		var ec := level.world_to_cell((ex as Node2D).global_position)
+		if is_explored(ec.x, ec.y):
+			var col := Color(1.0, 0.75, 0.3) if (ex as ZoneExit).is_open() else Color(1.0, 0.35, 0.25)
+			draw_circle((ex as Node2D).global_position, t * (0.7 + 0.15 * sin(Time.get_ticks_msec() * 0.006)), col)
 	draw_set_transform_matrix(Transform2D.IDENTITY)
 	# the operative: an arrow pointing where they aim, in screen space
 	var dir := Iso.dir(player.aim_dir).normalized()

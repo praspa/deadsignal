@@ -260,6 +260,8 @@ func _handle_actions() -> void:
 			_use_stim()
 		if Input.is_action_just_pressed("swap_weapons"):
 			GameState.swap_weapons()
+		if Input.is_action_just_pressed("roll"):
+			_try_roll()   # rolling around the ship: just for fun, free aboard
 		return
 	if Input.is_action_just_pressed("recall"):
 		start_recall()
@@ -551,7 +553,7 @@ func _spend(id: String) -> bool:
 
 
 func _try_roll() -> void:
-	if roll_t > 0.0 or not _spend("roll"):
+	if roll_t > 0.0 or (not holstered and not _spend("roll")):
 		return
 	var mv := Iso.input_to_world(Input.get_vector("move_left", "move_right", "move_up", "move_down"))
 	roll_dir = mv.normalized() if mv.length() > 0.2 else aim_dir

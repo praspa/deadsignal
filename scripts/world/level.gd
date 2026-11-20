@@ -11,7 +11,7 @@ const WALL_H := 58.0
 const CUTAWAY_ALPHA := 0.22
 const MAP_DIR := "res://data/maps/"   # outpost_<n>.txt + .json, see tools/gen_maps.py
 
-const SOLID_PROPS := "opgtinqx"
+const SOLID_PROPS := "opgtinqx&"
 const ENEMY_CHARS := {"d": "drone", "r": "researcher", "h": "heavy", "B": "boss",
 	"w": "swarmling", "y": "spitter", "G": "broodguard", "m": "miner", "u": "burrower", "e": "egg", "K": "queen",
 	"a": "militia", "s": "crawler", "A": "lieutenant"}
@@ -251,7 +251,7 @@ func _build_occluders() -> void:
 	for y in h:
 		for x in w:
 			var c := ch(x, y)
-			if "ogtinqx".contains(c) or c == "C":
+			if "ogtinqx&".contains(c) or c == "C":
 				_add_occluder(occ_root, Rect2(x * T + 3, y * T + 3, T - 6, T - 6))
 
 
@@ -408,7 +408,7 @@ func _spawn_entities() -> void:
 				var box := LootContainer.new()
 				box.setup(self, Vector2i(x, y), c == "C")
 				world.add_child(box)
-			elif SOLID_PROPS.contains(c) or c == "l" or c == "v" or c == "z" or c == "j" or c == "f":
+			elif SOLID_PROPS.contains(c) or c in ["l", "v", "z", "j", "f", "%", "*"]:
 				var p := Prop.new()
 				p.setup(self, Vector2i(x, y), c)
 				world.add_child(p)

@@ -68,6 +68,10 @@ func _draw_tile(x: int, y: int) -> void:
 	var v := float(hsh % 100) / 100.0
 	var style := level.floor_style(x, y)
 	var c := level.ch(x, y)
+	if WallTile.natural == "city" and style == ",":
+		_draw_paving(r, x, y, hsh, v)
+		_tile_decals(r, x, y, c, hsh)
+		return
 	match style:
 		",":
 			var base := Color(0.13, 0.115, 0.1).lerp(Color(0.17, 0.15, 0.13), v if WallTile.natural == "" else 0.4 + v * 0.15)
@@ -103,6 +107,12 @@ func _draw_tile(x: int, y: int) -> void:
 				ci.draw_circle(r.position + Vector2(hsh % 20 + 6, (hsh / 7) % 20 + 6), 7.0 + float(hsh % 5), Color(0.05, 0.045, 0.04, 0.35))
 			if hsh % 23 == 0:
 				ci.draw_line(r.position + Vector2(3, 28), r.position + Vector2(28, 3), Color(0.06, 0.06, 0.06, 0.7), 1.0)
+	_tile_decals(r, x, y, c, hsh)
+
+
+## Door hazard stripes, contact shading and floor decals (blood, corpses, ...)
+## shared by every floor style.
+func _tile_decals(r: Rect2, x: int, y: int, c: String, hsh: int) -> void:
 	# door thresholds get hazard striping
 	if Level.DOOR_REQ.has(c):
 		ci.draw_rect(r, Color(0.06, 0.06, 0.06))
@@ -124,6 +134,42 @@ func _draw_tile(x: int, y: int) -> void:
 			ci.draw_rect(Rect2(r.position + Vector2(6, 6), Vector2(20, 20)), Color(0.04, 0.04, 0.04))
 			for i in 4:
 				ci.draw_line(r.position + Vector2(7, 9 + i * 5), r.position + Vector2(25, 9 + i * 5), Color(0.22, 0.2, 0.18), 1.5)
+
+
+## Last Water's streets: worn paving slabs with seams and cracks, kerbs where
+## the street meets a building, the odd manhole cover or storm drain.
+func _draw_paving(r: Rect2, x: int, y: int, hsh: int, v: float) -> void:
+	var base := Color(0.2, 0.18, 0.16).lerp(Color(0.23, 0.21, 0.18), v * 0.6)
+	ci.draw_rect(r, base)
+	# two rows of offset slabs per tile
+	var seam := base.darkened(0.45)
+	var off := 8.0 if y % 2 == 0 else 0.0
+	ci.draw_line(r.position + Vector2(0, 16), r.position + Vector2(T, 16), seam, 1.0)
+	for k in 2:
+		var sx := r.position.x + fmod(off + k * 16.0 + 4.0, T)
+		ci.draw_line(Vector2(sx, r.position.y), Vector2(sx, r.position.y + 16), seam, 1.0)
+		ci.draw_line(Vector2(fmod(sx - r.position.x + 8.0, T) + r.position.x, r.position.y + 16), Vector2(fmod(sx - r.position.x + 8.0, T) + r.position.x, r.end.y), seam, 1.0)
+	ci.draw_line(r.position + Vector2(1, 1), r.position + Vector2(T - 2, 1), base.lightened(0.12), 1.0)
+	if hsh % 7 == 0:
+		ci.draw_polyline(PackedVector2Array([r.position + Vector2(4, 6), r.position + Vector2(13, 14), r.position + Vector2(11, 22), r.position + Vector2(22, 29)]), Color(0.06, 0.05, 0.04, 0.8), 1.0)
+	if hsh % 61 == 0:
+		ci.draw_circle(r.get_center(), 8.0, Color(0.12, 0.11, 0.1))                      # manhole cover
+		ci.draw_arc(r.get_center(), 8.0, 0, TAU, 16, Color(0.3, 0.28, 0.25), 1.5)
+		ci.draw_line(r.get_center() + Vector2(-5, 0), r.get_center() + Vector2(5, 0), Color(0.3, 0.28, 0.25), 1.0)
+	elif hsh % 47 == 0:
+		ci.draw_rect(Rect2(r.position + Vector2(8, 10), Vector2(16, 12)), Color(0.06, 0.06, 0.06))   # storm drain
+		for i in 4:
+			ci.draw_line(r.position + Vector2(10 + i * 4, 10), r.position + Vector2(10 + i * 4, 22), Color(0.25, 0.23, 0.2), 1.0)
+	# kerbs: a raised lighter edge along building walls
+	var kerb := base.lightened(0.28)
+	if level.is_wall(x, y - 1):
+		ci.draw_rect(Rect2(r.position, Vector2(T, 4)), kerb)
+	if level.is_wall(x - 1, y):
+		ci.draw_rect(Rect2(r.position, Vector2(4, T)), kerb)
+	if level.is_wall(x, y + 1):
+		ci.draw_rect(Rect2(r.position + Vector2(0, T - 4), Vector2(T, 4)), kerb)
+	if level.is_wall(x + 1, y):
+		ci.draw_rect(Rect2(r.position + Vector2(T - 4, 0), Vector2(4, T)), kerb)
 
 
 func _blood(center: Vector2, hsh: int, s: float) -> void:

@@ -194,7 +194,8 @@
         "to": "lastwater_streets",
         "arrive": "Y",
         "text": "Into the city",
-        "look": "gate"
+        "look": "gate",
+        "sign": "CITY"
       }
     }
   },
@@ -243,7 +244,8 @@
         "to": "lastwater_port",
         "arrive": "Y",
         "text": "Back to the spaceport",
-        "look": "gate"
+        "look": "gate",
+        "sign": "PORT"
       },
       "U": {
         "to": "lastwater_hall",

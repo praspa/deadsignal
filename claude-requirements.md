@@ -315,7 +315,7 @@ The ship color palette is a silver with blue undertones. Well lit, the player do
 The operative is assigned a ship, the Sable Mule (placeholder name). Not owned or captained by the player. A functional but beat-up bucket of bolts: welded hull patches, exposed cabling, one light that always flickers. The ship is lit well enough such that the character doesn't need to use flash light.
 
 A new game starts aboard the ship (after character creation).
-Safe zone: no enemies; weapons and combat abilities are holstered.
+Safe zone: no enemies; weapons and combat abilities are holstered. Tactical Roll still works aboard, free of energy, purely for fun (players will roll around the ship out of habit).
 Warmer lighting than mission sites; quieter (ship music/ambience still to come).
 Rooms: engineering, common deck, cargo hold, medbay, cockpit.
 Footlocker stash in the bunk area (to do).
