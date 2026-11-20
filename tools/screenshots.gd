@@ -182,6 +182,10 @@ func _ready() -> void:
 			GameState.add_item(ItemDB.generate("energy_pistol", 3, 3))
 			GameState.add_item(ItemDB.generate("plate_cuirass", 2, 2))
 			GameState.add_item(ItemDB.generate("auspex", 1, 1))
+			for pair in [["chainblade", 1], ["rebreather_helm", 0], ["grip_gloves", 2], ["mag_boots", 1], ["shotgun", 2], ["injector", 3], ["sallet_helm", 1], ["runner_boots", 0]]:
+				GameState.add_item(ItemDB.generate(pair[0], pair[1], 3))
+			GameState.equip(ItemDB.generate("energy_pistol", 2, 3), "primary")
+			GameState.equip(ItemDB.generate("chainblade", 1, 3), "secondary")
 			GameState.add_xp(300)
 			await frames(5)
 			game._toggle(game.inventory_ui if scene == "inventory" else game.character_ui)

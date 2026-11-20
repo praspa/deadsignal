@@ -157,16 +157,9 @@ func _clear(g: Container) -> void:
 
 
 func _item_button(g: GridContainer, it: Dictionary, price: int, cb: Callable) -> void:
-	var b := Button.new()
-	b.custom_minimum_size = Vector2(96, 56)
-	b.clip_text = true
-	b.add_theme_font_size_override("font_size", 11)
-	var words := ItemDB.slot_label(it).split(" ")
-	b.text = "%s\n%s" % [words[words.size() - 1], GameState.fmt_uc(price)]
+	var b := ItemSlot.make(it, GameState.fmt_uc(price), false, Vector2(96, 60))
 	b.tooltip_text = String(it["name"])
-	b.add_theme_color_override("font_color", ItemDB.rarity_color(int(it["rarity"])))
-	if g == vendor_grid and GameState.credits < price:
-		b.add_theme_color_override("font_color", ItemDB.rarity_color(int(it["rarity"])).darkened(0.55))
+	b.dim = g == vendor_grid and GameState.credits < price
 	b.pressed.connect(cb)
 	b.focus_entered.connect(_inspect.bind(it, g == pack_grid))
 	b.mouse_entered.connect(_inspect.bind(it, g == pack_grid))
