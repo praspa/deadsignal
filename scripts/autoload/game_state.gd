@@ -80,6 +80,7 @@ var last_death_loss := [0, 0]      # [UC, XP] lost on the last death (for the wa
 var stash: Array = []              # items in the ship's cargo locker
 var vendor_stock: Array = []       # the Quartermaster's gear for sale
 var buyback: Array = []            # items sold this session, newest first
+var journal: Array = []            # comms heard: {"m": mission id or "crew", "who": speaker, "text": line}
 var respecs := 0                   # attribute respecs bought from the Medic (first is free)
 var max_area_reached := 1          # highest area level visited (caps vendor / fence item level)
 var variants: Dictionary = {}      # location -> layout number, for locations with several layouts
@@ -133,6 +134,7 @@ func new_game(p_name: String = DEFAULT_NAME, p_class: String = "combat_specialis
 	ship_node = String(ItemDB.starmap.get("ship_start", ""))
 	stash = []
 	buyback = []
+	journal = []
 	respecs = 0
 	max_area_reached = 1
 	reviving = false
@@ -490,6 +492,63 @@ func fmt(text: String) -> String:
 	return text.format(map_info.get("dirs", {}))
 
 
+# ---------------------------------------------------------------- journal
+
+const JOURNAL_MAX := 300
+
+
+## Records a comms line in the journal. `line` is "[OVERWATCH] text" or
+## 'Name: "text"'; `mid` is the mission it belongs to ("" = the current
+## mission, or "crew" aboard the ship). A line already in the journal is skipped.
+func journal_log(line: String, mid: String = "") -> void:
+	var who := ""
+	var text := line.strip_edges()
+	if text.begins_with("[") and text.find("]") > 0:
+		who = text.substr(1, text.find("]") - 1).capitalize()
+		text = text.substr(text.find("]") + 1).strip_edges()
+	elif text.find(": \"") > 0 and text.ends_with("\""):
+		var q := text.find(": \"")
+		who = text.substr(0, q)
+		text = text.substr(q + 3, text.length() - q - 4)
+	if mid == "":
+		mid = mission_id() if mission_id() != "" else "crew"
+	for e in journal:
+		if String(e.get("text", "")) == text and String(e.get("who", "")) == who:
+			return
+	journal.append({"m": mid, "who": who, "text": text})
+	if journal.size() > JOURNAL_MAX:
+		journal = journal.slice(journal.size() - JOURNAL_MAX)
+
+
+func journal_entries(mid: String) -> Array:
+	return journal.filter(func(e: Dictionary) -> bool: return String(e.get("m", "")) == mid)
+
+
+## "completed" (every objective done), "active" (cleared for travel or under
+## way) or "locked" (not offered yet: hidden from the journal).
+func mission_status(mid: String) -> String:
+	var m: Dictionary = ItemDB.missions.get(mid, {})
+	var objs: Array = m.get("objectives", [])
+	var idx := objective_index(mid)
+	if not objs.is_empty() and idx >= objs.size():
+		return "completed"
+	var of := String(m.get("open_flag", ""))
+	if of == "" or has_flag(of) or idx > 0:
+		return "active"
+	return "locked"
+
+
+## Objective text for the journal. Directions ("{gen_dir}") only make sense
+## inside the current map, so elsewhere they're dropped.
+func journal_objective_text(mid: String, i: int) -> String:
+	var objs: Array = ItemDB.missions.get(mid, {}).get("objectives", [])
+	var t := String(objs[i].get("text", ""))
+	if mid == mission_id():
+		return fmt(t)
+	var re := RegEx.create_from_string("\\s*\\([^)]*\\{[^}]*\\}[^)]*\\)|\\{[^}]*\\}")
+	return re.sub(t, "", true).strip_edges()
+
+
 ## The mission the current location belongs to ("" aboard the ship).
 func mission_id() -> String:
 	return String(location_def().get("mission", ""))
@@ -778,7 +837,7 @@ func save_game(pos: Variant) -> bool:
 		"attributes": attributes, "hp": hp, "energy": energy,
 		"inventory": inventory, "equipment": equipment,
 		"ammo": ammo, "stims": stims, "credits": credits, "flags": flags,
-		"location": location, "areas": areas, "ship_node": ship_node, "stash": stash, "vendor_stock": vendor_stock, "buyback": buyback, "respecs": respecs, "max_area_reached": max_area_reached, "reviving": reviving, "variants": variants, "beacon": beacon, "recall_cd": recall_cd,
+		"location": location, "areas": areas, "ship_node": ship_node, "stash": stash, "vendor_stock": vendor_stock, "buyback": buyback, "respecs": respecs, "journal": journal, "max_area_reached": max_area_reached, "reviving": reviving, "variants": variants, "beacon": beacon, "recall_cd": recall_cd,
 		"ground_items": ground_items,
 		"player_pos": pp,
 		"map_variant": map_variant,
@@ -835,6 +894,7 @@ func load_game() -> bool:
 	areas = d.get("areas", {})
 	ship_node = String(d.get("ship_node", ""))
 	stash = d.get("stash", [])
+	journal = d.get("journal", [])   # older saves: empty journal
 	vendor_stock = d.get("vendor_stock", [])
 	buyback = d.get("buyback", [])
 	respecs = int(d.get("respecs", 0))

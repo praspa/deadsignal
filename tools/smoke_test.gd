@@ -579,6 +579,8 @@ func run() -> void:
 	check(GameState.has_flag("boss"), "boss defeat sets mission flag")
 
 	print("== save / load: a new session")
+	GameState.journal_log("[OVERWATCH] Journal persistence check.", "kharon")
+	var saved_journal := GameState.journal.size()
 	GameState.save_game(player.global_position)
 	var saved_level := GameState.level
 	var saved_inv := GameState.inventory.size()
@@ -589,6 +591,8 @@ func run() -> void:
 	game = main.get("current")
 	check(GameState.level == saved_level and GameState.inventory.size() == saved_inv and GameState.credits == saved_uc, "save/load restores character and creds")
 	check(GameState.stash.size() == 1, "stash survives save / load")
+	check(GameState.journal.size() == saved_journal and saved_journal > 0, "journal survives save / load (%d lines)" % saved_journal)
+	await _journal_tests()
 	check(GameState.location == "ship" and game.hub, "loading starts the session aboard the ship")
 	check(GameState.has_flag("boss") and GameState.has_flag("power"), "story progress persists across sessions")
 	check(not GameState.flags.keys().any(func(f: String) -> bool: return f.begins_with("kharon/k:") or f.begins_with("kharon/box:")), "mission areas reset: kills and opened crates forgotten")
@@ -1011,6 +1015,33 @@ func _crew(id: String) -> CrewNpc:
 		if (n as CrewNpc).crew_id == id:
 			return n
 	return null
+
+
+func _journal_tests() -> void:
+	print("== journal")
+	var n0 := GameState.journal.size()
+	GameState.journal_log("[OVERWATCH] Smoke test line.", "kharon")
+	GameState.journal_log("[OVERWATCH] Smoke test line.", "kharon")
+	GameState.journal_log('Dov Harrow: "Smoke test banter."', "crew")
+	var last: Dictionary = GameState.journal[GameState.journal.size() - 1]
+	check(GameState.journal.size() == n0 + 2, "journal records comms once (repeats skipped)")
+	check(String(last["who"]) == "Dov Harrow" and String(last["text"]) == "Smoke test banter." and String(last["m"]) == "crew", "crew banter parsed into speaker and line")
+	check(GameState.mission_status("kharon") in ["active", "completed"], "Kharon is in the journal (%s)" % GameState.mission_status("kharon"))
+	var ks := GameState.mission_status("kessar")
+	check(ks == ("locked" if not GameState.has_flag("kessar_iv_open") else "active") or ks == "completed", "Kessar IV only appears once it's cleared for travel (%s)" % ks)
+	var t := GameState.journal_objective_text("kharon", 1) if GameState.mission_id() != "kharon" else "skip"
+	check(not t.contains("{") and not t.contains("("), "objective directions are dropped outside the map (\"%s\")" % t)
+	game._toggle(game.journal_ui)
+	await frames(3)
+	var entries: Array = game.journal_ui.list.get_children().filter(func(c: Node) -> bool: return c is Button)
+	check(game.journal_ui.visible and entries.size() >= 2, "journal screen opens with %d entries" % entries.size())
+	game.journal_ui.show_entry("crew")
+	check(game.journal_ui.log_lbl.text.contains("Smoke test banter."), "Ship & crew entry shows crew banter")
+	game.journal_ui.show_entry("kharon")
+	check(game.journal_ui.log_lbl.text.contains("Smoke test line.") and game.journal_ui.objectives.text != "", "mission entry shows objectives and comms")
+	game._toggle(game.journal_ui)
+	await frames(2)
+	check(not game.journal_ui.visible, "J closes the journal")
 
 
 func _crew_service_tests() -> void:

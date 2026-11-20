@@ -27,6 +27,7 @@ Target is 1280x800 (Steam Deck) at 60 FPS with the GL Compatibility renderer.
 | Reload / Interact / Stim | R / E / H | X / Y / D-Up |
 | Swap primary ↔ secondary | X | D-Down |
 | Inventory / Character | I or Tab / C | Back or D-Right / D-Left |
+| Mission journal | J | Start, then Journal |
 | Pause / Quick save / Quick load | Esc / F5 / F9 | Start |
 | Show all loot names (hold) | Alt | L3 |
 | Menus: move / select / back | Arrows / Enter / Esc | D-pad or left stick / A (PS Cross) / B (PS Circle) |
@@ -170,6 +171,7 @@ where each image goes in Steam. It's rendered from a staged fight in the real ga
 
 ## Design notes
 
+- **Mission journal** (`scripts/ui/journal_ui.gd`). Every comms line is written to `GameState.journal` as it plays (`journal_log`), tagged with its mission (or "crew"), and saved with the game. Mission status comes from the objective flags; a mission shows up once its `open_flag` (in its mission JSON) is set.
 - **Races.** Six playable races (`GameState.RACES`) change the operative's look and nudge their attributes by a small, balanced amount (`attr_mod`, summing to zero; Human has none). The adjustment is added on top of spent points like gear is, so respec and saves only deal with spent points. The creation screen lists each race's adjustments, and the character sheet shows them as "+N race".
 - **Isometric projection layer.**
   - The simulation is unchanged: physics, pathing, AI and combat all run on the square tile grid.

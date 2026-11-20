@@ -1,7 +1,7 @@
 extends Node
 ## Captures one gameplay screenshot per run for visual review (needs a display).
 ##   godot --path . -- --shots <output_dir> <scene>
-## scenes: menu creation races ship revive nav starmap_fly ship_overview landing atrium generator powered labs xenolab boss inventory character terminal cutaway loot [aim: down|up|left|right] overview
+## scenes: menu creation races ship revive nav starmap_fly ship_overview landing atrium generator powered labs xenolab boss inventory character terminal cutaway loot journal [aim: down|up|left|right] overview
 ## add --variant N to pick a layout
 
 var main: Node
@@ -64,7 +64,7 @@ func _ready() -> void:
 		GameState.location = "kessar_surface"
 	elif scene in ["hive", "queen", "hive_overview"]:
 		GameState.location = "kessar_hive"
-	elif not scene in ["ship", "nav", "starmap_fly", "ship_overview", "revive", "crew_q", "crew_t", "crew_m", "crew_f", "crew_p", "crew_screen", "trade", "landing"]:
+	elif not scene in ["ship", "nav", "starmap_fly", "ship_overview", "revive", "crew_q", "crew_t", "crew_m", "crew_f", "crew_p", "crew_screen", "trade", "landing", "journal"]:
 		GameState.location = "kharon"
 	main.call("start_game")
 	await frames(3)
@@ -72,6 +72,26 @@ func _ready() -> void:
 	var p := game.player
 	var lvl := game.level
 	match scene:
+		"journal":
+			# mid-story: Kharon done, Last Water under way, a few comms heard
+			for f in ["briefed", "entered", "power", "research", "cause", "boss", "escape", "debriefed", "lastwater_open", "lastwater:landed", "lastwater:streets"]:
+				GameState.flags[f] = true
+			var kh: Dictionary = ItemDB.missions["kharon"]
+			for o in kh["objectives"]:
+				for line in o.get("comms", []):
+					GameState.journal_log(GameState.fmt(String(line)), "kharon")
+			var lw: Dictionary = ItemDB.missions["lastwater"]
+			for o in lw["objectives"].slice(0, 3):
+				for line in o.get("comms", []):
+					GameState.journal_log(String(line), "lastwater")
+			GameState.journal_log('Dov Harrow: "Mind the crates. They bite back."', "lastwater")
+			game._toggle(game.journal_ui)
+			await frames(5)
+			game.journal_ui.show_entry("lastwater")
+			for c in game.journal_ui.list.get_children():
+				if c is Button and String(c.get_meta("entry", "")) == "lastwater":
+					(c as Button).grab_focus()
+			await frames(5)
 		"revive":
 			await frames(150)
 		"lw_fountain":

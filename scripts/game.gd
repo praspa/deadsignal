@@ -22,6 +22,7 @@ var crew_ui: CrewUI
 var trade_ui: TradeUI
 var hub := false
 var pause_menu: PauseMenu
+var journal_ui: JournalUI
 var end_screen: EndScreen
 var open_screen: Screen = null
 var dust: CPUParticles2D
@@ -190,12 +191,14 @@ func _ready() -> void:
 	crew_ui = CrewUI.new()
 	trade_ui = TradeUI.new()
 	pause_menu = PauseMenu.new()
+	journal_ui = JournalUI.new()
 	end_screen = EndScreen.new()
-	for s in [inventory_ui, character_ui, terminal_ui, star_map, stash_ui, crew_ui, trade_ui, pause_menu, end_screen]:
+	for s in [inventory_ui, character_ui, journal_ui, terminal_ui, star_map, stash_ui, crew_ui, trade_ui, pause_menu, end_screen]:
 		ui_layer.add_child(s)
 		s.hide()
 	inventory_ui.closed.connect(_on_screen_closed)
 	character_ui.closed.connect(_on_screen_closed)
+	journal_ui.closed.connect(_on_screen_closed)
 	terminal_ui.closed.connect(_on_terminal_closed)
 	star_map.closed.connect(_on_screen_closed)
 	stash_ui.closed.connect(_on_screen_closed)
@@ -304,6 +307,7 @@ func _mission_triggers() -> void:
 	if GameState.has_flag("boss") and not GameState.has_flag("escape") and level.exit_rect.has_point(p):
 		GameState.set_flag("escape")
 		Events.msg("[OVERWATCH] Extraction lock confirmed. Bringing you home, Operative.", Color(0.55, 0.85, 1.0))
+		GameState.journal_log("[OVERWATCH] Extraction lock confirmed. Bringing you home, Operative.", "kharon")
 		Events.mission_complete.emit()
 		victory_timer = 1.5
 
@@ -336,7 +340,7 @@ func _wake_in_cradle() -> void:
 	var lines: Array = ItemDB.crew.get("M", {}).get("revive_lines", [])
 	if not lines.is_empty():
 		var who := String(ItemDB.crew["M"].get("name", "Medic"))
-		comms.append(["%s: \"%s\"" % [who, String(lines.pick_random())], 1.5, Color(0.85, 0.78, 0.6)])
+		comms.append(["%s: \"%s\"" % [who, String(lines.pick_random())], 1.5, Color(0.85, 0.78, 0.6), "crew"])
 	Fx.ring(world, Iso.sp(player.global_position, 10), 60.0, Color(0.4, 1.0, 0.7), 0.6, 6.0)
 	_save.call_deferred(false)
 
@@ -359,7 +363,7 @@ func _hub_comms() -> void:
 		Events.msg("Star map updated: Kessar III (Last Water) cleared for landing.", Color(0.5, 0.85, 1.0))
 	var delay := 1.2
 	for line in ldef.get(key, []):
-		comms.append([String(line), delay])
+		comms.append([String(line), delay, Color(0.55, 0.85, 1.0), "kharon"])   # Kharon's briefing / debrief
 		delay = 3.5
 
 
@@ -384,7 +388,7 @@ func _debrief(mid: String) -> void:
 		GameState.set_flag(String(f))
 	var delay := 1.2
 	for line in m.get("debrief", []):
-		comms.append([String(line), delay])
+		comms.append([String(line), delay, Color(0.55, 0.85, 1.0), mid])
 		delay = 3.5
 	_save.call_deferred(false)
 
@@ -404,8 +408,9 @@ func _run_comms(delta: float) -> void:
 		return
 	comms[0][1] = float(comms[0][1]) - delta
 	if float(comms[0][1]) <= 0.0:
-		Events.msg(String(comms[0][0]), comms[0][2] if (comms[0] as Array).size() > 2 else Color(0.55, 0.85, 1.0))
-		comms.pop_front()
+		var c: Array = comms.pop_front()
+		Events.msg(String(c[0]), c[2] if c.size() > 2 else Color(0.55, 0.85, 1.0))
+		GameState.journal_log(String(c[0]), String(c[3]) if c.size() > 3 else "")
 
 
 # ---------------------------------------------------------------- screens
@@ -460,6 +465,9 @@ func _input(event: InputEvent) -> void:
 	elif event.is_action_pressed("character") and not player.dead:
 		_toggle(character_ui)
 		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("journal") and not player.dead:
+		_toggle(journal_ui)
+		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("quicksave") and open_screen == null and not player.dead:
 		_save(false)
 		get_viewport().set_input_as_handled()
@@ -472,7 +480,7 @@ func _input(event: InputEvent) -> void:
 func _toggle(s: Screen) -> void:
 	if open_screen == s:
 		_close_current()
-	elif open_screen == null or open_screen == inventory_ui or open_screen == character_ui or open_screen == pause_menu:
+	elif open_screen == null or open_screen in [inventory_ui, character_ui, journal_ui, pause_menu]:
 		if open_screen != null:
 			open_screen.hide()
 			open_screen = null
@@ -607,6 +615,8 @@ func _on_pause_action(id: String) -> void:
 			_toggle(inventory_ui)
 		"character":
 			_toggle(character_ui)
+		"journal":
+			_toggle(journal_ui)
 		"save":
 			_save(false)
 		"load":

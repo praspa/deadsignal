@@ -75,15 +75,26 @@ func interact(p: Node) -> void:
 
 
 ## A line for the crew screen: general lines plus any unlocked by progress.
+## The line goes in the journal: under the mission whose progress unlocked it
+## (a "kessar:queen" line -> The Brood of Kessar), otherwise under the crew.
 func line() -> String:
-	var pool: Array = (data.get("lines", []) as Array).duplicate()
+	var pool: Array = []   # [line, journal tag]
+	for l in data.get("lines", []):
+		pool.append([String(l), "crew"])
 	var after: Dictionary = data.get("lines_after", {})
 	for f in after:
 		if GameState.has_flag(String(f)):
+			var mid := String(f).get_slice(":", 0)
+			var tag := mid if ItemDB.missions.has(mid) else "crew"
 			# progress lines are fresher: weight them up
 			for i in 3:
-				pool.append_array(after[f])
-	return String(pool.pick_random()) if not pool.is_empty() else "..."
+				for l in after[f]:
+					pool.append([String(l), tag])
+	if pool.is_empty():
+		return "..."
+	var pick: Array = pool.pick_random()
+	GameState.journal_log("%s: \"%s\"" % [display_name(), pick[0]], pick[1])
+	return String(pick[0])
 
 
 func _face_toward(p: Vector2) -> void:
@@ -106,6 +117,7 @@ func _process(delta: float) -> void:
 			var b := String(data.get("bark", ""))
 			if b != "":
 				Events.msg("%s: \"%s\"" % [display_name(), b], Color(0.85, 0.78, 0.6))
+				GameState.journal_log("%s: \"%s\"" % [display_name(), b], "crew")
 	if light != null:
 		light.energy = 0.45 + (0.15 * sin(t * 3.0) if crew_id == "T" else 0.0)
 

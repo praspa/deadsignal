@@ -9,14 +9,14 @@ var controls_lbl: RichTextLabel
 
 
 func _ready() -> void:
-	make_panel(Vector2(420, 520))
+	make_panel(Vector2(420, 570))
 	box = VBoxContainer.new()
 	box.add_theme_constant_override("separation", 8)
 	panel.add_child(box)
 	var t := UiTheme.title_label("— PAUSED —", 28)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(t)
-	for pair in [["Resume", "resume"], ["Inventory", "inventory"], ["Character", "character"], ["Save Game", "save"],
+	for pair in [["Resume", "resume"], ["Inventory", "inventory"], ["Character", "character"], ["Journal", "journal"], ["Save Game", "save"],
 			["Load Last Save", "load"], ["Controls", "controls"], ["Quit to Main Menu", "menu"], ["Quit to Desktop", "quit"]]:
 		var b := UiTheme.button(pair[0], _emit.bind(pair[1]))
 		b.custom_minimum_size = Vector2(0, 42)
@@ -40,7 +40,7 @@ func refresh() -> void:
 func _emit(id: String) -> void:
 	if id == "controls":
 		controls_lbl.visible = not controls_lbl.visible
-		panel.custom_minimum_size = Vector2(560, 760) if controls_lbl.visible else Vector2(420, 520)
+		panel.custom_minimum_size = Vector2(560, 760) if controls_lbl.visible else Vector2(420, 570)
 		panel.size = panel.custom_minimum_size
 		_center_panel()
 		return

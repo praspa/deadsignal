@@ -257,6 +257,11 @@ Equipment.
 Character attributes. Each attribute has an icon beside it: STR a dumbbell, DEX a crosshair, INT a brain, WIL a shield. Assigning a point keeps the selection on that attribute (it doesn't jump back to the top), so several points can go into one attribute with repeated presses.
 Loot inspection.
 Dialogue and terminal interaction.
+Mission journal (J, or Journal in the pause menu; on a controller, through the pause menu):
+  Left: active missions, then completed ones, then "Ship & crew".
+  A mission shows its title, status (Active / Completed) and bounty, the objectives done so far and the current one (later objectives stay hidden), and a comms log.
+  Comms log: every OVERWATCH and crew line the operative has heard for that mission, oldest first, with the speaker. Crew lines unlocked by mission progress (e.g. after the Brood Queen dies) file under that mission; other crew banter files under "Ship & crew".
+  A mission appears once it's cleared for travel. Only lines actually heard are recorded; repeats are recorded once. The journal is saved with the game.
 
 In game Mini-Map to aid in navigation:
 In game mini map of the level in the upper right hand corner. Similar to diablo. 
