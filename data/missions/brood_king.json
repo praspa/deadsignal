@@ -1,0 +1,49 @@
+{
+  "title": "The Brood King",
+  "complete_flag": "king:dead",
+  "objectives": [
+    {
+      "flag": "king:landed",
+      "text": "Land on Kessar VII",
+      "comms": []
+    },
+    {
+      "flag": "king:tangle",
+      "text": "Head inland into the jungle",
+      "comms": [
+        "[OVERWATCH] Readings are coming from the island's heart. The survey team went in before us; see if they left anything."
+      ]
+    },
+    {
+      "flag": "king:gate",
+      "text": "Follow the King's trail through the Tangle (the Caldera is {caldera_dir})",
+      "comms": [
+        "[OVERWATCH] Look at the size of those tracks. Follow them. And watch the trees, the locals don't like visitors."
+      ]
+    },
+    {
+      "flag": "king:dead",
+      "text": "Kill the Brood King",
+      "comms": [
+        "[OVERWATCH] That gate's older than anything we've seen. Whatever's behind it, Operative, it knows you're coming."
+      ]
+    },
+    {
+      "flag": "king:done",
+      "text": "Return to the ship (Recall, or the beach shuttle)",
+      "comms": [
+        "[OVERWATCH] ...It's down. The King is down. The swarm on Kessar is finished. Come home, Operative."
+      ]
+    }
+  ],
+  "debrief": [
+    "[OVERWATCH] The Brood is broken. Every hive in the Kessar System is dying off. You did that.",
+    "[INES RUHL] It's quiet. The chatter's gone. All of it. ...Almost all of it. There's one channel I can't place. Three notes, over and over.",
+    "[OVERWATCH] Noted. Get some rest, Operative. Belt Claim 7 and the Halcyon System are open on your star map."
+  ],
+  "bounty": 900,
+  "unlocks": [
+    "belt_open",
+    "intel:halcyon"
+  ]
+}

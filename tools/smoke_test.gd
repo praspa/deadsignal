@@ -697,6 +697,7 @@ func run() -> void:
 
 	await _lastwater_tests()
 	await _kessar_tests()
+	await _brood_king_tests()
 
 	await _doctrine_tests()
 	await _gunline_vanguard_tests()
@@ -986,7 +987,8 @@ func _kessar_tests() -> void:
 	await frames(8)
 	game = main.get("current")
 	check(GameState.has_flag("kessar:done") and GameState.credits >= uc0 + 500, "OVERWATCH debrief pays the bounty")
-	check(StarMapUI.is_unlocked("kessar_belt"), "mission unlocks the next star map node")
+	check(StarMapUI.is_unlocked("kessar_vii") and not StarMapUI.is_unlocked("kessar_belt"), "the twist: Kessar IV's debrief reveals Kessar VII (the Brood King)")
+	check(game.comms.any(func(c: Array) -> bool: return String(c[0]).begins_with("[INES RUHL]")), "Ines stops the celebration: something answered the hive")
 
 	print("== re-entrant areas and diminishing returns")
 	var lv_keep := GameState.level
@@ -1029,6 +1031,155 @@ func _kessar_tests() -> void:
 	await frames(8)
 	game = main.get("current")
 	check(GameState.credits < uc1 + 500 and not game.comms.any(func(c: Array) -> bool: return String(c[0]).contains("Bounty")), "re-killing her pays no second bounty")
+
+
+func _brood_king_tests() -> void:
+	print("== Kessar VII: the Shoreline")
+	GameState.ship_node = "kessar_vii"
+	main.call("_on_game_request", "travel:kessar7_shore")
+	await frames(8)
+	game = main.get("current")
+	var level := game.level
+	check(GameState.location == "kessar7_shore" and GameState.has_flag("king:landed"), "landing on Kessar VII's beach")
+	var water := 0
+	for y in level.h:
+		for x in level.w:
+			if level.ch(x, y) == "~":
+				water += 1
+	check(water > 200 and level.astar.is_point_solid(_find_char(level, "~")), "the ocean behind you is impassable water")
+	check(level.get_node_or_null("WaterCollision") != null and (level.get_node("WaterCollision") as Node).get_child_count() > 0, "water has its own collision (blocks walking, not bullets)")
+	level.exits["Y"].interact(game.player)
+	await frames(8)
+	game = main.get("current")
+	level = game.level
+	var player := game.player
+	print("== Kessar VII: the Tangle")
+	check(GameState.location == "kessar7_tangle" and GameState.current_objective_text().begins_with("Follow the King's trail"), "into the jungle maze (%s): %s" % [GameState.map_info.get("name", "?"), GameState.current_objective_text()])
+	var counts := {}
+	for y in level.h:
+		for x in level.w:
+			var c := level.ch(x, y)
+			if c in ["=", ":", "{", "~"]:
+				counts[c] = int(counts.get(c, 0)) + 1
+	check(counts.get("=", 0) > 0 and counts.get(":", 0) > 0 and counts.get("{", 0) > 20, "rivers with bridges and fords; the King's tracks %s" % str(counts))
+	check(_count_kind("gibberer") > 10 and _count_kind("thornback") >= 1 and _count_kind("stalker") >= 4 and _count_kind("elder_thornback") == 1,
+		"primates (Gibberers, Thornbacks, the Elder) and Canopy Stalkers in the Tangle")
+	check(not GameState.fmt(String(ItemDB.terminals["kessar7_log"]["pages"][2])).contains("{"), "the survey log points toward the Caldera")
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if (e as Node2D).global_position.distance_to(player.global_position) < 900.0:
+			e.queue_free()
+	await frames(2)
+	var gib := level.spawn_enemy("gibberer", player.global_position + Vector2(200, 0), "") as BroodEnemy
+	await frames(2)
+	gib.telegraph_target = player.global_position
+	gib.attack_variant = "stone"
+	var n_proj := game.world.get_children().filter(func(n: Node) -> bool: return n is Projectile).size()
+	gib._begin_attack()
+	check(game.world.get_children().filter(func(n: Node) -> bool: return n is Projectile).size() > n_proj, "Gibberers throw stones")
+	gib.queue_free()
+	var tb := level.spawn_enemy("thornback", player.global_position + Vector2(50, 0), "") as BroodEnemy
+	await frames(2)
+	var hurt := false
+	for i in 20:
+		player.hp = player.max_hp
+		tb.telegraph_target = player.global_position
+		tb.attack_variant = "pound"
+		tb._begin_attack()
+		await frames(1)
+		if player.hp < player.max_hp:
+			hurt = true
+			break
+	check(hurt, "a Thornback's ground pound hits the operative")
+	tb.queue_free()
+	player.hp = player.max_hp
+	var gate: ZoneExit = level.exits["U"]
+	player.global_position = gate.global_position + Vector2(-60, 0)
+	await frames(4)
+	check(GameState.has_flag("king:gate"), "reaching the old gate")
+	gate.interact(player)
+	await frames(8)
+	game = main.get("current")
+	level = game.level
+	player = game.player
+	print("== Kessar VII: the King's Caldera")
+	check(GameState.location == "kessar7_caldera" and GameState.has_flag("beacon:kessar7_caldera"), "through the gate into the Caldera (landing beacon linked)")
+	var king := get_tree().get_first_node_in_group("boss") as BroodKing
+	check(king != null, "the Brood King waits in the Caldera")
+	var pillars := game.world.get_children().filter(func(n: Node) -> bool: return n is Prop and (n as Prop).kind == "+")
+	check(pillars.size() == 8, "eight stone pillars for cover")
+	player.global_position = king.global_position + Vector2(0, 260)
+	player.invuln_t = 9999.0   # the test drives the fight; the operative mustn't die mid-script
+	await frames(2)
+	king.take_hit(Combat.make_hit(10, player))
+	# a charge into a pillar smashes it and dazes him
+	var pil := pillars[0] as Prop
+	king.global_position = pil.global_position + Vector2(-140, 0)
+	king.aim = Vector2.RIGHT
+	king.act = "charge"
+	king.act_t = 1.0
+	for i in 40:
+		player.hp = player.max_hp
+		await frames(1)
+		if pil.broken:
+			break
+	check(pil.broken and king.is_stunned(), "charging into a stone pillar smashes it and dazes the King")
+	var seen := {}
+	var pulled := false
+	for i in 1500:
+		await frames(1)
+		player.hp = player.max_hp
+		if king.dead:
+			break
+		seen[king.act] = true
+		if king.act == "climb" and not pulled and king.act_t < 5.0:
+			king.interrupt()
+			pulled = not king.buried and king.is_stunned()
+		if i % 30 == 0 and king.hp > king.max_hp * 0.3:
+			king.take_hit(Combat.make_hit(160, player))
+	check(seen.has("swipe_tele") or seen.has("charge_tele"), "the King swipes and charges %s" % str(seen.keys()))
+	check(seen.has("climb") and pulled, "he climbs the crater wall; Disruptor Pulse pulls him down")
+	while not king.dead:
+		king.take_hit(Combat.make_hit(800, player))
+		await frames(1)
+	await frames(4)
+	check(GameState.has_flag("king:dead") and GameState.current_objective_text().begins_with("Return to the ship"), "the Brood King is dead: " + GameState.current_objective_text())
+	var crest: LootDrop = null
+	for n in game.world.get_children():
+		if n is LootDrop and String((n as LootDrop).entry.get("item", {}).get("unique", "")) == "kings_crest":
+			crest = n
+	check(crest != null and int(crest.entry["item"]["rarity"]) == ItemDB.RARITY_UNIQUE, "he drops the King's Crest, a Unique helm")
+	if crest != null:
+		GameState.equipment["head"] = {}
+		crest.interact(player)
+		check(GameState.has_special("dread_crown") and ItemDB.describe(GameState.equipment["head"]).contains("Dread Crown"), "wearing the Crest: Dread Crown")
+	for n in get_tree().get_nodes_in_group("enemies") + get_tree().get_nodes_in_group("acid"):
+		n.queue_free()
+	for n in game.world.get_children():
+		if n is BroodEnemy.Boulder:
+			n.queue_free()   # boulders still in the air would (rightly) interrupt the recall
+	await frames(2)
+	player.hp = player.max_hp
+	player.invuln_t = 0.0
+	var uc0 := GameState.credits
+	GameState.recall_cd = 0.0
+	player.start_recall()
+	for i in 200:
+		await get_tree().physics_frame
+		if main.get("current") != game:
+			break
+	await frames(8)
+	game = main.get("current")
+	check(GameState.has_flag("king:done") and GameState.credits >= uc0 + 900, "OVERWATCH debrief: the Brood arc is over")
+	check(StarMapUI.is_unlocked("kessar_belt") and StarMapUI.is_unlocked("halcyon"), "Belt Claim 7 and the Halcyon System open up")
+	GameState.equipment["head"] = {}
+
+
+func _find_char(level: Level, ch: String) -> Vector2i:
+	for y in level.h:
+		for x in level.w:
+			if level.ch(x, y) == ch:
+				return Vector2i(x, y)
+	return Vector2i(-1, -1)
 
 
 func _count_kind(k: String) -> int:
@@ -1103,6 +1254,8 @@ func _doctrine_tests() -> void:
 	big.queue_free()
 	var burner := lvl.spawn_enemy("heavy", spot, "") as Enemy
 	await frames(2)
+	burner.max_hp = 5000.0   # survive the fire so the burn can be checked
+	burner.hp = 5000.0
 	var hr := burner.hp
 	GameState.energy = GameState.max_energy()
 	player.use_ability("sb_incendiary")

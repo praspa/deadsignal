@@ -1,98 +1,514 @@
 {
   "rarities": [
-    {"name": "Common",       "color": "#b8b2a6", "affixes": [0, 0], "weight": 60, "scale": 1.0},
-    {"name": "Uncommon",     "color": "#5fbf5a", "affixes": [1, 1], "weight": 28, "scale": 1.12},
-    {"name": "Rare",         "color": "#e8c548", "affixes": [2, 3], "weight": 10, "scale": 1.25},
-    {"name": "Experimental", "color": "#c25cff", "affixes": [3, 3], "weight": 2,  "scale": 1.4}
+    {
+      "name": "Common",
+      "color": "#b8b2a6",
+      "affixes": [
+        0,
+        0
+      ],
+      "weight": 60,
+      "scale": 1.0
+    },
+    {
+      "name": "Uncommon",
+      "color": "#5fbf5a",
+      "affixes": [
+        1,
+        1
+      ],
+      "weight": 28,
+      "scale": 1.12
+    },
+    {
+      "name": "Rare",
+      "color": "#e8c548",
+      "affixes": [
+        2,
+        3
+      ],
+      "weight": 10,
+      "scale": 1.25
+    },
+    {
+      "name": "Experimental",
+      "color": "#c25cff",
+      "affixes": [
+        3,
+        3
+      ],
+      "weight": 2,
+      "scale": 1.4
+    },
+    {
+      "name": "Unique",
+      "color": "#e8902a",
+      "affixes": [
+        0,
+        0
+      ],
+      "weight": 0,
+      "scale": 1.5
+    }
   ],
-
   "bases": {
     "assault_rifle": {
-      "name": "Mk.IV Assault Rifle", "slot": "primary", "slots": ["primary"], "kind": "weapon", "weight": 10,
-      "weapon": {"type": "rifle", "mode": "projectile", "dmg": [7, 11], "rate": 9.0, "mag": 30, "ammo": "rifle",
-                 "spread": 4.0, "pellets": 1, "speed": 950, "range": 720, "reload": 1.6, "knockback": 25}
+      "name": "Mk.IV Assault Rifle",
+      "slot": "primary",
+      "slots": [
+        "primary"
+      ],
+      "kind": "weapon",
+      "weight": 10,
+      "weapon": {
+        "type": "rifle",
+        "mode": "projectile",
+        "dmg": [
+          7,
+          11
+        ],
+        "rate": 9.0,
+        "mag": 30,
+        "ammo": "rifle",
+        "spread": 4.0,
+        "pellets": 1,
+        "speed": 950,
+        "range": 720,
+        "reload": 1.6,
+        "knockback": 25
+      }
     },
     "shotgun": {
-      "name": "Breacher Shotgun", "slot": "primary", "slots": ["primary"], "kind": "weapon", "weight": 8,
-      "weapon": {"type": "shotgun", "mode": "projectile", "dmg": [6, 9], "rate": 1.3, "mag": 8, "ammo": "shell",
-                 "spread": 26.0, "pellets": 7, "speed": 820, "range": 360, "reload": 2.2, "knockback": 140}
+      "name": "Breacher Shotgun",
+      "slot": "primary",
+      "slots": [
+        "primary"
+      ],
+      "kind": "weapon",
+      "weight": 8,
+      "weapon": {
+        "type": "shotgun",
+        "mode": "projectile",
+        "dmg": [
+          6,
+          9
+        ],
+        "rate": 1.3,
+        "mag": 8,
+        "ammo": "shell",
+        "spread": 26.0,
+        "pellets": 7,
+        "speed": 820,
+        "range": 360,
+        "reload": 2.2,
+        "knockback": 140
+      }
     },
     "energy_pistol": {
-      "name": "Lathe Energy Pistol", "slot": "primary", "slots": ["primary", "secondary"], "kind": "weapon", "weight": 8,
-      "weapon": {"type": "energy", "mode": "hitscan", "dmg": [15, 22], "rate": 3.0, "energy_cost": 5, "range": 650,
-                 "spread": 1.5, "knockback": 30, "status": "shock", "status_chance": 0.18}
+      "name": "Lathe Energy Pistol",
+      "slot": "primary",
+      "slots": [
+        "primary",
+        "secondary"
+      ],
+      "kind": "weapon",
+      "weight": 8,
+      "weapon": {
+        "type": "energy",
+        "mode": "hitscan",
+        "dmg": [
+          15,
+          22
+        ],
+        "rate": 3.0,
+        "energy_cost": 5,
+        "range": 650,
+        "spread": 1.5,
+        "knockback": 30,
+        "status": "shock",
+        "status_chance": 0.18
+      }
     },
     "power_maul": {
-      "name": "Shock Maul", "slot": "secondary", "slots": ["secondary"], "kind": "weapon", "weight": 7,
-      "weapon": {"type": "melee", "mode": "melee", "dmg": [22, 34], "rate": 1.4, "range": 72, "arc": 120,
-                 "knockback": 190, "status": "stun", "status_chance": 0.12}
+      "name": "Shock Maul",
+      "slot": "secondary",
+      "slots": [
+        "secondary"
+      ],
+      "kind": "weapon",
+      "weight": 7,
+      "weapon": {
+        "type": "melee",
+        "mode": "melee",
+        "dmg": [
+          22,
+          34
+        ],
+        "rate": 1.4,
+        "range": 72,
+        "arc": 120,
+        "knockback": 190,
+        "status": "stun",
+        "status_chance": 0.12
+      }
     },
     "chainblade": {
-      "name": "Chainblade", "slot": "secondary", "slots": ["secondary"], "kind": "weapon", "weight": 7,
-      "weapon": {"type": "melee", "mode": "melee", "dmg": [11, 17], "rate": 2.7, "range": 64, "arc": 95,
-                 "knockback": 60, "status": "bleed", "status_chance": 0.3}
+      "name": "Chainblade",
+      "slot": "secondary",
+      "slots": [
+        "secondary"
+      ],
+      "kind": "weapon",
+      "weight": 7,
+      "weapon": {
+        "type": "melee",
+        "mode": "melee",
+        "dmg": [
+          11,
+          17
+        ],
+        "rate": 2.7,
+        "range": 64,
+        "arc": 95,
+        "knockback": 60,
+        "status": "bleed",
+        "status_chance": 0.3
+      }
     },
-
-    "rebreather_helm": {"name": "Rebreather Helm", "slot": "head", "slots": ["head"], "kind": "armor", "weight": 6,
-                        "armor": 3, "stats": {"resist": 5}},
-    "sallet_helm":     {"name": "Visored Sallet", "slot": "head", "slots": ["head"], "kind": "armor", "weight": 5,
-                        "armor": 5},
-    "flak_carapace":   {"name": "Flak Carapace", "slot": "body", "slots": ["body"], "kind": "armor", "weight": 6,
-                        "armor": 8},
-    "plate_cuirass":   {"name": "Bastion Cuirass", "slot": "body", "slots": ["body"], "kind": "armor", "weight": 4,
-                        "armor": 13, "stats": {"move_pct": -5}},
-    "gauntlets":       {"name": "Ceramite Gauntlets", "slot": "gloves", "slots": ["gloves"], "kind": "armor", "weight": 6,
-                        "armor": 2, "stats": {"str": 1}},
-    "grip_gloves":     {"name": "Marksman Grips", "slot": "gloves", "slots": ["gloves"], "kind": "armor", "weight": 5,
-                        "armor": 1, "stats": {"dex": 1}},
-    "mag_boots":       {"name": "Mag-Treads", "slot": "boots", "slots": ["boots"], "kind": "armor", "weight": 6,
-                        "armor": 2},
-    "runner_boots":    {"name": "Skitter Boots", "slot": "boots", "slots": ["boots"], "kind": "armor", "weight": 5,
-                        "armor": 1, "stats": {"move_pct": 6}},
-
-    "auspex":          {"name": "Auspex Module", "slot": "utility", "slots": ["utility"], "kind": "utility", "weight": 4,
-                        "stats": {"crit": 4}},
-    "injector":        {"name": "Medicae Injector", "slot": "utility", "slots": ["utility"], "kind": "utility", "weight": 4,
-                        "stats": {"hp_regen": 1.5}},
-    "capacitor":       {"name": "Cell Capacitor", "slot": "utility", "slots": ["utility"], "kind": "utility", "weight": 4,
-                        "stats": {"max_energy": 20, "energy_regen": 1.0}},
-    "refractor":       {"name": "Refractor Emitter", "slot": "utility", "slots": ["utility"], "kind": "utility", "weight": 3,
-                        "armor": 4, "stats": {"resist": 8}}
+    "rebreather_helm": {
+      "name": "Rebreather Helm",
+      "slot": "head",
+      "slots": [
+        "head"
+      ],
+      "kind": "armor",
+      "weight": 6,
+      "armor": 3,
+      "stats": {
+        "resist": 5
+      }
+    },
+    "sallet_helm": {
+      "name": "Visored Sallet",
+      "slot": "head",
+      "slots": [
+        "head"
+      ],
+      "kind": "armor",
+      "weight": 5,
+      "armor": 5
+    },
+    "flak_carapace": {
+      "name": "Flak Carapace",
+      "slot": "body",
+      "slots": [
+        "body"
+      ],
+      "kind": "armor",
+      "weight": 6,
+      "armor": 8
+    },
+    "plate_cuirass": {
+      "name": "Bastion Cuirass",
+      "slot": "body",
+      "slots": [
+        "body"
+      ],
+      "kind": "armor",
+      "weight": 4,
+      "armor": 13,
+      "stats": {
+        "move_pct": -5
+      }
+    },
+    "gauntlets": {
+      "name": "Ceramite Gauntlets",
+      "slot": "gloves",
+      "slots": [
+        "gloves"
+      ],
+      "kind": "armor",
+      "weight": 6,
+      "armor": 2,
+      "stats": {
+        "str": 1
+      }
+    },
+    "grip_gloves": {
+      "name": "Marksman Grips",
+      "slot": "gloves",
+      "slots": [
+        "gloves"
+      ],
+      "kind": "armor",
+      "weight": 5,
+      "armor": 1,
+      "stats": {
+        "dex": 1
+      }
+    },
+    "mag_boots": {
+      "name": "Mag-Treads",
+      "slot": "boots",
+      "slots": [
+        "boots"
+      ],
+      "kind": "armor",
+      "weight": 6,
+      "armor": 2
+    },
+    "runner_boots": {
+      "name": "Skitter Boots",
+      "slot": "boots",
+      "slots": [
+        "boots"
+      ],
+      "kind": "armor",
+      "weight": 5,
+      "armor": 1,
+      "stats": {
+        "move_pct": 6
+      }
+    },
+    "auspex": {
+      "name": "Auspex Module",
+      "slot": "utility",
+      "slots": [
+        "utility"
+      ],
+      "kind": "utility",
+      "weight": 4,
+      "stats": {
+        "crit": 4
+      }
+    },
+    "injector": {
+      "name": "Medicae Injector",
+      "slot": "utility",
+      "slots": [
+        "utility"
+      ],
+      "kind": "utility",
+      "weight": 4,
+      "stats": {
+        "hp_regen": 1.5
+      }
+    },
+    "capacitor": {
+      "name": "Cell Capacitor",
+      "slot": "utility",
+      "slots": [
+        "utility"
+      ],
+      "kind": "utility",
+      "weight": 4,
+      "stats": {
+        "max_energy": 20,
+        "energy_regen": 1.0
+      }
+    },
+    "refractor": {
+      "name": "Refractor Emitter",
+      "slot": "utility",
+      "slots": [
+        "utility"
+      ],
+      "kind": "utility",
+      "weight": 3,
+      "armor": 4,
+      "stats": {
+        "resist": 8
+      }
+    }
   },
-
   "affixes": [
-    {"stat": "str",          "prefix": "Brutal",      "suffix": "of the Ox",        "range": [1, 3]},
-    {"stat": "dex",          "prefix": "Deft",        "suffix": "of the Hawk",      "range": [1, 3]},
-    {"stat": "int",          "prefix": "Calibrated",  "suffix": "of the Cogitator", "range": [1, 3]},
-    {"stat": "wil",          "prefix": "Stalwart",    "suffix": "of Resolve",       "range": [1, 3]},
-    {"stat": "max_hp",       "prefix": "Hardened",    "suffix": "of Vigor",         "range": [8, 25]},
-    {"stat": "max_energy",   "prefix": "Charged",     "suffix": "of the Reactor",   "range": [5, 18]},
-    {"stat": "armor",        "prefix": "Plated",      "suffix": "of the Bulwark",   "range": [2, 6]},
-    {"stat": "crit",         "prefix": "Keen",        "suffix": "of Ruin",          "range": [2, 6]},
-    {"stat": "damage_pct",   "prefix": "Savage",      "suffix": "of Slaughter",     "range": [6, 18], "weapon_only": true},
-    {"stat": "rate_pct",     "prefix": "Rapid",       "suffix": "of Fury",          "range": [5, 15], "weapon_only": true},
-    {"stat": "hp_regen",     "prefix": "Mending",     "suffix": "of the Medicae",   "range": [0.5, 2.0]},
-    {"stat": "energy_regen", "prefix": "Humming",     "suffix": "of the Dynamo",    "range": [0.5, 2.0]},
-    {"stat": "move_pct",     "prefix": "Swift",       "suffix": "of Haste",         "range": [3, 8]},
-    {"stat": "resist",       "prefix": "Warded",      "suffix": "of the Null",      "range": [5, 15]}
+    {
+      "stat": "str",
+      "prefix": "Brutal",
+      "suffix": "of the Ox",
+      "range": [
+        1,
+        3
+      ]
+    },
+    {
+      "stat": "dex",
+      "prefix": "Deft",
+      "suffix": "of the Hawk",
+      "range": [
+        1,
+        3
+      ]
+    },
+    {
+      "stat": "int",
+      "prefix": "Calibrated",
+      "suffix": "of the Cogitator",
+      "range": [
+        1,
+        3
+      ]
+    },
+    {
+      "stat": "wil",
+      "prefix": "Stalwart",
+      "suffix": "of Resolve",
+      "range": [
+        1,
+        3
+      ]
+    },
+    {
+      "stat": "max_hp",
+      "prefix": "Hardened",
+      "suffix": "of Vigor",
+      "range": [
+        8,
+        25
+      ]
+    },
+    {
+      "stat": "max_energy",
+      "prefix": "Charged",
+      "suffix": "of the Reactor",
+      "range": [
+        5,
+        18
+      ]
+    },
+    {
+      "stat": "armor",
+      "prefix": "Plated",
+      "suffix": "of the Bulwark",
+      "range": [
+        2,
+        6
+      ]
+    },
+    {
+      "stat": "crit",
+      "prefix": "Keen",
+      "suffix": "of Ruin",
+      "range": [
+        2,
+        6
+      ]
+    },
+    {
+      "stat": "damage_pct",
+      "prefix": "Savage",
+      "suffix": "of Slaughter",
+      "range": [
+        6,
+        18
+      ],
+      "weapon_only": true
+    },
+    {
+      "stat": "rate_pct",
+      "prefix": "Rapid",
+      "suffix": "of Fury",
+      "range": [
+        5,
+        15
+      ],
+      "weapon_only": true
+    },
+    {
+      "stat": "hp_regen",
+      "prefix": "Mending",
+      "suffix": "of the Medicae",
+      "range": [
+        0.5,
+        2.0
+      ]
+    },
+    {
+      "stat": "energy_regen",
+      "prefix": "Humming",
+      "suffix": "of the Dynamo",
+      "range": [
+        0.5,
+        2.0
+      ]
+    },
+    {
+      "stat": "move_pct",
+      "prefix": "Swift",
+      "suffix": "of Haste",
+      "range": [
+        3,
+        8
+      ]
+    },
+    {
+      "stat": "resist",
+      "prefix": "Warded",
+      "suffix": "of the Null",
+      "range": [
+        5,
+        15
+      ]
+    }
   ],
-
   "specials": {
     "weapon": [
-      {"id": "incendiary", "text": "Incendiary: 30% chance to set targets ablaze"},
-      {"id": "arc",        "text": "Arc-charged: 30% chance to shock targets"},
-      {"id": "vampiric",   "text": "Hungering: heals 5% of damage dealt"}
+      {
+        "id": "incendiary",
+        "text": "Incendiary: 30% chance to set targets ablaze"
+      },
+      {
+        "id": "arc",
+        "text": "Arc-charged: 30% chance to shock targets"
+      },
+      {
+        "id": "vampiric",
+        "text": "Hungering: heals 5% of damage dealt"
+      }
     ],
     "armor": [
-      {"id": "barrier",    "text": "Kinetic Barrier: 12% chance to negate a hit"},
-      {"id": "reactive",   "text": "Reactive Plating: ability cooldowns -20%"}
+      {
+        "id": "barrier",
+        "text": "Kinetic Barrier: 12% chance to negate a hit"
+      },
+      {
+        "id": "reactive",
+        "text": "Reactive Plating: ability cooldowns -20%"
+      }
     ]
   },
-
   "stat_names": {
-    "str": "Strength", "dex": "Dexterity", "int": "Intelligence", "wil": "Willpower",
-    "max_hp": "Max Health", "max_energy": "Max Energy", "armor": "Armor", "crit": "% Critical Chance",
-    "damage_pct": "% Weapon Damage", "rate_pct": "% Attack Speed", "hp_regen": "Health Regen /s",
-    "energy_regen": "Energy Regen /s", "move_pct": "% Move Speed", "resist": "% Status Resistance"
+    "str": "Strength",
+    "dex": "Dexterity",
+    "int": "Intelligence",
+    "wil": "Willpower",
+    "max_hp": "Max Health",
+    "max_energy": "Max Energy",
+    "armor": "Armor",
+    "crit": "% Critical Chance",
+    "damage_pct": "% Weapon Damage",
+    "rate_pct": "% Attack Speed",
+    "hp_regen": "Health Regen /s",
+    "energy_regen": "Energy Regen /s",
+    "move_pct": "% Move Speed",
+    "resist": "% Status Resistance",
+    "brood_dmg_pct": "% damage to the Brood"
+  },
+  "uniques": {
+    "kings_crest": {
+      "name": "The King's Crest",
+      "base": "sallet_helm",
+      "armor": [
+        14,
+        1
+      ],
+      "stats": {
+        "brood_dmg_pct": 10,
+        "wil": 2
+      },
+      "special": "dread_crown",
+      "special_text": "Dread Crown: enemies near you deal 10% less damage",
+      "lore": "Hacked from the Brood King's skull. It still smells of the hive."
+    }
   }
 }

@@ -44,6 +44,12 @@
     "lines_after": {
       "kessar:queen": [
         "The hive was talking, you know. All that chittering. I recorded some. For science."
+      ],
+      "kessar:done": [
+        "I'm not crazy. I heard it answer. Something on Kessar VII was talking back to the hive."
+      ],
+      "king:done": [
+        "The jungle's gone quiet on every channel. Except one. Three notes. Don't tell me that's a coincidence."
       ]
     }
   },

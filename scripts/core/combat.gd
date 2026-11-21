@@ -4,6 +4,7 @@ class_name Combat
 const LAYER_WORLD := 1
 const LAYER_PLAYER := 2
 const LAYER_ENEMY := 4
+const LAYER_WATER := 8     # rivers / ocean: block walking, not bullets or sight
 
 const STATUS := {
 	"burn":  {"dps": 7.0, "duration": 3.0, "color": Color(1.0, 0.5, 0.1)},

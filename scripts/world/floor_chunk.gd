@@ -68,6 +68,10 @@ func _draw_tile(x: int, y: int) -> void:
 	var v := float(hsh % 100) / 100.0
 	var style := level.floor_style(x, y)
 	var c := level.ch(x, y)
+	if WallTile.natural == "jungle":
+		_draw_jungle_tile(r, x, y, c, style, hsh, v)
+		_tile_decals(r, x, y, c, hsh)
+		return
 	if WallTile.natural == "city" and style == ",":
 		_draw_paving(r, x, y, hsh, v)
 		_tile_decals(r, x, y, c, hsh)
@@ -134,6 +138,60 @@ func _tile_decals(r: Rect2, x: int, y: int, c: String, hsh: int) -> void:
 			ci.draw_rect(Rect2(r.position + Vector2(6, 6), Vector2(20, 20)), Color(0.04, 0.04, 0.04))
 			for i in 4:
 				ci.draw_line(r.position + Vector2(7, 9 + i * 5), r.position + Vector2(25, 9 + i * 5), Color(0.22, 0.2, 0.18), 1.5)
+
+
+## Kessar VII: jungle floor, black sand, the old causeway, water, fords, bridges.
+func _draw_jungle_tile(r: Rect2, x: int, y: int, c: String, style: String, hsh: int, v: float) -> void:
+	match c:
+		"~":
+			var deep := Color(0.03, 0.12, 0.13).lerp(Color(0.04, 0.15, 0.16), v * 0.5)
+			ci.draw_rect(r, deep)
+			for k in 2:
+				var yy := r.position.y + 8.0 + k * 13.0 + float(hsh % 5)
+				ci.draw_line(Vector2(r.position.x + 3, yy), Vector2(r.position.x + 14 + float(hsh % 9), yy - 1), Color(0.2, 0.4, 0.4, 0.35), 1.0)
+			# surf / bank foam where the water meets land
+			for dv in [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(1, 0)]:
+				var n := level.ch(x + dv.x, y + dv.y)
+				if n != "~" and n != "#" and n != " ":
+					var edge := Rect2(r.position + Vector2(maxf(0, dv.x) * (T - 4), maxf(0, dv.y) * (T - 4)), Vector2(T if dv.x == 0 else 4, T if dv.y == 0 else 4))
+					ci.draw_rect(edge, Color(0.75, 0.85, 0.8, 0.55))
+			return
+		":":
+			ci.draw_rect(r, Color(0.12, 0.22, 0.2).lerp(Color(0.15, 0.25, 0.22), v))
+			for k in 3:
+				ci.draw_circle(r.position + Vector2(6 + k * 9, 10 + (hsh >> k) % 14), 3.0, Color(0.3, 0.28, 0.22, 0.6))   # stepping stones
+			ci.draw_line(r.position + Vector2(2, 20), r.position + Vector2(T - 2, 18), Color(0.35, 0.5, 0.48, 0.4), 1.0)
+			return
+		"=":
+			ci.draw_rect(r, Color(0.04, 0.13, 0.14))
+			for k in 4:
+				var py := r.position.y + 2.0 + k * 7.5
+				ci.draw_rect(Rect2(Vector2(r.position.x + 1, py), Vector2(T - 2, 6)), Color(0.4, 0.3, 0.19).lerp(Color(0.34, 0.25, 0.16), float(k % 2)))
+			ci.draw_line(r.position + Vector2(2, 0), r.position + Vector2(2, T), Color(0.25, 0.2, 0.14), 2.0)
+			ci.draw_line(r.position + Vector2(T - 2, 0), r.position + Vector2(T - 2, T), Color(0.25, 0.2, 0.14), 2.0)
+			return
+	match style:
+		".":
+			ci.draw_rect(r, Color(0.12, 0.11, 0.11).lerp(Color(0.16, 0.14, 0.13), v))   # black volcanic sand
+			for k in 4:
+				var hh := Level.hash2(x * 5 + k, y * 11 - k)
+				ci.draw_circle(r.position + Vector2(hh % 30 + 1, (hh / 31) % 30 + 1), 1.0, Color(0.3, 0.28, 0.26, 0.6))
+			if hsh % 13 == 0:
+				ci.draw_arc(r.get_center(), 6.0, 0.3, 2.6, 6, Color(0.6, 0.55, 0.5, 0.5), 1.0)   # a shell
+		"_":
+			ci.draw_rect(r, Color(0.3, 0.3, 0.27))
+			ci.draw_rect(r.grow(-1), Color(0.24, 0.25, 0.22), false, 1.0)
+			ci.draw_line(r.position + Vector2(0, 16), r.position + Vector2(T, 16), Color(0.16, 0.17, 0.14), 1.0)
+			ci.draw_circle(r.position + Vector2(hsh % 24 + 4, (hsh / 7) % 24 + 4), 4.0, Color(0.2, 0.36, 0.16, 0.7))   # moss
+		_:
+			if WallTile.natural == "jungle" and GameState.location_def().get("wall_style", "") == "jungle":
+				ci.draw_rect(r, Color(0.12, 0.13, 0.08).lerp(Color(0.15, 0.15, 0.09), v))   # mud and leaf litter
+				for k in 3:
+					var hh := Level.hash2(x * 7 + k, y * 13 - k)
+					var p := r.position + Vector2(hh % 28 + 2, (hh / 29) % 28 + 2)
+					ci.draw_colored_polygon(PackedVector2Array([p, p + Vector2(4, -2), p + Vector2(7, 1), p + Vector2(3, 3)]), Color(0.2, 0.22, 0.1).lerp(Color(0.3, 0.22, 0.1), float(hh % 3) / 2.0))
+				if hsh % 11 == 0:
+					ci.draw_line(r.position + Vector2(2, 20), r.position + Vector2(28, 12), Color(0.2, 0.15, 0.1), 2.0)   # a root
 
 
 ## Last Water's streets: worn paving slabs with seams and cracks, kerbs where

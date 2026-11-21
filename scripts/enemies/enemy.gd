@@ -56,7 +56,7 @@ func setup(p_kind: String, p_level: Node, p_spawn_id: String) -> void:
 func _ready() -> void:
 	add_to_group("enemies")
 	collision_layer = Combat.LAYER_ENEMY
-	collision_mask = Combat.LAYER_WORLD | Combat.LAYER_ENEMY | Combat.LAYER_PLAYER
+	collision_mask = Combat.LAYER_WORLD | Combat.LAYER_ENEMY | Combat.LAYER_PLAYER | Combat.LAYER_WATER
 	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
 	_shape = CollisionShape2D.new()
 	var c := CircleShape2D.new()

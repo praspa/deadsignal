@@ -38,13 +38,15 @@
     }
   ],
   "debrief": [
-    "[OVERWATCH] Kessar IV is quiet again. Good work, Operative. Bounty's in your account.",
-    "[OVERWATCH] There's a refinery in the Kessar belt that's started talking to itself. It's on your star map."
+    "[OVERWATCH] Kessar IV is quiet. The Queen's dead, the swarm's leaderless. Good work, Operative. Bounty's in your account.",
+    "[INES RUHL] Wait. Operative, wait. Don't celebrate yet.",
+    "[INES RUHL] The hive recordings I kept. The chatter didn't stop when she died. Something's been answering it. Something big.",
+    "[OVERWATCH] ...Confirmed. Massive seismic and thermal readings on Kessar VII. One island. It's moving.",
+    "[OVERWATCH] The Queen was a breeder, not the boss. Kessar VII is on your star map. Find whatever's out there and end this."
   ],
   "bounty": 500,
   "unlocks": [
-    "belt_open",
-    "intel:halcyon"
+    "kessar7_open"
   ],
   "complete_flag": "kessar:queen"
 }

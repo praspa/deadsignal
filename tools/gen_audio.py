@@ -13,6 +13,7 @@ Music  audio/music/level.wav   100 BPM E-phrygian industrial loop (heartbeat int
                                chugging distorted 'MIDI guitar', clanking metal snare)
        audio/music/boss.wav    138 BPM relentless loop for the WARDEN fight
        audio/music/menu.wav    92 BPM title loop: a heartbeat that quickens into a halftime breakdown
+       audio/music/tangle.wav  76 BPM jungle loop for Kessar VII (tribal toms, drone, marimba plucks, bird calls)
        audio/music/lastwater.wav 84 BPM spaghetti-western industrial loop for Last Water (twang, whistle, gallop, mission bell)
 SFX    audio/sfx/<name>_<n>.wav  (n = variant, picked at random in game)
 """
@@ -992,6 +993,49 @@ def lastwater_track():
     return tr.render()
 
 
+def tangle_track():
+    """76 BPM, D minor: Kessar VII's jungle. Rolling tribal toms and a deep log
+    drum, a low brass drone, plucked marimba-ish figures, bird calls and insect
+    chatter in the canopy, and a heavier stretch where something big walks."""
+    tr = WesternTrack(76, 16, 11)
+    s = tr.s16
+    rng = tr.rng
+    chords = [['D2', 'A2', 'F3'], ['D2', 'A2', 'F3'], ['Bb1', 'F2', 'D3'], ['C2', 'G2', 'E3']]
+    tr.wind(0, tr.length, 0.08)
+    for b in range(16):
+        sec = b // 4
+        ch = chords[b % 4]
+        tr.pad(tr.at(b, 0), tr.bar + 0.5, [note(x) for x in ch], 0.16)          # brass-ish drone
+        # rolling toms: a tribal pattern, busier as it goes
+        for st, f, amp in [(0, 85, 0.5), (3, 110, 0.35), (6, 95, 0.4), (8, 85, 0.5), (10, 120, 0.3), (11, 110, 0.3), (14, 95, 0.4)]:
+            if sec == 0 and st not in (0, 8):
+                continue
+            tr.tom(tr.at(b, st), amp, f)
+        if sec >= 1:
+            tr.kick(tr.at(b, 0), 0.6)
+            for st in range(2, 16, 4):
+                tr.hat(tr.at(b, st), 0.05)
+        # plucked figures (marimba-like): short twangs with no tremolo
+        figs = [0, 4, 7, 9] if sec % 2 == 0 else [0, 3, 7, 10]
+        for k, st in enumerate((1, 5, 9, 13) if sec >= 1 else (2, 10)):
+            f = note(ch[2]) * (2 ** (figs[k % 4] / 12.0))
+            tr.twang(tr.at(b, st), s * 3, f, 0.18, trem=0.0, send=0.35)
+        # the canopy: bird calls and insect chirps
+        for _ in range(2):
+            st = rng.randint(0, 15)
+            tr.beep(tr.at(b, st), rng.choice([2400, 2800, 3200, 3600]), 0.04)
+        if sec == 3:
+            # something big walks: heavy footfalls and a deep growl of brass
+            tr.kick(tr.at(b, 8), 1.0)
+            tr.clank(tr.at(b, 8), 0.3, 90)
+            tr.bass(tr.at(b, 0), s * 6, note(ch[0]) / 2, 0.4, 0.15)
+    # a lonely horn line over the second half
+    for bar, st, ln, nm in [(8, 0, 8, 'A3'), (8, 8, 8, 'F3'), (9, 0, 12, 'D3'), (10, 0, 8, 'Bb3'), (10, 8, 8, 'A3'), (11, 0, 16, 'E3'),
+                            (12, 0, 8, 'D4'), (12, 8, 8, 'C4'), (13, 0, 12, 'A3'), (14, 0, 8, 'Bb3'), (14, 8, 8, 'G3'), (15, 0, 16, 'D3')]:
+        tr.lead(tr.at(bar, st), s * ln, note(nm), 0.12, 0.2)
+    return tr.render()
+
+
 def main():
     which = sys.argv[1] if len(sys.argv) > 1 else 'all'
     if which in ('all', 'sfx'):
@@ -1007,6 +1051,9 @@ def main():
     if which in ('all', 'music', 'lastwater'):
         write(os.path.join(ROOT, 'music', 'lastwater.wav'), lastwater_track(), 0.8)
         print('music lastwater')
+    if which in ('all', 'music', 'tangle'):
+        write(os.path.join(ROOT, 'music', 'tangle.wav'), tangle_track(), 0.8)
+        print('music tangle')
     if which in ('all', 'music', 'menu'):
         write(os.path.join(ROOT, 'music', 'menu.wav'), menu_track(), 0.8)
         print('music menu')

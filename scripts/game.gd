@@ -117,6 +117,14 @@ func _ready() -> void:
 		"kessar_hive":
 			for f in ["kessar:landed", "kessar:hive_found", "kessar:hive"]:
 				GameState.set_flag(f)
+		"kessar7_shore":
+			GameState.set_flag("king:landed")
+		"kessar7_tangle":
+			for f in ["king:landed", "king:tangle"]:
+				GameState.set_flag(f)
+		"kessar7_caldera":
+			for f in ["king:landed", "king:tangle", "king:gate"]:
+				GameState.set_flag(f)
 		"lastwater_port":
 			GameState.set_flag("lastwater:landed")
 		"lastwater_streets":
@@ -230,6 +238,8 @@ func _ready() -> void:
 	Events.msg(place, Color(0.75, 0.68, 0.5))
 	if revived:
 		_wake_in_cradle()
+		if _pending_debrief() != "":
+			_hub_comms()   # died after finishing a mission: the debrief still happens
 	elif GameState.loaded_from_save:
 		Events.msg("Save loaded.", UiTheme.TEXT_DIM)
 		if GameState.session_started:
@@ -301,6 +311,10 @@ func _mission_triggers() -> void:
 			and player.global_position.distance_to(level.hive_hole.global_position) < 260.0:
 		GameState.set_flag("kessar:hive_found")
 		Events.msg("A sinkhole crusted with resin. Warm air breathes out of it.", Color(0.7, 0.9, 0.5))
+	if GameState.location == "kessar7_tangle" and not GameState.has_flag("king:gate") and level.exits.has("U") \
+			and player.global_position.distance_to((level.exits["U"] as Node2D).global_position) < 220.0:
+		GameState.set_flag("king:gate")
+		Events.msg("A gate carved into the crater wall. Something huge has been through it.", Color(0.7, 0.9, 0.5))
 	if GameState.location != "kharon":
 		return
 	var p := player.global_position
@@ -323,7 +337,7 @@ func _on_flag_set(f: String) -> void:
 		last_obj = idx
 		Events.objective_changed.emit(GameState.current_objective_text())
 		_queue_comms(idx)
-	if f in ["power", "research", "cause", "boss", "kessar:hive_found", "kessar:queen", "lastwater:card", "lastwater:governors"]:
+	if f in ["power", "research", "cause", "boss", "kessar:hive_found", "kessar:queen", "lastwater:card", "lastwater:governors", "king:gate", "king:dead"]:
 		_save.call_deferred(true)
 	if f == "power":
 		Events.msg("Primary reactor online. Bulkheads unlocked.", Color(0.5, 1.0, 0.6))

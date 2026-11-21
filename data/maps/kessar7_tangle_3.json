@@ -1,0 +1,27 @@
+{
+ "variant": 3,
+ "name": "Howling Gorge",
+ "rooms": {
+  "arrival": [
+   10,
+   64,
+   16,
+   70
+  ],
+  "gate": [
+   22,
+   22,
+   26,
+   26
+  ],
+  "village": [
+   72,
+   2,
+   80,
+   10
+  ]
+ },
+ "dirs": {
+  "caldera_dir": "north"
+ }
+}

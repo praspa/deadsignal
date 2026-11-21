@@ -705,7 +705,8 @@ Kessar System
   1. Kharon Outpost — intro mission (the old demo): WARDEN and the first trace of the Dead Signal. Area level ~1–2.
   2. Kessar III — Last Water: the overrun city; free the captive governors (15.13). Area level ~3–4.
   3. Kessar IV — the Brood Queen's nest, source of the swarm (15.9). Area level ~5–6.
-  Belt Claim 7 — automated ore refinery "talking to itself" (unlocked by Kessar IV).
+  4. Kessar VII — the Tangle: the plot twist. The Queen was never in charge; the Brood King has come out of hiding on a jungle island (15.15). Area level ~7–8.
+  Belt Claim 7 — automated ore refinery "talking to itself" (unlocked by Kessar VII).
 Halcyon System (coordinates from a later mission's nav data)
   Halcyon Prime — colony world, census overdue.
   Relay Station 9 — act 1 finale. The relay has been repeating the same three notes since spring: the Dead Signal returns as act 1's big threat.
@@ -843,7 +844,83 @@ Later: heavy weapons as findable items (rocket launcher, minigun, ...). The Comb
 
 Controls: K opens the Doctrine screen (also in the pause menu). Ability slots: Q / F / G on keyboard, LB / RB / B (Circle) on a controller.
 
-15.15 Build order
+15.15 Destination 4: the Brood King (Kessar VII, the Tangle)      [first cut DONE — rain, fireflies, light shafts, animated surf, waterfall landmark to do]
+
+The plot twist of act 1. With the Brood Queen dead, everyone thinks the swarm is over. It isn't: the Queen was a regent, a breeder. The Brood King, an enormous, ancient bull of the species, has been hiding on a jungle island and has now come out. An original giant-monster-on-a-lost-island story, in the spirit of the classic pulp adventure (no borrowed names, scenes or likeness).
+
+The twist (how the player learns):
+Kessar IV's debrief starts as a celebration: OVERWATCH pays the bounty and calls it done.
+Back on the ship, Ines (Signals Tech) stops the operative on the way past: the hive recordings she kept still have chatter on them, and something has been answering it since the Queen died. "Someone's still talking to them. Something big."
+OVERWATCH follows up a moment later: huge seismic and thermal readings on Kessar VII, an ocean world nobody bothered to settle, centred on one jungle island. Kessar VII unlocks on the star map ("Uncharted island — seismic activity").
+(Kessar IV's debrief currently unlocks Belt Claim 7 and reveals Halcyon; those move to Kessar VII's debrief.)
+
+Kessar VII — the Tangle:
+An ocean world; a single island of steaming jungle, black volcanic rock and ancient overgrown ruins of a long-gone native civilisation. Huge, too quiet, then very loud.
+Its own look: deep greens and wet black rock, mist, shafts of light through the canopy, rain. Water (sea, rivers, pools) is impassable terrain, like walls. Giant trees and roots are solid props; ferns and vines are decor.
+Its own music: a new track (drums, deep brass, jungle ambience).
+
+Zones (15.11):
+1. The Shoreline (landing zone): a black-sand beach with a wrecked survey boat and the return shuttle. Jungle wall inland.
+2. The Tangle (main map, 3 random layouts): dense jungle cut by a river and gorges, a broken native causeway, ruined stone shrines. The trail of the King runs through it: flattened trees, a smashed primate village, enormous tracks. A landing beacon at a ruined shrine near the far end.
+3. The King's Caldera (boss arena): a ring of cliffs around an old volcanic crater, bones everywhere, a vast stone gate carved by the old natives into the crater wall. Reached through the gate at the end of the Tangle.
+
+Objectives:
+1. Land on Kessar VII.
+2. Follow the King's trail through the Tangle (it crosses the primates' territory).
+3. Find the way into the Caldera (the old native gate).
+4. Kill the Brood King.
+5. Return to the ship.
+Debrief: OVERWATCH pays the bounty; this time it really is over (for the Brood). Unlocks Belt Claim 7 and reveals the Halcyon System.
+
+Layout: a maze, Kurast-style (but readable):
+The Tangle is a maze of jungle paths, like Diablo II's act 3, just less confusing.
+Structure: a coarse grid of clearings (about 6 x 5) joined by winding 3–4-tile-wide paths walled by dense tree lines, rivers and cliffs. The connections form a maze: a spanning tree plus a few extra loops (~15%), so there are several ways round and plenty of dead ends.
+Rivers run along some of the maze's edges; they're only crossable at bridges and fords, which the generator places so the map stays connected.
+The route from the Shoreline to the Caldera gate is long and winding: about twice the straight-line distance.
+Dead ends are worth visiting: each holds something (a loot cache, a ruined shrine, a Thornback troop with its loot, a survivor's log). None is more than two clearings deep, so a wrong turn is short.
+Keeping it readable:
+  The King's trail (tracks, flattened trees, resin) runs only along the true path: a breadcrumb for players who look for it.
+  Each region has a landmark visible from a distance: the waterfall, the giant ancient tree, the stone heads, the smashed village.
+  The old causeway's broken paving appears in stretches along the main route.
+  The minimap shows explored paths as usual; the Caldera gate shows once seen.
+  The mining-camp-style log trick: a survey team's log near the Shoreline gives the rough direction of the Caldera.
+
+Environment set (what to draw):
+Ground and water: animated ocean behind the landing beach (surf line, shallow to deep, impassable); black volcanic sand, wetter near the waterline; jungle floor (mud, leaf litter, moss, roots); black basalt rock and scree toward the Caldera; meandering rivers and streams (impassable); crossings: log bridges, an old rope bridge, the causeway's stone bridge, shallow fords (wade through, slowed); stretches of the old native causeway (mossy broken paving).
+Walls: dense tree lines (huge trunks, buttress roots, a canopy on top that fades out with the cutaway); basalt cliffs around gorges and the Caldera.
+Props — beach: palms, the wrecked survey boat, washed-up survey crates, driftwood, a dead campfire.
+Props — jungle: giant trees, fallen logs, boulders, fern clumps, hanging vines, glowing flowers and mushrooms (light sources), fireflies.
+Props — ruins: carved stone heads, toppled statues, broken pillars, a stepped shrine, totems, stone altars, the great carved gate into the Caldera.
+Props — primate territory: thatched nests and huts, bone piles, skull-topped sticks marking troop ground, the smashed village.
+Props — the King's trail: giant clawed tracks, flattened trees, gouged rocks, brood resin thickening toward the Caldera.
+Props — the Caldera: bones, stone pillars (cover that the King's charges smash), steam vents, the ring of cliffs.
+Atmosphere: deep green, dim light, shafts of sunlight through the canopy, drifting mist, occasional rain, torches in the ruins, jungle ambience (birds, insects, distant howls).
+Priority: water + bridges / fords, tree walls, cliffs, giant trees, ferns, ruins, the trail, the gate and the pillars first; rain, fireflies, light shafts and animated surf later.
+
+The island's creatures:
+The Brood, adapted to the jungle: Swarmlings, Spitters and Broodguard as on Kessar IV, plus:
+  Canopy Stalker: a long-limbed brood hunter that waits in the trees and drops on the operative (like the Wall Crawler, faster and tougher).
+The island's own primates, original "monkey" monsters that were there first:
+  Gibberers: small, quick, shrieking packs that swarm and retreat, throwing stones from a distance.
+  Thornback: a huge, armoured ape brute. Pounds the ground (telegraphed shockwave), throws boulders, beats its chest to rally nearby Gibberers.
+  Elder Thornback: a named champion (like Gutspike) leading the largest troop.
+Everything on the island is hostile to the operative; primates and Brood don't fight each other (decided: no faction war).
+
+Boss — the Brood King:
+Huge, armoured and mobile (unlike the stationary Queen): stands taller than the walls, crowned with a crest of horns. Its own boss bar and music.
+Phase 1 (100–60%): stalks the operative across the Caldera; sweeping claw swipe (wide arc, telegraphed), and a charge across the arena that smashes through stone pillars.
+Phase 2 (60–25%): climbs the crater wall out of reach and hurls boulders down (shadow telegraphs) while calling Canopy Stalkers and Swarmlings into the arena; drops back down with a ground-shaking landing.
+Phase 3 (below 25%): enraged; roars (stuns if close, telegraphed), faster charges, and breaks the last pillars so there's less cover.
+Counter-play: pillars block the charge (the King is dazed if it hits one) and break; Disruptor Pulse / Concussion daze it briefly; Marked Target and Semtex are made for it.
+Loot: the King's Crest (below), an Experimental item, a guaranteed Rare and a large UC drop.
+
+The King's Crest — the game's first unique item:
+A helm made from the crest of horns, with fixed stats instead of random affixes, its own name colour (Unique) and its own icon. Proposed stats: +armour as a top-tier helm, +10% damage to the Brood, +2 Willpower, and "Dread Crown": enemies near you deal 10% less damage. Drops every time the King dies (re-entrant areas), so it can be farmed; a second copy sells well.
+Adds a fifth rarity, Unique (gold-orange), used for hand-designed items from now on.
+
+New work: jungle look (palette, ground, giant trees / roots / ferns, water as impassable terrain, mist and rain), jungle map generator (river, gorges, ruins, the King's trail), Shoreline and Caldera maps, Canopy Stalker, Gibberer, Thornback, Elder Thornback, the Brood King boss, the King's Crest and the Unique rarity, mission data and the twist (Ines's stop + OVERWATCH comms, Kessar IV debrief change), new music track.
+
+15.16 Build order
 
 1. Ship hub, locations / travel, UC currency.   [DONE]
 2. Star map UI on the nav console.   [DONE]
@@ -856,6 +933,7 @@ Controls: K opens the Doctrine screen (also in the pause menu). Ability slots: Q
 9. Acts: act data on galaxy nodes, current act on the HUD / pause menu, act gate flag unlocking the next galaxy, star map focused on the current act. Then act 1 content: Belt Claim 7, Halcyon Prime, Relay Station 9 finale.
 10. Act 1 order: Kharon (intro, retuned) -> Last Water (new) -> Kessar IV (re-slotted). Last Water as in 15.13.   [first cut DONE]
 11. Combat Specialist Doctrines: Doctrine tab on the character sheet, doctrine points at levels 2/5/10/.../40, slots (2, third at level 20) set aboard the ship, the 21 skills (Siegebreaker brings concussion grenades, semtex charges, incendiaries and the orbital strike, all as abilities), data/doctrines.json, respec at the Medic.   [DONE]
+12. Act 1 twist: Kessar VII, the Brood King (15.15): jungle island zones, primates + factions, the Brood King, Ines's discovery.   [first cut DONE]
 
 
 ## Target platform

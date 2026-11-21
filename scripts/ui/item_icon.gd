@@ -32,6 +32,12 @@ static func draw(ci: CanvasItem, item: Dictionary, at: Vector2, s: float = 1.0, 
 		match slot:
 			"head":
 				_helm(ci, rc, base == "rebreather_helm")
+				if String(item.get("unique", "")) == "kings_crest":
+					# the King's crest of horns over the helm
+					for k in 5:
+						var ang := -PI * 0.5 + (k - 2) * 0.38
+						var b0 := Vector2(0, -8)
+						ci.draw_colored_polygon(PackedVector2Array([b0 + Vector2(-2.5, 0), b0 + Vector2(2.5, 0), b0 + Vector2.from_angle(ang) * (13.0 - absf(k - 2) * 2.0)]), Color(0.85, 0.75, 0.55))
 			"body":
 				_breastplate(ci, rc)
 			"gloves":

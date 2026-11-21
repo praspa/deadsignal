@@ -304,5 +304,180 @@
       0.7,
       0.42
     ]
+  },
+  "kessar7_shore": {
+    "name": "Kessar VII \u2014 the Shoreline",
+    "map": "kessar7_shore",
+    "hub": false,
+    "mission": "king",
+    "area_level": 7,
+    "ambient": [
+      0.62,
+      0.66,
+      0.6
+    ],
+    "palette": {
+      "dark": [
+        0.03,
+        0.06,
+        0.03
+      ],
+      "light": [
+        0.5,
+        0.62,
+        0.42
+      ],
+      "gain": 3.4,
+      "amount": 0.12
+    },
+    "post": {
+      "grade": 0.5,
+      "saturation": 0.9
+    },
+    "wall_style": "jungle",
+    "music": "tangle",
+    "dust": [
+      0.75,
+      0.85,
+      0.7,
+      0.12
+    ],
+    "enemy_chars": {
+      "1": "stalker",
+      "2": "gibberer",
+      "3": "thornback",
+      "4": "elder_thornback",
+      "5": "brood_king"
+    },
+    "log_id": "kessar7_log",
+    "exits": {
+      "Y": {
+        "to": "kessar7_tangle",
+        "arrive": "Y",
+        "text": "Into the jungle",
+        "look": "gate",
+        "sign": "INLAND"
+      }
+    }
+  },
+  "kessar7_tangle": {
+    "name": "Kessar VII \u2014 the Tangle",
+    "map": "kessar7_tangle_{variant}",
+    "variants": 3,
+    "hub": false,
+    "mission": "king",
+    "area_level": 7,
+    "ambient": [
+      0.34,
+      0.4,
+      0.32
+    ],
+    "palette": {
+      "dark": [
+        0.03,
+        0.06,
+        0.03
+      ],
+      "light": [
+        0.5,
+        0.62,
+        0.42
+      ],
+      "gain": 3.4,
+      "amount": 0.25
+    },
+    "post": {
+      "grade": 0.55,
+      "saturation": 0.9
+    },
+    "wall_style": "jungle",
+    "music": "tangle",
+    "dust": [
+      0.7,
+      0.85,
+      0.6,
+      0.15
+    ],
+    "no_shuttle": true,
+    "enemy_chars": {
+      "1": "stalker",
+      "2": "gibberer",
+      "3": "thornback",
+      "4": "elder_thornback",
+      "5": "brood_king"
+    },
+    "log_id": "kessar7_log",
+    "exits": {
+      "Y": {
+        "to": "kessar7_shore",
+        "arrive": "Y",
+        "text": "Back to the beach",
+        "look": "gate",
+        "sign": "SHORE"
+      },
+      "U": {
+        "to": "kessar7_caldera",
+        "arrive": "U",
+        "text": "Through the old gate (the Caldera)",
+        "look": "gate",
+        "sign": "? ? ?"
+      }
+    }
+  },
+  "kessar7_caldera": {
+    "name": "Kessar VII \u2014 the King's Caldera",
+    "map": "kessar7_caldera",
+    "hub": false,
+    "mission": "king",
+    "area_level": 8,
+    "ambient": [
+      0.4,
+      0.32,
+      0.28
+    ],
+    "palette": {
+      "dark": [
+        0.05,
+        0.03,
+        0.02
+      ],
+      "light": [
+        0.55,
+        0.44,
+        0.38
+      ],
+      "gain": 3.4,
+      "amount": 0.35
+    },
+    "post": {
+      "grade": 0.6,
+      "saturation": 0.85
+    },
+    "wall_style": "rock",
+    "music": "tangle",
+    "dust": [
+      0.6,
+      0.5,
+      0.45,
+      0.25
+    ],
+    "no_shuttle": true,
+    "landing_beacon": true,
+    "enemy_chars": {
+      "1": "stalker",
+      "2": "gibberer",
+      "3": "thornback",
+      "4": "elder_thornback",
+      "5": "brood_king"
+    },
+    "exits": {
+      "U": {
+        "to": "kessar7_tangle",
+        "arrive": "U",
+        "text": "Back through the gate",
+        "look": "gate",
+        "sign": "JUNGLE"
+      }
+    }
   }
 }

@@ -80,7 +80,7 @@ func _ready() -> void:
 			if s != null:
 				arr.append(s)
 		_streams[sname] = arr
-	for t in ["menu", "level", "boss", "lastwater"]:
+	for t in ["menu", "level", "boss", "lastwater", "tangle"]:
 		var w := load("res://audio/music/%s.wav" % t) as AudioStreamWAV
 		if w != null:
 			w.loop_mode = AudioStreamWAV.LOOP_FORWARD
@@ -113,7 +113,7 @@ func all_loaded() -> bool:
 	for sname in SFX:
 		if (_streams.get(sname, []) as Array).size() != int(SFX[sname][0]):
 			return false
-	return _tracks.size() == 4
+	return _tracks.size() == 5
 
 
 func _allowed(sname: String) -> bool:

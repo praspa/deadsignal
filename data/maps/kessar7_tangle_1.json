@@ -1,0 +1,27 @@
+{
+ "variant": 1,
+ "name": "Root Maze",
+ "rooms": {
+  "arrival": [
+   7,
+   69,
+   13,
+   75
+  ],
+  "gate": [
+   24,
+   17,
+   28,
+   21
+  ],
+  "village": [
+   52,
+   32,
+   60,
+   40
+  ]
+ },
+ "dirs": {
+  "caldera_dir": "north"
+ }
+}

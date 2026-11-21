@@ -54,7 +54,13 @@ func _ready() -> void:
 	if scene == "revive":
 		GameState.credits = 420
 		GameState.apply_death()
-	if scene in ["lw_port", "lw_gate"]:
+	if scene == "k7_shore":
+		GameState.location = "kessar7_shore"
+	elif scene in ["k7_tangle", "k7_bridge", "k7_overview"]:
+		GameState.location = "kessar7_tangle"
+	elif scene == "k7_king":
+		GameState.location = "kessar7_caldera"
+	elif scene in ["lw_port", "lw_gate"]:
 		GameState.location = "lastwater_port"
 	elif scene in ["lw_streets", "lw_lt", "lw_overview", "lw_fountain"]:
 		GameState.location = "lastwater_streets"
@@ -148,6 +154,30 @@ func _ready() -> void:
 			p.global_position = co.global_position + Vector2(70, 70)
 			game.camera.zoom = Vector2(2.4, 2.4)
 			await frames(70)
+		"k7_shore":
+			p.global_position += Vector2(40, -60)
+			await frames(70)
+		"k7_tangle":
+			p.global_position += Vector2(120, 0)
+			await frames(70)
+		"k7_bridge":
+			for y in lvl.h:
+				for x in lvl.w:
+					if lvl.ch(x, y) == "=" and p.global_position.distance_to(lvl.player_start) < 1.0:
+						p.global_position = lvl.tile_center(x, y) + Vector2(-70, 40)
+			for e in get_tree().get_nodes_in_group("enemies"):
+				if (e as Node2D).global_position.distance_to(p.global_position) < 300.0:
+					e.queue_free()
+			await frames(70)
+		"k7_king":
+			var kg := get_tree().get_first_node_in_group("boss") as BroodKing
+			p.global_position = kg.global_position + Vector2(-40, 230)
+			p.invuln_t = 999.0
+			kg.take_hit(Combat.make_hit(10, p))
+			for k in 200:
+				await frames(1)
+				if kg.act == "swipe_tele" or kg.act == "charge_tele":
+					break
 		"lw_gate":
 			p.global_position = lvl.exit_points["Y"] + Vector2(-90, 0)
 			await frames(60)
@@ -372,7 +402,7 @@ func _ready() -> void:
 				game.camera.reset_smoothing()
 				game.set_process(false)
 				await frames(3)
-		"overview", "ship_overview", "kessar_overview", "hive_overview", "lw_overview":
+		"overview", "ship_overview", "kessar_overview", "hive_overview", "lw_overview", "k7_overview":
 			# whole layout, fully lit and zoomed out (compare the variants)
 			for e in get_tree().get_nodes_in_group("enemies"):
 				e.visible = false

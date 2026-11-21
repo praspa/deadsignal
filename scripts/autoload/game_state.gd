@@ -696,6 +696,8 @@ func current_objective_text() -> String:
 			return "Deploy to Last Water on Kessar III (star map, cockpit)"
 		if not has_flag("kessar:queen"):
 			return "Deploy to Kessar IV (star map, cockpit)"
+		if not has_flag("king:dead"):
+			return "Deploy to Kessar VII: find the Brood King (star map, cockpit)"
 		return "Await new orders from OVERWATCH"
 	var objs: Array = ItemDB.missions.get(mission_id(), {}).get("objectives", [])
 	var i := objective_index()
