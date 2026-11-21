@@ -23,6 +23,7 @@ var trade_ui: TradeUI
 var hub := false
 var pause_menu: PauseMenu
 var journal_ui: JournalUI
+var doctrine_ui: DoctrineUI
 var end_screen: EndScreen
 var open_screen: Screen = null
 var dust: CPUParticles2D
@@ -192,13 +193,15 @@ func _ready() -> void:
 	trade_ui = TradeUI.new()
 	pause_menu = PauseMenu.new()
 	journal_ui = JournalUI.new()
+	doctrine_ui = DoctrineUI.new()
 	end_screen = EndScreen.new()
-	for s in [inventory_ui, character_ui, journal_ui, terminal_ui, star_map, stash_ui, crew_ui, trade_ui, pause_menu, end_screen]:
+	for s in [inventory_ui, character_ui, journal_ui, doctrine_ui, terminal_ui, star_map, stash_ui, crew_ui, trade_ui, pause_menu, end_screen]:
 		ui_layer.add_child(s)
 		s.hide()
 	inventory_ui.closed.connect(_on_screen_closed)
 	character_ui.closed.connect(_on_screen_closed)
 	journal_ui.closed.connect(_on_screen_closed)
+	doctrine_ui.closed.connect(_on_screen_closed)
 	terminal_ui.closed.connect(_on_terminal_closed)
 	star_map.closed.connect(_on_screen_closed)
 	stash_ui.closed.connect(_on_screen_closed)
@@ -468,6 +471,9 @@ func _input(event: InputEvent) -> void:
 	elif event.is_action_pressed("journal") and not player.dead:
 		_toggle(journal_ui)
 		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("doctrine") and not player.dead:
+		_toggle(doctrine_ui)
+		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("quicksave") and open_screen == null and not player.dead:
 		_save(false)
 		get_viewport().set_input_as_handled()
@@ -480,7 +486,7 @@ func _input(event: InputEvent) -> void:
 func _toggle(s: Screen) -> void:
 	if open_screen == s:
 		_close_current()
-	elif open_screen == null or open_screen in [inventory_ui, character_ui, journal_ui, pause_menu]:
+	elif open_screen == null or open_screen in [inventory_ui, character_ui, journal_ui, doctrine_ui, pause_menu]:
 		if open_screen != null:
 			open_screen.hide()
 			open_screen = null
@@ -617,6 +623,8 @@ func _on_pause_action(id: String) -> void:
 			_toggle(character_ui)
 		"journal":
 			_toggle(journal_ui)
+		"doctrine":
+			_toggle(doctrine_ui)
 		"save":
 			_save(false)
 		"load":

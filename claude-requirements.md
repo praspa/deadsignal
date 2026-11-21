@@ -125,9 +125,12 @@ Disruptor Pulse: Area-effect energy attack that interrupts enemies.
 
 Abilities should have cooldowns and clear visual feedback.
 
+Full game: abilities come from the class's skill trees (Doctrines), see 15.14. Tactical Roll stays a free, always-available move. Overcharge and Disruptor Pulse move into the trees (Gunline and Vanguard tier 1); a new operative starts with only Tactical Roll and their guns, and picks a first ability with the first Doctrine point at level 2.
+
 7. Equipment and Loot
 
 Equipment slots:
+(Later: findable heavy weapons such as a rocket launcher or minigun; see 15.14.)
 
 Primary weapon.
 Secondary weapon.
@@ -147,6 +150,8 @@ Experimental.
 Items should have randomized or predefined attributes.
 
 Inventory must support item pickup, inspection, equipping, unequipping, and comparison.
+
+Auto-equip: picking up an item whose equipment slot is empty equips it straight away (e.g. no boots on, pick up boots: they're worn). Only when the slot is empty; otherwise the item goes into the pack. [DONE]
 
 Loot on the ground graphic represents the type (i.e. gun, boots, breastplate, gloves ) along with name and color rarity
 
@@ -275,6 +280,7 @@ For the demo we will focus on first class by default
 
 Combat Specialist - Character sprite looks like a space marine - similar to a star craft space marine with a suit and glass helmet
 Skills: Firearms, Heavy Weapons, Armor, Melee, Brute Force
+Skill trees: the three Combat Specialist Doctrines (15.14).
 Player Model: A burly, battle hardened, human male space marine
 
 
@@ -769,7 +775,75 @@ Rewards: OVERWATCH bounty, loot from the Lieutenant (good odds of Rare), the gov
 
 New work: city wall / floor style (buildings, streets, signs, a western palette), street-and-block map generator, spaceport and Civic Hall maps, Brood Lieutenant (champion), quest-item pickup + flag-locked door, governors (cocoon interactable + dialogue), Wall Crawler and Infested Militia, mission data, re-slot Kharon (retune to area level 1–2, debrief unlocks Last Water) and Kessar IV (area levels up, briefing after Last Water).
 
-15.14 Build order
+15.14 Combat Specialist Doctrines (skill trees)                [framework, the Siegebreaker, Overcharge and Disruptor Pulse DONE — rest of Gunline and Vanguard to do]
+
+Three skill trees in the spirit of Borderlands 2, called Doctrines: the Combat Specialist's schools of war. Kept deliberately small. New abilities arrive rarely, like Diablo II's big skill breakpoints: a choice is something you live with for a long stretch, and no single playthrough can have everything, so the build is a real trade-off. Most characters will invest in two Doctrines and never finish the third.
+
+The three Doctrines:
+The Gunline: firearms discipline. Rifles, shotguns and energy pistols: accuracy, fire rate, crits, reloads.
+The Vanguard: close quarters and brute force. Mauls and chainblades, armour, charging into the swarm and staying standing.
+The Siegebreaker: demolitions and ordnance: the Combat Specialist's area-of-effect answer to swarms. Explosives are purely abilities (thrown and planted charges, like Diablo II's trap Assassin): there are no grenade or launcher weapons to find.
+
+Doctrine points (rare on purpose):
+One point at levels 2, 5, 10, 15, 20, 25, 30, 35 and 40: nine points in a full playthrough. Level cap 40 for now (a working number; tune later).
+Points are spent on the character sheet's Doctrine tab, any time. A learned skill can't be unlearned except by a respec.
+Each skill has a single rank: learning it is the whole decision, there's no levelling a skill up.
+
+Tree layout (the same for each Doctrine):
+Tier 1 — open from the start: 1 active ability, 1 passive.
+Tier 2 — needs 2 points spent in this Doctrine: 1 active, 1 passive.
+Tier 3 — needs 4 points in this Doctrine: 1 active, 1 passive.
+Capstone — needs 6 points in this Doctrine: one defining skill.
+Seven skills per tree, 21 in all; nine points can buy fewer than half. Reaching one capstone costs 7 of the 9 points, leaving 2 for another tree. Two trees at 4–5 points each reach both tier 3s but no capstone. Those are the trade-offs.
+
+Active abilities and slots:
+Tactical Roll is not a slot: every operative always has it (Space / A).
+Combat ability slots: 2 (Q / LB and F / RB); a third slot opens at level 20 (G / B, B / Circle is free in gameplay).
+A new operative starts with empty slots: only Tactical Roll and their guns. The first Doctrine point (level 2) buys the first ability; Overcharge and Disruptor Pulse are tier 1 skills like the others.
+Learned actives go into the slots on the Doctrine screen, aboard the ship only (a newly learned active drops into a free slot by itself). On a mission you fight with the loadout you brought (less churn, more planning).
+Passives are always on once learned; they don't use slots.
+HUD: the ability bar shows the slotted abilities with their keys and cooldowns (today's slots, plus the third when it opens).
+
+The Gunline (firearms)
+Tier 1  active   Overcharge — overload your weapon's feed: for 8 s (+0.25 s per Intelligence) your weapons hit harder and fire faster. Cooldown 18 s. (Was the demo's starting ability.)
+Tier 1  passive  Steady Hands — 25% less spread, +10% firearm damage.
+Tier 2  active   Marked Target — tag the enemy under the cursor for 8 s: it takes +35% damage from you and is always shown on the minimap. Cooldown 14 s.
+Tier 2  passive  Quick Hands — reloads 30% faster, +20% magazine size.
+Tier 3  active   Deadeye — the next 6 shots are guaranteed critical hits and pierce through one enemy. Cooldown 22 s.
+Tier 3  passive  Hollow Points — critical hits on organic enemies make them bleed (damage over time).
+Capstone passive Gunline Unbroken — every kill with a firearm cuts all ability cooldowns by 1 s and refunds 5 rounds to the magazine.
+
+The Vanguard (melee and armour)
+Tier 1  active   Disruptor Pulse — an energy blast around you: damages, stuns and interrupts nearby enemies, drops Security Heavies' shields, wipes out enemy projectiles. Cooldown 9 s. (Was the demo's starting ability.)
+Tier 1  passive  Iron Hide — +15% armour, +10% max health.
+Tier 2  active   Shoulder Charge — dash a short distance, knocking back and stunning enemies in the way (1 s). Cooldown 10 s.
+Tier 2  passive  Bloodletter — melee hits heal you for 5% of the damage dealt.
+Tier 3  active   Battle Litany — 10 s: +50% melee damage, immune to stun and knockback, but take 15% more damage. Cooldown 30 s.
+Tier 3  passive  Unbreakable — below 30% health, take 25% less damage.
+Capstone passive Juggernaut — melee kills grant 2 s of near-invulnerability (90% damage reduction); at most once every 8 s.
+
+The Siegebreaker (explosives)
+Tier 1  active   Concussion Grenade — throw an arcing grenade: area damage, knockback and a short daze (0.8 s) where it lands. The bread-and-butter answer to a Swarmling pack. Cooldown 8 s.
+Tier 1  passive  Blast Discipline — your explosions are 15% bigger and hit 15% harder. (The operative's own explosions never hurt them.)
+Tier 2  active   Semtex Charge — throw a sticky charge that clings to the enemy it hits (or the floor) and detonates after 1.5 s with a big blast. Made for Broodguard, Lieutenants and bosses. Cooldown 12 s.
+Tier 2  passive  Shrapnel — explosions also send out fragments that hit enemies just outside the blast.
+Tier 3  active   Incendiary Charge — a canister that leaves a burning zone for 5 s (new burning damage-over-time status; the Brood hate fire). Cooldown 18 s.
+Tier 3  passive  Chain Reaction — enemies killed by your explosions explode themselves (small blast).
+Capstone active  Danger Close — call in an OVERWATCH orbital strike: a 2 s targeting marker, then a barrage over a wide area. Cooldown 60 s.
+
+Attributes still matter: Strength boosts the Vanguard (melee), Dexterity the Gunline (firearms), Intelligence the Siegebreaker (explosive damage and radius, as it does tech today). Willpower keeps shortening cooldowns.
+
+Respec:
+The Medic's respec (15.2.3) also refunds Doctrine points ("neural retraining" in the Lazarus Cradle). Same pricing as attributes: first one free, then 100 UC × level, so changing a build is possible but not casual.
+
+Data: data/doctrines.json (trees, tiers, skills, numbers), so balancing is a data change.
+
+Later: other classes get their own three Doctrines in the same structure.
+Later: heavy weapons as findable items (rocket launcher, minigun, ...). The Combat Specialist's class skills already list Heavy Weapons; when they arrive, Gunline skills that say "firearms" should cover them, or a Doctrine gets heavy-weapon skills.
+
+Controls: K opens the Doctrine screen (also in the pause menu). Ability slots: Q / F / G on keyboard, LB / RB / B (Circle) on a controller.
+
+15.15 Build order
 
 1. Ship hub, locations / travel, UC currency.   [DONE]
 2. Star map UI on the nav console.   [DONE]
@@ -781,6 +855,7 @@ New work: city wall / floor style (buildings, streets, signs, a western palette)
 8. Linked zones and landing beacons: beacon interactable, landing point choice on the star map, Kessar IV hive beacon; locked-node reasons on the star map; intel / access-code unlocks.   [DONE; exits in data + physical links later]
 9. Acts: act data on galaxy nodes, current act on the HUD / pause menu, act gate flag unlocking the next galaxy, star map focused on the current act. Then act 1 content: Belt Claim 7, Halcyon Prime, Relay Station 9 finale.
 10. Act 1 order: Kharon (intro, retuned) -> Last Water (new) -> Kessar IV (re-slotted). Last Water as in 15.13.   [first cut DONE]
+11. Combat Specialist Doctrines: Doctrine tab on the character sheet, doctrine points at levels 2/5/10/.../40, slots (2, third at level 20) set aboard the ship, the 21 skills (Siegebreaker brings concussion grenades, semtex charges, incendiaries and the orbital strike, all as abilities), data/doctrines.json, respec at the Medic.
 
 
 ## Target platform

@@ -78,6 +78,8 @@ var location := "ship"             # key into data/locations.json
 var reviving := false             # died: wake in the Lazarus Cradle on the next ship load
 var last_death_loss := [0, 0]      # [UC, XP] lost on the last death (for the wake-up message)
 var stash: Array = []              # items in the ship's cargo locker
+var skills: Array = []             # learned Doctrine skill ids
+var slots: Array = ["", "", ""]    # combat ability slots (Q / F / G), set aboard the ship
 var vendor_stock: Array = []       # the Quartermaster's gear for sale
 var buyback: Array = []            # items sold this session, newest first
 var journal: Array = []            # comms heard: {"m": mission id or "crew", "who": speaker, "text": line}
@@ -133,6 +135,8 @@ func new_game(p_name: String = DEFAULT_NAME, p_class: String = "combat_specialis
 	location = "ship"
 	ship_node = String(ItemDB.starmap.get("ship_start", ""))
 	stash = []
+	skills = []
+	slots = ["", "", ""]   # a fresh operative has only Tactical Roll and their guns
 	buyback = []
 	journal = []
 	respecs = 0
@@ -386,19 +390,139 @@ func respec() -> bool:
 	var spent := 0
 	for a in ATTRS:
 		spent += int(attributes[a]) - int(START_ATTRIBUTES[a])
-	if spent <= 0:
-		Events.msg("No attribute points to refund.", UiTheme.TEXT_DIM)
+	if spent <= 0 and skills.is_empty():
+		Events.msg("Nothing to refund.", UiTheme.TEXT_DIM)
 		return false
 	if not _pay(respec_price()):
 		return false
 	var hp_ratio := hp / max_hp()
 	attributes = START_ATTRIBUTES.duplicate()
 	attr_points += spent
+	skills = []   # Doctrine points come back too ("neural retraining")
+	slots = ["", "", ""]
 	respecs += 1
 	hp = max_hp() * hp_ratio
 	_clamp_vitals()
 	Events.stats_changed.emit()
 	return true
+
+
+# ---------------------------------------------------------------- doctrines (skill trees)
+
+## Every skill definition by id (basic training + all three trees), with "tree".
+func skill_def(id: String) -> Dictionary:
+	var basic: Dictionary = ItemDB.doctrines.get("basic", {})
+	if basic.has(id):
+		var b: Dictionary = basic[id].duplicate()
+		b["id"] = id
+		b["tree"] = ""
+		b["tier"] = 0
+		return b
+	for tree in ItemDB.doctrines.get("trees", []):
+		for sk in tree["skills"]:
+			if String(sk["id"]) == id:
+				var d: Dictionary = sk.duplicate()
+				d["tree"] = String(tree["id"])
+				return d
+	return {}
+
+
+func doctrine_points_earned() -> int:
+	var n := 0
+	for lv in ItemDB.doctrines.get("points_at_levels", []):
+		if level >= int(lv):
+			n += 1
+	return n
+
+
+func doctrine_points_free() -> int:
+	return doctrine_points_earned() - skills.size()
+
+
+## The level the next Doctrine point arrives at (0 if none left).
+func next_doctrine_level() -> int:
+	for lv in ItemDB.doctrines.get("points_at_levels", []):
+		if level < int(lv):
+			return int(lv)
+	return 0
+
+
+func tree_points(tree: String) -> int:
+	var n := 0
+	for id in skills:
+		if String(skill_def(String(id)).get("tree", "")) == tree:
+			n += 1
+	return n
+
+
+func has_skill(id: String) -> bool:
+	return skills.has(id)
+
+
+## Why a skill can't be learned ("" = it can).
+func learn_block(id: String) -> String:
+	var d := skill_def(id)
+	if d.is_empty() or String(d["tree"]) == "":
+		return "Not a Doctrine skill."
+	if has_skill(id):
+		return "Already learned."
+	if not bool(d.get("ready", false)):
+		return "Not available yet (coming in a later build)."
+	var need: int = (ItemDB.doctrines.get("tier_points", [0, 2, 4, 6]) as Array)[clampi(int(d["tier"]) - 1, 0, 3)]
+	if tree_points(String(d["tree"])) < need:
+		return "Needs %d points in this Doctrine." % need
+	if doctrine_points_free() <= 0:
+		var nx := next_doctrine_level()
+		return "No Doctrine points free." + (" Next at level %d." % nx if nx > 0 else "")
+	return ""
+
+
+func learn_skill(id: String) -> bool:
+	if learn_block(id) != "":
+		return false
+	skills.append(id)
+	# a new active drops into the first free slot, so it's usable right away
+	if String(skill_def(id).get("kind", "")) == "active":
+		for i in slot_count():
+			if String(slots[i]) == "":
+				slots[i] = id
+				break
+	Events.stats_changed.emit()
+	return true
+
+
+func slot_count() -> int:
+	return 3 if level >= int(ItemDB.doctrines.get("third_slot_level", 20)) else 2
+
+
+## Actives that can go in a slot: the learned ones.
+func slottable() -> Array:
+	var out: Array = []
+	for id in skills:
+		if String(skill_def(String(id)).get("kind", "")) == "active":
+			out.append(id)
+	return out
+
+
+## Puts `id` in slot `i` (aboard the ship only); an id already slotted elsewhere swaps places.
+func set_slot(i: int, id: String) -> bool:
+	if not is_hub() or i < 0 or i >= slot_count() or (id != "" and not slottable().has(id)):
+		return false
+	var other := slots.find(id) if id != "" else -1
+	if other >= 0:
+		slots[other] = slots[i]
+	slots[i] = id
+	Events.stats_changed.emit()
+	return true
+
+
+## Explosive damage / radius multiplier from the Siegebreaker passives + Intelligence.
+func explosive_mult() -> float:
+	return tech_mult() * (1.15 if has_skill("sb_blast") else 1.0)
+
+
+func explosive_radius_mult() -> float:
+	return 1.15 if has_skill("sb_blast") else 1.0
 
 
 ## Fence: buys and opens a sealed crate; returns the item ({} if it failed).
@@ -750,6 +874,16 @@ func add_item(item: Dictionary) -> bool:
 	return true
 
 
+## A picked-up item goes straight on when a slot it fits is empty (e.g. no
+## boots on -> new boots are worn). Returns the slot, or "" if it stays in the pack.
+func auto_equip_if_empty(item: Dictionary) -> String:
+	for s in item.get("slots", [item.get("slot", "")]):
+		if equipment.get(String(s), {}).is_empty() and can_equip(item, String(s)):
+			equip(item, String(s))
+			return String(s)
+	return ""
+
+
 func can_equip(item: Dictionary, slot: String) -> bool:
 	return slot in item.get("slots", [item.get("slot", "")])
 
@@ -837,7 +971,7 @@ func save_game(pos: Variant) -> bool:
 		"attributes": attributes, "hp": hp, "energy": energy,
 		"inventory": inventory, "equipment": equipment,
 		"ammo": ammo, "stims": stims, "credits": credits, "flags": flags,
-		"location": location, "areas": areas, "ship_node": ship_node, "stash": stash, "vendor_stock": vendor_stock, "buyback": buyback, "respecs": respecs, "journal": journal, "max_area_reached": max_area_reached, "reviving": reviving, "variants": variants, "beacon": beacon, "recall_cd": recall_cd,
+		"location": location, "areas": areas, "ship_node": ship_node, "stash": stash, "skills": skills, "slots": slots, "vendor_stock": vendor_stock, "buyback": buyback, "respecs": respecs, "journal": journal, "max_area_reached": max_area_reached, "reviving": reviving, "variants": variants, "beacon": beacon, "recall_cd": recall_cd,
 		"ground_items": ground_items,
 		"player_pos": pp,
 		"map_variant": map_variant,
@@ -894,6 +1028,13 @@ func load_game() -> bool:
 	areas = d.get("areas", {})
 	ship_node = String(d.get("ship_node", ""))
 	stash = d.get("stash", [])
+	skills = d.get("skills", [])
+	slots = d.get("slots", ["", "", ""])
+	while slots.size() < 3:
+		slots.append("")
+	for i in slots.size():   # older saves: abilities that aren't learned leave their slot
+		if String(slots[i]) != "" and not skills.has(slots[i]):
+			slots[i] = ""
 	journal = d.get("journal", [])   # older saves: empty journal
 	vendor_stock = d.get("vendor_stock", [])
 	buyback = d.get("buyback", [])

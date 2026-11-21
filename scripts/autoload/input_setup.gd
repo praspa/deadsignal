@@ -13,8 +13,10 @@ const KEYS := {
 	"move_left": [KEY_A, KEY_LEFT],
 	"move_right": [KEY_D, KEY_RIGHT],
 	"roll": [KEY_SPACE],
-	"overcharge": [KEY_Q],
-	"pulse": [KEY_F],
+	"ability_1": [KEY_Q],
+	"ability_2": [KEY_F],
+	"ability_3": [KEY_G],
+	"doctrine": [KEY_K],
 	"reload": [KEY_R],
 	"interact": [KEY_E],
 	"use_stim": [KEY_H],
@@ -38,8 +40,9 @@ const PAD_BUTTONS := {
 	"roll": [JOY_BUTTON_A],
 	"interact": [JOY_BUTTON_Y],
 	"reload": [JOY_BUTTON_X],
-	"overcharge": [JOY_BUTTON_LEFT_SHOULDER],
-	"pulse": [JOY_BUTTON_RIGHT_SHOULDER],
+	"ability_1": [JOY_BUTTON_LEFT_SHOULDER],
+	"ability_2": [JOY_BUTTON_RIGHT_SHOULDER],
+	"ability_3": [JOY_BUTTON_B],
 	"use_stim": [JOY_BUTTON_DPAD_UP],
 	"swap_weapons": [JOY_BUTTON_DPAD_DOWN],
 	"character": [JOY_BUTTON_DPAD_LEFT],
@@ -148,7 +151,7 @@ func aim_vector() -> Vector2:
 
 func key_hint(action: String) -> String:
 	if using_pad:
-		var names := {"roll": "A", "interact": "Y", "reload": "X", "overcharge": "LB", "pulse": "RB",
+		var names := {"roll": "A", "interact": "Y", "reload": "X", "ability_1": "LB", "ability_2": "RB", "ability_3": "B",
 			"use_stim": "D-Up", "fire_primary": "RT", "fire_secondary": "LT", "inventory": "Back",
 			"character": "D-Left", "pause": "Start", "swap_weapons": "D-Down", "recall": "R3"}
 		return names.get(action, "?")

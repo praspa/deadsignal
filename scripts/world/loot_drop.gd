@@ -77,7 +77,10 @@ func interact(_player: Node) -> void:
 	if String(entry.get("kind", "")) != "item":
 		return
 	if GameState.add_item(entry["item"]):
-		Events.msg("Picked up: " + String(entry["item"]["name"]), color())
+		if GameState.auto_equip_if_empty(entry["item"]) != "":
+			Events.msg("Equipped: " + String(entry["item"]["name"]), color())
+		else:
+			Events.msg("Picked up: " + String(entry["item"]["name"]), color())
 		Audio.play_ui("pickup")
 		_consume()
 
