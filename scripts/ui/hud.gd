@@ -170,12 +170,18 @@ func _draw_hud() -> void:
 	_draw_weapon_panel(Rect2(158, by + 8, 300, 26), "primary", "fire_primary")
 	_draw_weapon_panel(Rect2(158, by + 36, 300, 26), "secondary", "fire_secondary")
 	# --- abilities
-	var ax := vs.x * 0.5 - 165.0
-	var abil := [["roll", "roll"], ["overcharge", "overcharge"], ["pulse", "pulse"]]
+	# Tactical Roll, then the combat ability slots (2, or 3 from level 20), stim, recall
+	# boxes sit between the weapon panels (end at x 458) and the level text, above the XP bar
+	var ax := 472.0
+	var abil := [["roll", "roll"]]
+	for i in GameState.slot_count():
+		abil.append([String(GameState.slots[i]), "ability_%d" % (i + 1)])
+	var step := 56.0
+	var bs := Vector2(48, 48)
 	for i in abil.size():
-		_draw_ability(Rect2(ax + i * 66, by + 8, 56, 56), String(abil[i][0]), String(abil[i][1]))
-	_draw_stim(Rect2(ax + 3 * 66, by + 8, 56, 56))
-	_draw_recall(Rect2(ax + 4 * 66, by + 8, 56, 56))
+		_draw_ability(Rect2(Vector2(ax + i * step, by + 6), bs), String(abil[i][0]), String(abil[i][1]))
+	_draw_stim(Rect2(Vector2(ax + abil.size() * step, by + 6), bs))
+	_draw_recall(Rect2(Vector2(ax + (abil.size() + 1) * step, by + 6), bs))
 	# --- level / points
 	var lx := vs.x - 450.0
 	_text(Vector2(lx, by + 26), "LEVEL %d  %s" % [GameState.level, GameState.class_title().to_upper()], 15, UiTheme.BRASS)
@@ -273,26 +279,25 @@ func _draw_weapon_panel(r: Rect2, slot: String, action: String) -> void:
 
 func _draw_ability(r: Rect2, id: String, action: String) -> void:
 	var d := draw_node
-	var cd := float(player.cooldowns[id])
+	if id == "":
+		d.draw_rect(r, Color(0.04, 0.04, 0.045))
+		d.draw_rect(r, UiTheme.BRASS_DIM.darkened(0.4), false, 1.0)
+		_text(r.position + Vector2(3, 13), InputSetup.key_hint(action), 11, UiTheme.BRASS_DIM)
+		_text(Vector2(r.position.x, r.get_center().y + 5), "empty", 10, UiTheme.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
+		return
+	var cd := float(player.cooldowns.get(id, 0.0))
 	var total := player.ability_cd(id)
-	var cost := float(Player.ABIL[id]["cost"])
+	var cost := float(Player.ability_info(id)["cost"])
 	var is_ready := cd <= 0.0 and GameState.energy >= cost
 	var active := (id == "overcharge" and player.overcharge_t > 0.0) or (id == "roll" and player.roll_t > 0.0)
 	d.draw_rect(r, Color(0.06, 0.055, 0.06))
-	var icol := Color(0.55, 0.8, 1.0) if id == "pulse" else (Color(1.0, 0.55, 0.15) if id == "overcharge" else Color(0.8, 0.8, 0.75))
+	var icol := AbilityIcon.color_of(id)
 	if not is_ready:
 		icol = icol.darkened(0.6)
-	var c := r.get_center() + Vector2(0, -4)
-	match id:
-		"roll":
-			d.draw_arc(c, 13.0, PI * 0.2, PI * 1.7, 16, icol, 4.0)
-			d.draw_colored_polygon(PackedVector2Array([c + Vector2(10, -14), c + Vector2(18, -6), c + Vector2(8, -4)]), icol)
-		"overcharge":
-			d.draw_colored_polygon(PackedVector2Array([c + Vector2(3, -17), c + Vector2(-9, 2), c + Vector2(0, 2), c + Vector2(-4, 17), c + Vector2(9, -3), c + Vector2(0, -3)]), icol)
-		"pulse":
-			d.draw_circle(c, 4.0, icol)
-			d.draw_arc(c, 10.0, 0, TAU, 20, icol, 2.0)
-			d.draw_arc(c, 16.0, 0, TAU, 24, icol, 2.0)
+	var c := r.get_center() + Vector2(0, -3)
+	d.draw_set_transform(c, 0.0, Vector2(0.8, 0.8))
+	AbilityIcon.draw(d, id, Vector2.ZERO, icol)
+	d.draw_set_transform(Vector2.ZERO)
 	if cd > 0.0:
 		var f := cd / total
 		d.draw_rect(Rect2(r.position.x, r.position.y + r.size.y * (1.0 - f), r.size.x, r.size.y * f), Color(0, 0, 0, 0.65))

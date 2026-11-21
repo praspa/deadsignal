@@ -226,9 +226,9 @@ func run() -> void:
 	check(GameState.energy >= en_roll - 0.01, "rolling aboard costs no energy")
 	await frames(30)
 	var cd0: float = game.player.cooldowns["pulse"]
-	Input.action_press("pulse")
+	Input.action_press("ability_2")
 	await frames(3)
-	Input.action_release("pulse")
+	Input.action_release("ability_2")
 	check(float(game.player.cooldowns["pulse"]) == cd0, "combat abilities disabled aboard the ship")
 	nav.interact(game.player)
 	await frames(2)
@@ -474,6 +474,11 @@ func run() -> void:
 		drop = n
 	var inv0 := GameState.inventory.size()
 	if drop != null:
+		# fill its slot first, so this pickup goes to the pack (empty slots auto-equip)
+		var dit: Dictionary = drop.entry["item"]
+		for sl in dit.get("slots", [dit.get("slot", "")]):
+			if GameState.equipment.get(String(sl), {}).is_empty():
+				GameState.equipment[String(sl)] = ItemDB.generate(String(dit["base"]), 0, 1)
 		player.global_position = drop.global_position
 		await frames(2)
 		drop.interact(player)
@@ -501,6 +506,23 @@ func run() -> void:
 		player.global_position = box.global_position + Vector2(0, 40)
 		box.interact(player)
 		check(box.glow == null, "opening a container puts its glow out")
+
+	print("== auto-equip into empty slots")
+	GameState.equipment["boots"] = {}
+	var boots := ItemDB.generate("mag_boots", 1, 1)
+	level.drop_item(player.global_position + Vector2(30, 0), {"kind": "item", "item": boots})
+	await frames(2)
+	for n in game.world.get_children():
+		if n is LootDrop and (n as LootDrop).entry.get("item", {}) == boots:
+			(n as LootDrop).interact(player)
+	check(GameState.equipment["boots"] == boots and not GameState.inventory.has(boots), "picking up boots with no boots on wears them")
+	var boots2 := ItemDB.generate("runner_boots", 0, 1)
+	level.drop_item(player.global_position + Vector2(30, 0), {"kind": "item", "item": boots2})
+	await frames(2)
+	for n in game.world.get_children():
+		if n is LootDrop and (n as LootDrop).entry.get("item", {}) == boots2:
+			(n as LootDrop).interact(player)
+	check(GameState.equipment["boots"] == boots and GameState.inventory.has(boots2), "with boots already on, new boots go to the pack")
 
 	print("== progression")
 	var lv0 := GameState.level
@@ -675,6 +697,8 @@ func run() -> void:
 
 	await _lastwater_tests()
 	await _kessar_tests()
+
+	await _doctrine_tests()
 
 	print("== autosave on quit")
 	GameState.travel("ship")
@@ -1008,6 +1032,120 @@ func _kessar_tests() -> void:
 
 func _count_kind(k: String) -> int:
 	return get_tree().get_nodes_in_group("enemies").filter(func(e: Node) -> bool: return (e as Enemy).kind == k).size()
+
+
+func _doctrine_tests() -> void:
+	print("== doctrines (skill trees)")
+	var keep_lv := GameState.level
+	var keep_skills := GameState.skills.duplicate()
+	var keep_slots := GameState.slots.duplicate()
+	GameState.skills = []
+	GameState.slots = ["", "", ""]
+	GameState.level = 1
+	check(GameState.slottable().is_empty(), "a fresh operative has no slotted abilities, only Tactical Roll")
+	check(GameState.doctrine_points_earned() == 0 and GameState.next_doctrine_level() == 2, "no Doctrine points at level 1 (first at level 2)")
+	GameState.level = 5
+	check(GameState.doctrine_points_free() == 2, "two Doctrine points by level 5")
+	check(GameState.learn_block("gl_steady").contains("Not available"), "Gunline / Vanguard skills (beyond the tier 1 actives) are listed but not built yet")
+	check(GameState.learn_block("overcharge") == "" and GameState.learn_block("pulse") == "", "Overcharge (Gunline) and Disruptor Pulse (Vanguard) are tier 1 skills")
+	check(GameState.learn_skill("sb_concussion"), "learn a tier 1 Siegebreaker skill")
+	check(GameState.learn_block("sb_semtex").contains("Needs 2"), "tier 2 needs 2 points in the Doctrine")
+	check(GameState.learn_skill("sb_blast") and GameState.doctrine_points_free() == 0, "learn the tier 1 passive (points spent)")
+	check(GameState.learn_block("sb_semtex").contains("No Doctrine points"), "no free points: wait for level 10")
+	GameState.level = 40
+	for id in ["sb_semtex", "sb_shrapnel", "sb_incendiary", "sb_chain", "sb_strike"]:
+		GameState.learn_skill(id)
+	check(GameState.has_skill("sb_strike") and GameState.doctrine_points_free() == 2, "a capstone costs 7 of the 9 points (2 left)")
+	check(GameState.slot_count() == 3, "third ability slot at level 20+")
+	main.call("_on_game_request", "travel:ship")
+	await frames(8)
+	game = main.get("current")
+	check(GameState.set_slot(0, "sb_concussion") and GameState.set_slot(1, "sb_semtex") and GameState.set_slot(2, "sb_incendiary"), "slots set aboard the ship")
+	main.call("_on_game_request", "travel:kharon")
+	await frames(8)
+	game = main.get("current")
+	var player := game.player
+	check(not GameState.set_slot(0, "pulse"), "slots can't be changed on a mission")
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if (e as Node2D).global_position.distance_to(player.global_position) < 1200.0:
+			e.queue_free()
+	await frames(2)
+	var lvl := game.level
+	var spot := player.global_position + Vector2(180, 0)
+	var a := lvl.spawn_enemy("heavy", spot, "") as Enemy
+	await frames(2)
+	GameState.energy = GameState.max_energy()
+	player.aim_override = spot
+	await frames(2)
+	var hp0 := a.hp
+	player.use_ability("sb_concussion")
+	for i in 60:
+		await frames(1)
+		if a.hp < hp0:
+			break
+	check(a.hp < hp0 and a.is_stunned(), "Concussion Grenade blasts and dazes (%.0f dmg)" % (hp0 - a.hp))
+	a.queue_free()
+	var big := lvl.spawn_enemy("heavy", spot, "") as Enemy
+	await frames(2)
+	var hb := big.hp
+	GameState.energy = GameState.max_energy()
+	player.cooldowns["sb_semtex"] = 0.0
+	player.use_ability("sb_semtex")
+	await frames(40)
+	var stuck := get_tree().get_nodes_in_group("player_ordnance").size() > 0
+	for i in 120:
+		await frames(1)
+		if big.hp < hb:
+			break
+	check(stuck and big.hp < hb, "Semtex Charge sticks, then blows (%.0f dmg)" % (hb - big.hp))
+	big.queue_free()
+	var burner := lvl.spawn_enemy("heavy", spot, "") as Enemy
+	await frames(2)
+	var hr := burner.hp
+	GameState.energy = GameState.max_energy()
+	player.use_ability("sb_incendiary")
+	await frames(90)
+	check(burner.hp < hr and burner.has_status("burn"), "Incendiary Charge sets enemies burning")
+	burner.queue_free()
+	# Shrapnel: fragments hit just outside the blast
+	var ring := lvl.spawn_enemy("heavy", spot + Vector2(100, 0), "") as Enemy
+	await frames(2)
+	var hring := ring.hp
+	Ordnance.explode(game.world, spot, 60.0, 30.0, 0.0, 0.0, player, false)
+	await frames(2)
+	check(ring.hp < hring, "Shrapnel hits enemies just outside the blast")
+	ring.queue_free()
+	# Chain Reaction (shrapnel off): a kill in the blast sets off a second blast
+	GameState.skills.erase("sb_shrapnel")
+	var weak := lvl.spawn_enemy("drone", spot + Vector2(55, 0), "") as Enemy
+	var far := lvl.spawn_enemy("heavy", spot + Vector2(105, 0), "") as Enemy
+	await frames(2)
+	weak.hp = 1.0
+	var hf := far.hp
+	weak.global_position = spot + Vector2(55, 0)   # pin them: the drone drifts toward the player
+	far.global_position = spot + Vector2(105, 0)
+	Ordnance.explode(game.world, spot, 60.0, 30.0, 0.0, 0.0, player, true)
+	await frames(2)
+	check(weak.dead and far.hp < hf, "Chain Reaction: a blast kill explodes and hits the next enemy")
+	far.queue_free()
+	var t1 := lvl.spawn_enemy("heavy", spot, "") as Enemy
+	await frames(2)
+	var ht := t1.hp
+	GameState.energy = GameState.max_energy()
+	GameState.slots[0] = "sb_strike"
+	player.use_ability("sb_strike")
+	for i in 240:
+		await frames(1)
+		if t1.hp < ht:
+			break
+	check(t1.hp < ht, "Danger Close: the orbital barrage lands after its marker")
+	t1.queue_free()
+	GameState.respecs = 0
+	check(GameState.respec() and GameState.skills.is_empty() and GameState.slots[0] == "", "the Medic's respec refunds Doctrine points and resets slots")
+	GameState.level = keep_lv
+	GameState.skills = keep_skills
+	GameState.slots = keep_slots
+	player.aim_override = null
 
 
 func _crew(id: String) -> CrewNpc:

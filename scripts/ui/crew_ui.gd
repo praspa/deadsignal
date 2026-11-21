@@ -82,7 +82,7 @@ func refresh() -> void:
 				_button("Patch me up (free)", _heal)
 			"respec":
 				var price := GameState.respec_price()
-				var txt := ("Confirm respec — " if respec_armed else "Respec attributes — ") + ("free (first time)" if price == 0 else GameState.fmt_uc(price))
+				var txt := ("Confirm respec — " if respec_armed else "Respec attributes & Doctrines — ") + ("free (first time)" if price == 0 else GameState.fmt_uc(price))
 				_button(txt, _respec)
 			"fence":
 				var il := GameState.shop_ilvl()
@@ -118,7 +118,7 @@ func _heal() -> void:
 func _respec() -> void:
 	if not respec_armed:
 		respec_armed = true
-		_say("All spent attribute points will be refunded. Press again to confirm.")
+		_say("All spent attribute and Doctrine points will be refunded, and your ability slots reset. Press again to confirm.")
 		_refresh_keep_focus()
 		return
 	respec_armed = false

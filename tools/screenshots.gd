@@ -64,7 +64,7 @@ func _ready() -> void:
 		GameState.location = "kessar_surface"
 	elif scene in ["hive", "queen", "hive_overview"]:
 		GameState.location = "kessar_hive"
-	elif not scene in ["ship", "nav", "starmap_fly", "ship_overview", "revive", "crew_q", "crew_t", "crew_m", "crew_f", "crew_p", "crew_screen", "trade", "landing", "journal"]:
+	elif not scene in ["ship", "nav", "starmap_fly", "ship_overview", "revive", "crew_q", "crew_t", "crew_m", "crew_f", "crew_p", "crew_screen", "trade", "landing", "journal", "doctrines"]:
 		GameState.location = "kharon"
 	main.call("start_game")
 	await frames(3)
@@ -94,6 +94,28 @@ func _ready() -> void:
 			await frames(5)
 		"revive":
 			await frames(150)
+		"doctrines":
+			GameState.level = 12
+			for id in ["sb_concussion", "sb_blast", "sb_semtex"]:
+				GameState.learn_skill(id)
+			await frames(5)
+			game._toggle(game.doctrine_ui)
+			await frames(10)
+			game.doctrine_ui._show("sb_shrapnel")
+			await frames(5)
+		"sb_fire", "sb_strike":
+			GameState.level = 40
+			for id in ["sb_concussion", "sb_blast", "sb_semtex", "sb_shrapnel", "sb_incendiary", "sb_chain", "sb_strike"]:
+				GameState.learn_skill(id)
+			GameState.slots = ["sb_concussion", "sb_incendiary", "sb_strike"]
+			var tgt := p.global_position + Vector2(170, -60)
+			p.aim_override = tgt
+			for k in 3:
+				lvl.spawn_enemy("researcher", tgt + Vector2(randf_range(-40, 40), randf_range(-40, 40)), "")
+			await frames(20)
+			GameState.energy = GameState.max_energy()
+			p.use_ability("sb_incendiary" if scene == "sb_fire" else "sb_strike")
+			await frames(60 if scene == "sb_fire" else 70)
 		"lw_fountain":
 			var fr: Rect2i = lvl.rooms["fountain"]
 			p.global_position = Vector2(fr.get_center()) * Level.T + Vector2(-60, 110)

@@ -31,7 +31,7 @@ var swing_dir := 0.0
 var roll_t := 0.0
 var roll_dir := Vector2.ZERO
 var invuln_t := 0.0
-var cooldowns := {"roll": 0.0, "overcharge": 0.0, "pulse": 0.0}
+var cooldowns := {"roll": 0.0, "overcharge": 0.0, "pulse": 0.0}   # + any Doctrine actives (added on use)
 var overcharge_t := 0.0
 var trail: Array = []
 var interact_target: Node = null
@@ -266,7 +266,7 @@ func _handle_actions() -> void:
 	if Input.is_action_just_pressed("recall"):
 		start_recall()
 	if recall_t > 0.0:
-		for a in ["roll", "overcharge", "pulse", "fire_primary", "fire_secondary", "reload", "use_stim"]:
+		for a in ["roll", "ability_1", "ability_2", "ability_3", "fire_primary", "fire_secondary", "reload", "use_stim"]:
 			if Input.is_action_just_pressed(a):
 				cancel_recall("interrupted")
 				break
@@ -275,10 +275,9 @@ func _handle_actions() -> void:
 			return
 	if Input.is_action_just_pressed("roll"):
 		_try_roll()
-	if Input.is_action_just_pressed("overcharge"):
-		_try_overcharge()
-	if Input.is_action_just_pressed("pulse"):
-		_try_pulse()
+	for i in GameState.slot_count():
+		if Input.is_action_just_pressed("ability_%d" % (i + 1)):
+			use_ability(String(GameState.slots[i]))
 	if Input.is_action_just_pressed("reload"):
 		start_reload("primary")
 	if Input.is_action_just_pressed("use_stim"):
@@ -536,16 +535,40 @@ func is_reloading(slot: String) -> bool:
 
 # ---------------------------------------------------------------- abilities
 
+## Cooldown / energy cost / name for any ability: built-ins (ABIL) or Doctrine actives.
+static func ability_info(id: String) -> Dictionary:
+	if ABIL.has(id):
+		return ABIL[id]
+	var d := GameState.skill_def(id)
+	return {"cd": float(d.get("cd", 10)), "cost": float(d.get("cost", 20)), "name": String(d.get("name", id))}
+
+
 func ability_cd(id: String) -> float:
-	return float(ABIL[id]["cd"]) * GameState.cooldown_mult()
+	return float(ability_info(id)["cd"]) * GameState.cooldown_mult()
+
+
+## Fires whatever ability is in a slot.
+func use_ability(id: String) -> void:
+	match id:
+		"":
+			return
+		"overcharge":
+			_try_overcharge()
+		"pulse":
+			_try_pulse()
+		"sb_concussion", "sb_semtex", "sb_incendiary", "sb_strike":
+			if _spend(id):
+				Ordnance.use(id, self, aim_point)
+		_:
+			_hint("%s isn't usable yet." % String(ability_info(id)["name"]))
 
 
 func _spend(id: String) -> bool:
-	if float(cooldowns[id]) > 0.0:
+	if float(cooldowns.get(id, 0.0)) > 0.0:
 		return false
-	var cost := float(ABIL[id]["cost"])
+	var cost := float(ability_info(id)["cost"])
 	if GameState.energy < cost:
-		_hint("Not enough energy for %s." % ABIL[id]["name"])
+		_hint("Not enough energy for %s." % ability_info(id)["name"])
 		return false
 	GameState.energy -= cost
 	cooldowns[id] = ability_cd(id)

@@ -1,0 +1,248 @@
+{
+  "points_at_levels": [
+    2,
+    5,
+    10,
+    15,
+    20,
+    25,
+    30,
+    35,
+    40
+  ],
+  "level_cap": 40,
+  "third_slot_level": 20,
+  "tier_points": [
+    0,
+    2,
+    4,
+    6
+  ],
+  "trees": [
+    {
+      "id": "gunline",
+      "name": "The Gunline",
+      "blurb": "Firearms discipline: accuracy, fire rate, crits, reloads.",
+      "attr": "dex",
+      "skills": [
+        {
+          "id": "overcharge",
+          "name": "Overcharge",
+          "tier": 1,
+          "kind": "active",
+          "desc": "Overload your weapon's feed: for 8 s (+0.25 s per Intelligence) your weapons hit harder and fire faster.",
+          "cd": 18,
+          "cost": 25,
+          "ready": true
+        },
+        {
+          "id": "gl_steady",
+          "name": "Steady Hands",
+          "tier": 1,
+          "kind": "passive",
+          "desc": "25% less spread, +10% firearm damage."
+        },
+        {
+          "id": "gl_mark",
+          "name": "Marked Target",
+          "tier": 2,
+          "kind": "active",
+          "desc": "Tag the enemy under the cursor for 8 s: it takes +35% damage from you and shows on the minimap.",
+          "cd": 14,
+          "cost": 15
+        },
+        {
+          "id": "gl_quick",
+          "name": "Quick Hands",
+          "tier": 2,
+          "kind": "passive",
+          "desc": "Reloads 30% faster, +20% magazine size."
+        },
+        {
+          "id": "gl_deadeye",
+          "name": "Deadeye",
+          "tier": 3,
+          "kind": "active",
+          "desc": "Your next 6 shots are guaranteed critical hits and pierce one enemy.",
+          "cd": 22,
+          "cost": 25
+        },
+        {
+          "id": "gl_hollow",
+          "name": "Hollow Points",
+          "tier": 3,
+          "kind": "passive",
+          "desc": "Critical hits make organic enemies bleed."
+        },
+        {
+          "id": "gl_unbroken",
+          "name": "Gunline Unbroken",
+          "tier": 4,
+          "kind": "passive",
+          "desc": "Every firearm kill cuts all ability cooldowns by 1 s and refunds 5 rounds to the magazine."
+        }
+      ]
+    },
+    {
+      "id": "vanguard",
+      "name": "The Vanguard",
+      "blurb": "Close quarters and brute force: melee, armour, charging into the swarm.",
+      "attr": "str",
+      "skills": [
+        {
+          "id": "pulse",
+          "name": "Disruptor Pulse",
+          "tier": 1,
+          "kind": "active",
+          "desc": "An energy blast around you: damages, stuns and interrupts nearby enemies, drops Security Heavies' shields and wipes out enemy projectiles.",
+          "cd": 9,
+          "cost": 30,
+          "ready": true
+        },
+        {
+          "id": "vg_iron",
+          "name": "Iron Hide",
+          "tier": 1,
+          "kind": "passive",
+          "desc": "+15% armour, +10% max health."
+        },
+        {
+          "id": "vg_charge",
+          "name": "Shoulder Charge",
+          "tier": 2,
+          "kind": "active",
+          "desc": "Dash forward, knocking back and stunning enemies in the way (1 s).",
+          "cd": 10,
+          "cost": 15
+        },
+        {
+          "id": "vg_blood",
+          "name": "Bloodletter",
+          "tier": 2,
+          "kind": "passive",
+          "desc": "Melee hits heal you for 5% of the damage dealt."
+        },
+        {
+          "id": "vg_litany",
+          "name": "Battle Litany",
+          "tier": 3,
+          "kind": "active",
+          "desc": "10 s: +50% melee damage, immune to stun and knockback, but take 15% more damage.",
+          "cd": 30,
+          "cost": 30
+        },
+        {
+          "id": "vg_unbreak",
+          "name": "Unbreakable",
+          "tier": 3,
+          "kind": "passive",
+          "desc": "Below 30% health, take 25% less damage."
+        },
+        {
+          "id": "vg_jugg",
+          "name": "Juggernaut",
+          "tier": 4,
+          "kind": "passive",
+          "desc": "Melee kills grant 2 s of 90% damage reduction (at most once every 8 s)."
+        }
+      ]
+    },
+    {
+      "id": "siegebreaker",
+      "name": "The Siegebreaker",
+      "blurb": "Demolitions and ordnance: the area-of-effect answer to swarms.",
+      "attr": "int",
+      "skills": [
+        {
+          "id": "sb_concussion",
+          "name": "Concussion Grenade",
+          "tier": 1,
+          "kind": "active",
+          "desc": "Throw an arcing grenade: area damage, knockback and a 0.8 s daze where it lands.",
+          "cd": 8,
+          "cost": 20,
+          "ready": true,
+          "radius": 90,
+          "dmg": [
+            22,
+            4.5
+          ],
+          "range": 420
+        },
+        {
+          "id": "sb_blast",
+          "name": "Blast Discipline",
+          "tier": 1,
+          "kind": "passive",
+          "desc": "Your explosions are 15% bigger and hit 15% harder.",
+          "ready": true
+        },
+        {
+          "id": "sb_semtex",
+          "name": "Semtex Charge",
+          "tier": 2,
+          "kind": "active",
+          "desc": "Throw a sticky charge that clings to the enemy it hits (or the floor) and blows after 1.5 s with a big blast.",
+          "cd": 12,
+          "cost": 25,
+          "ready": true,
+          "radius": 110,
+          "dmg": [
+            60,
+            9
+          ],
+          "range": 420
+        },
+        {
+          "id": "sb_shrapnel",
+          "name": "Shrapnel",
+          "tier": 2,
+          "kind": "passive",
+          "desc": "Explosions send out fragments that also hit enemies just outside the blast.",
+          "ready": true
+        },
+        {
+          "id": "sb_incendiary",
+          "name": "Incendiary Charge",
+          "tier": 3,
+          "kind": "active",
+          "desc": "A canister that leaves a burning zone for 5 s. The Brood hate fire (+25% against them).",
+          "cd": 18,
+          "cost": 30,
+          "ready": true,
+          "radius": 85,
+          "dmg": [
+            10,
+            1.6
+          ],
+          "range": 400,
+          "duration": 5
+        },
+        {
+          "id": "sb_chain",
+          "name": "Chain Reaction",
+          "tier": 3,
+          "kind": "passive",
+          "desc": "Enemies killed by your explosions explode themselves (small blast).",
+          "ready": true
+        },
+        {
+          "id": "sb_strike",
+          "name": "Danger Close",
+          "tier": 4,
+          "kind": "active",
+          "desc": "Call in an OVERWATCH orbital strike: a 2 s targeting marker, then a barrage over a wide area.",
+          "cd": 60,
+          "cost": 40,
+          "ready": true,
+          "radius": 170,
+          "dmg": [
+            45,
+            7
+          ],
+          "range": 520
+        }
+      ]
+    }
+  ]
+}
