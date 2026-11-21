@@ -51,8 +51,26 @@ static func draw(d: CanvasItem, id: String, c: Vector2, col: Color) -> void:
 			d.draw_line(c + Vector2(-17, 0), c + Vector2(17, 0), col, 1.5)
 			d.draw_line(c + Vector2(0, -17), c + Vector2(0, 17), col, 1.5)
 			d.draw_circle(c, 3.0, col)
+		"gl_mark":
+			d.draw_arc(c, 11.0, 0, TAU, 20, col, 2.0)
+			for k in 4:
+				var dv := Vector2.from_angle(k * PI * 0.5)
+				d.draw_line(c + dv * 7.0, c + dv * 16.0, col, 2.0)
+			d.draw_circle(c, 2.5, Color(1.0, 0.25, 0.15))
+		"gl_deadeye":
+			d.draw_colored_polygon(PackedVector2Array([c + Vector2(-15, 0), c + Vector2(0, -9), c + Vector2(15, 0), c + Vector2(0, 9)]), col.darkened(0.4))
+			d.draw_circle(c, 5.5, col)
+			d.draw_circle(c, 2.2, Color(0.1, 0.08, 0.05))
+		"vg_charge":
+			d.draw_colored_polygon(PackedVector2Array([c + Vector2(-6, -12), c + Vector2(10, 0), c + Vector2(-6, 12), c + Vector2(-2, 0)]), col)
+			for k in 3:
+				d.draw_line(c + Vector2(-16 + k * 3, -7 + k * 7), c + Vector2(-9 + k * 3, -7 + k * 7), col.darkened(0.2), 2.0)
+		"vg_litany":
+			d.draw_line(c + Vector2(0, -15), c + Vector2(0, 15), col, 3.0)
+			d.draw_line(c + Vector2(-9, -6), c + Vector2(9, -6), col, 3.0)
+			d.draw_arc(c, 15.0, 0, TAU, 24, col.darkened(0.2), 1.5)
 		_:
-			# passives and not-yet-built skills: a doctrine sigil
+			# passives: a doctrine sigil
 			var pts := PackedVector2Array()
 			for k in 6:
 				pts.append(c + Vector2.from_angle(k * TAU / 6.0 - PI * 0.5) * 13.0)

@@ -19,6 +19,7 @@ var draw_offset := Vector2(0, -16)  # visual height above the ground-plane track
 var cv: IsoView
 var start_from: Variant = null   # first ray starts here (shooter body) so point-blank shots connect
 var on_impact: Callable          # optional: called with the impact position (e.g. acid pools)
+var pierce := 0                  # bodies it can pass through after hitting them (Gunline: Deadeye)
 
 
 static func fire(parent: Node, from: Vector2, vel: Vector2, h: Dictionary, msk: int, dist: float, col: Color) -> Projectile:
@@ -57,6 +58,13 @@ func _physics_process(delta: float) -> void:
 				travelled += step.length()
 				return
 			Fx.burst(get_parent(), Iso.sp(pos) + draw_offset, color, 6, 140.0, -velocity.normalized(), 0.9)
+			if pierce > 0:
+				pierce -= 1
+				exclude.append((col as CollisionObject2D).get_rid())
+				hit = hit.duplicate()
+				global_position = to
+				travelled += step.length()
+				return
 		else:
 			Fx.burst(get_parent(), Iso.sp(pos) + draw_offset, Color(1.0, 0.75, 0.35), 5, 120.0, (res["normal"] as Vector2), 1.0, 1.6)
 		_impact(pos)

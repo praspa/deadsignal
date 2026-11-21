@@ -10,6 +10,7 @@ var armor := 0.0
 var dead := false
 var statuses: Dictionary = {}   # name -> {"t": remaining, "tick": accum}
 var flash := 0.0                # hit-flash timer for drawing
+var marked_t := 0.0             # Gunline "Marked Target": takes +35% damage from the operative
 var knock := Vector2.ZERO
 var cv: IsoView                 # screen-space view (see Iso / IsoView)
 
@@ -58,6 +59,10 @@ func status_color() -> Color:
 
 
 func process_statuses(delta: float) -> void:
+	if marked_t > 0.0:
+		marked_t = maxf(0.0, marked_t - delta)
+		if marked_t <= 0.0:
+			remove_from_group("marked")
 	if statuses.is_empty():
 		return
 	var ended: Array = []
@@ -88,6 +93,8 @@ func take_hit(hit: Dictionary) -> bool:
 	if not hit.get("pierce_armor", false):
 		amount = Combat.mitigate(amount, armor)
 	amount = _modify_incoming(amount, hit)
+	if marked_t > 0.0 and hit.get("source") is Player:
+		amount *= 1.35
 	if amount <= 0.0:
 		return true
 	hp -= amount
@@ -104,11 +111,14 @@ func take_hit(hit: Dictionary) -> bool:
 		apply_status(st)
 	_on_damaged(hit, amount)
 	var src = hit.get("source")
+	hit["_victim"] = self
 	if src != null and is_instance_valid(src) and src != self and src.has_method("on_dealt_damage"):
 		src.on_dealt_damage(amount, hit)
 	if hp <= 0.0:
 		hp = 0.0
 		die()
+		if src != null and is_instance_valid(src) and src != self and src.has_method("on_kill"):
+			src.on_kill(self, hit)
 	return true
 
 

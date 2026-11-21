@@ -40,7 +40,8 @@
           "name": "Steady Hands",
           "tier": 1,
           "kind": "passive",
-          "desc": "25% less spread, +10% firearm damage."
+          "desc": "25% less spread, +10% firearm damage.",
+          "ready": true
         },
         {
           "id": "gl_mark",
@@ -49,14 +50,16 @@
           "kind": "active",
           "desc": "Tag the enemy under the cursor for 8 s: it takes +35% damage from you and shows on the minimap.",
           "cd": 14,
-          "cost": 15
+          "cost": 15,
+          "ready": true
         },
         {
           "id": "gl_quick",
           "name": "Quick Hands",
           "tier": 2,
           "kind": "passive",
-          "desc": "Reloads 30% faster, +20% magazine size."
+          "desc": "Reloads 30% faster, +20% magazine size.",
+          "ready": true
         },
         {
           "id": "gl_deadeye",
@@ -65,21 +68,24 @@
           "kind": "active",
           "desc": "Your next 6 shots are guaranteed critical hits and pierce one enemy.",
           "cd": 22,
-          "cost": 25
+          "cost": 25,
+          "ready": true
         },
         {
           "id": "gl_hollow",
           "name": "Hollow Points",
           "tier": 3,
           "kind": "passive",
-          "desc": "Critical hits make organic enemies bleed."
+          "desc": "Critical hits make organic enemies bleed.",
+          "ready": true
         },
         {
           "id": "gl_unbroken",
           "name": "Gunline Unbroken",
           "tier": 4,
           "kind": "passive",
-          "desc": "Every firearm kill cuts all ability cooldowns by 1 s and refunds 5 rounds to the magazine."
+          "desc": "Every firearm kill cuts all ability cooldowns by 1 s and refunds 5 rounds to the magazine.",
+          "ready": true
         }
       ]
     },
@@ -104,7 +110,8 @@
           "name": "Iron Hide",
           "tier": 1,
           "kind": "passive",
-          "desc": "+15% armour, +10% max health."
+          "desc": "+15% armour, +10% max health.",
+          "ready": true
         },
         {
           "id": "vg_charge",
@@ -113,14 +120,16 @@
           "kind": "active",
           "desc": "Dash forward, knocking back and stunning enemies in the way (1 s).",
           "cd": 10,
-          "cost": 15
+          "cost": 15,
+          "ready": true
         },
         {
           "id": "vg_blood",
           "name": "Bloodletter",
           "tier": 2,
           "kind": "passive",
-          "desc": "Melee hits heal you for 5% of the damage dealt."
+          "desc": "Melee hits heal you for 5% of the damage dealt.",
+          "ready": true
         },
         {
           "id": "vg_litany",
@@ -129,21 +138,24 @@
           "kind": "active",
           "desc": "10 s: +50% melee damage, immune to stun and knockback, but take 15% more damage.",
           "cd": 30,
-          "cost": 30
+          "cost": 30,
+          "ready": true
         },
         {
           "id": "vg_unbreak",
           "name": "Unbreakable",
           "tier": 3,
           "kind": "passive",
-          "desc": "Below 30% health, take 25% less damage."
+          "desc": "Below 30% health, take 25% less damage.",
+          "ready": true
         },
         {
           "id": "vg_jugg",
           "name": "Juggernaut",
           "tier": 4,
           "kind": "passive",
-          "desc": "Melee kills grant 2 s of 90% damage reduction (at most once every 8 s)."
+          "desc": "Melee kills grant 2 s of 90% damage reduction (at most once every 8 s).",
+          "ready": true
         }
       ]
     },
