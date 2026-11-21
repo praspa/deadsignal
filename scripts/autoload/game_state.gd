@@ -747,7 +747,8 @@ func has_special(id: String, slot_filter: String = "") -> bool:
 
 
 func max_hp() -> float:
-	return 70.0 + attr("str") * 5.0 + float(level - 1) * 12.0 + equip_stat("max_hp")
+	var m := 70.0 + attr("str") * 5.0 + float(level - 1) * 12.0 + equip_stat("max_hp")
+	return m * (1.1 if has_skill("vg_iron") else 1.0)   # Vanguard: Iron Hide
 
 
 func max_energy() -> float:
@@ -760,7 +761,7 @@ func armor() -> float:
 		var it: Dictionary = equipment.get(s, {})
 		if not it.is_empty():
 			a += float(it.get("armor", 0))
-	return a + equip_stat("armor")
+	return (a + equip_stat("armor")) * (1.15 if has_skill("vg_iron") else 1.0)   # Vanguard: Iron Hide
 
 
 func crit_chance() -> float:
@@ -800,7 +801,7 @@ func move_mult() -> float:
 
 
 func spread_mult() -> float:
-	return maxf(0.35, 1.0 - attr("dex") * 0.03)
+	return maxf(0.35, 1.0 - attr("dex") * 0.03) * (0.75 if has_skill("gl_steady") else 1.0)   # Gunline: Steady Hands
 
 
 func cooldown_mult() -> float:

@@ -33,6 +33,16 @@ var roll_dir := Vector2.ZERO
 var invuln_t := 0.0
 var cooldowns := {"roll": 0.0, "overcharge": 0.0, "pulse": 0.0}   # + any Doctrine actives (added on use)
 var overcharge_t := 0.0
+# Doctrine skill state (requirements 15.14)
+var deadeye_shots := 0             # Gunline: Deadeye - guaranteed crits left
+var litany_t := 0.0                # Vanguard: Battle Litany
+var jugg_t := 0.0                  # Vanguard: Juggernaut (damage reduction after a melee kill)
+var jugg_cd := 0.0
+var charge_t := 0.0                # Vanguard: Shoulder Charge dash
+var charge_dir := Vector2.ZERO
+var charge_hit: Array = []
+const CHARGE_TIME := 0.28
+const CHARGE_SPEED := 640.0
 var trail: Array = []
 var interact_target: Node = null
 var hovered_enemy: Node = null
@@ -173,6 +183,12 @@ func _tick_timers(delta: float) -> void:
 		overcharge_t -= delta
 		if overcharge_t <= 0.0:
 			Events.msg("Overcharge depleted.", Color(0.6, 0.6, 0.6))
+	if litany_t > 0.0:
+		litany_t -= delta
+		if litany_t <= 0.0:
+			Events.msg("Battle Litany ends.", Color(0.6, 0.6, 0.6))
+	jugg_t = maxf(0.0, jugg_t - delta)
+	jugg_cd = maxf(0.0, jugg_cd - delta)
 
 
 func _update_aim() -> void:
@@ -225,6 +241,9 @@ func _handle_movement(delta: float) -> void:
 			velocity = apply_knockback(delta)
 			move_and_slide()
 			return
+	if charge_t > 0.0:
+		_charge_step(delta)
+		return
 	if roll_t > 0.0:
 		roll_t -= delta
 		velocity = roll_dir * ROLL_SPEED
@@ -310,6 +329,11 @@ func damage_mult(item: Dictionary) -> float:
 			m = (GameState.ranged_mult() + GameState.tech_mult()) * 0.5
 		_:
 			m = GameState.ranged_mult()
+	if String(w["type"]) == "melee":
+		if litany_t > 0.0:
+			m *= 1.5                                   # Vanguard: Battle Litany
+	elif GameState.has_skill("gl_steady"):
+		m *= 1.1                                       # Gunline: Steady Hands
 	m *= 1.0 + float(item.get("stats", {}).get("damage_pct", 0.0)) / 100.0
 	if overcharge_t > 0.0:
 		m *= 1.4 + GameState.attr("int") * 0.01
@@ -333,8 +357,11 @@ const SHOT_HEIGHT := Vector2(0, -16)
 
 func _base_hit(item: Dictionary) -> Dictionary:
 	var w: Dictionary = item["weapon"]
-	var roll := Combat.roll_damage(float(w["dmg"][0]), float(w["dmg"][1]), damage_mult(item), GameState.crit_chance())
+	var firearm := String(w["type"]) != "melee"
+	var roll := Combat.roll_damage(float(w["dmg"][0]), float(w["dmg"][1]), damage_mult(item), 1.0 if (firearm and deadeye_shots > 0) else GameState.crit_chance())
 	var h := Combat.make_hit(float(roll[0]), self, bool(roll[1]))
+	h["wtype"] = String(w["type"])
+	h["slot"] = _slot_of(item)
 	h["knockback"] = float(w.get("knockback", 0.0)) / float(w.get("pellets", 1))
 	if w.has("status"):
 		h["status"] = w["status"]
@@ -378,6 +405,10 @@ func fire(slot: String) -> void:
 			_fire_hitscan(item)
 		"melee":
 			_melee(item)
+	if mode != "melee" and deadeye_shots > 0:
+		deadeye_shots -= 1
+		if deadeye_shots == 0:
+			Events.msg("Deadeye spent.", Color(0.6, 0.6, 0.6))
 
 
 func _fire_projectile(item: Dictionary) -> void:
@@ -398,6 +429,8 @@ func _fire_projectile(item: Dictionary) -> void:
 			Combat.LAYER_WORLD | Combat.LAYER_ENEMY, float(w["range"]) * randf_range(0.9, 1.05), col)
 		p.start_from = global_position
 		p.exclude = [get_rid()]
+		if deadeye_shots > 0:
+			p.pierce = 1                                   # Gunline: Deadeye pierces one enemy
 		if String(w["type"]) == "shotgun":
 			p.length = 8.0
 	muzzle_t = 0.06
@@ -487,13 +520,13 @@ func start_reload(slot: String) -> void:
 				start_reload("secondary")
 		return
 	var w: Dictionary = item["weapon"]
-	if int(item.get("loaded", 0)) >= int(w["mag"]) or float(reload_t[slot]) > 0.0:
+	if int(item.get("loaded", 0)) >= mag_size(item) or float(reload_t[slot]) > 0.0:
 		return
 	var ammo_type: String = w["ammo"]
 	if int(GameState.ammo.get(ammo_type, 0)) <= 0:
 		_hint("Out of %s!" % ItemDB.ammo_label(ammo_type))
 		return
-	reload_t[slot] = float(w["reload"]) * (0.75 if overcharge_t > 0.0 else 1.0)
+	reload_t[slot] = float(w["reload"]) * (0.75 if overcharge_t > 0.0 else 1.0) * (0.7 if GameState.has_skill("gl_quick") else 1.0)
 	reload_uid[slot] = int(item.get("uid", -1))
 	_reload_sound(String(w["type"]), "start")
 
@@ -506,7 +539,7 @@ func _finish_reload(slot: String) -> void:
 	var w: Dictionary = item["weapon"]
 	_reload_sound(String(w["type"]), "finish")
 	var ammo_type: String = w["ammo"]
-	var need := int(w["mag"]) - int(item.get("loaded", 0))
+	var need := mag_size(item) - int(item.get("loaded", 0))
 	var have := int(GameState.ammo.get(ammo_type, 0))
 	var take := mini(need, have)
 	item["loaded"] = int(item.get("loaded", 0)) + take
@@ -556,6 +589,27 @@ func use_ability(id: String) -> void:
 			_try_overcharge()
 		"pulse":
 			_try_pulse()
+		"gl_mark":
+			_try_mark()
+		"gl_deadeye":
+			if _spend(id):
+				deadeye_shots = 6
+				Fx.ring(get_parent(), Iso.sp(global_position, 30), 26.0, Color(0.95, 0.85, 0.45), 0.4, 4.0)
+				Events.msg("DEADEYE: next 6 shots crit and pierce.", Color(0.95, 0.85, 0.45))
+				Audio.play("reload", global_position, 1.4)
+		"vg_charge":
+			if charge_t <= 0.0 and roll_t <= 0.0 and _spend(id):
+				var mv := Iso.input_to_world(Input.get_vector("move_left", "move_right", "move_up", "move_down"))
+				charge_dir = mv.normalized() if mv.length() > 0.2 else aim_dir
+				charge_t = CHARGE_TIME
+				charge_hit = []
+				Audio.play("swing_heavy", global_position, 0.7)
+		"vg_litany":
+			if _spend(id):
+				litany_t = 10.0
+				Fx.ring(get_parent(), Iso.sp(global_position, 12), 80.0, Color(0.9, 0.3, 0.25), 0.5, 8.0)
+				Events.msg("BATTLE LITANY: hit harder, stand firm.", Color(0.95, 0.4, 0.3))
+				Audio.play("zombie_snarl", global_position, 0.6, -4.0)
 		"sb_concussion", "sb_semtex", "sb_incendiary", "sb_strike":
 			if _spend(id):
 				Ordnance.use(id, self, aim_point)
@@ -662,6 +716,53 @@ func _channel_recall(delta: float) -> void:
 		Events.recall_done.emit(global_position)
 
 
+## Gunline: Marked Target - tags the enemy under the cursor (or nearest to it).
+func _try_mark() -> void:
+	var best: Actor = hovered_enemy as Actor if hovered_enemy != null and is_instance_valid(hovered_enemy) else null
+	if best == null:
+		var bd := 140.0
+		for e in get_tree().get_nodes_in_group("enemies"):
+			var en := e as Actor
+			if en != null and not en.dead and en.global_position.distance_to(aim_point) < bd:
+				bd = en.global_position.distance_to(aim_point)
+				best = en
+	if best == null:
+		_hint("No target under the cursor to mark.")
+		return
+	if not _spend("gl_mark"):
+		return
+	best.marked_t = 8.0
+	best.add_to_group("marked")
+	Audio.play("terminal", best.global_position, 1.6)
+	Fx.text(get_parent(), Iso.sp(best.global_position, 70), "MARKED", Color(1.0, 0.3, 0.2), 1.0)
+
+
+## Vanguard: Shoulder Charge - a short dash that bowls enemies over.
+func _charge_step(delta: float) -> void:
+	charge_t -= delta
+	velocity = charge_dir * CHARGE_SPEED + apply_knockback(delta)
+	trail.append(global_position)
+	if trail.size() > 6:
+		trail.pop_front()
+	for e in get_tree().get_nodes_in_group("enemies"):
+		var en := e as Actor
+		if en == null or en.dead or en in charge_hit:
+			continue
+		if en.global_position.distance_to(global_position) < 26.0 + float(en.get("radius")):
+			charge_hit.append(en)
+			var h := Combat.make_hit((14.0 + GameState.level * 3.0) * GameState.melee_mult(), self, false)
+			h["dir"] = charge_dir
+			h["knockback"] = 320.0
+			h["wtype"] = "melee"
+			en.take_hit(h)
+			en.apply_status("stun")
+			Audio.play("melee_hit", en.global_position, 0.8)
+			Events.screen_shake.emit(5.0)
+	move_and_slide()
+	if charge_t <= 0.0:
+		trail.clear()
+
+
 func _use_stim() -> void:
 	if GameState.stims <= 0:
 		_hint("No stim-packs left.")
@@ -718,6 +819,9 @@ func _update_hover() -> void:
 func take_hit(hit: Dictionary) -> bool:
 	if dead or invuln_t > 0.0:
 		return false
+	if litany_t > 0.0 and float(hit.get("knockback", 0.0)) > 0.0:
+		hit = hit.duplicate()
+		hit["knockback"] = 0.0                          # Battle Litany: stand firm
 	if not hit.get("dot", false):
 		if randf() < GameState.evasion():
 			Fx.text(get_parent(), Iso.sp(global_position, 44), "EVADED", Color(0.7, 0.9, 1.0), 0.9)
@@ -748,6 +852,53 @@ func on_dealt_damage(amount: float, hit: Dictionary) -> void:
 	var ls := float(hit.get("lifesteal", 0.0))
 	if ls > 0.0:
 		hp = minf(max_hp, hp + amount * ls)
+	var wt := String(hit.get("wtype", ""))
+	if wt == "melee" and GameState.has_skill("vg_blood"):
+		hp = minf(max_hp, hp + amount * 0.05)          # Vanguard: Bloodletter
+	if wt != "" and wt != "melee" and hit.get("crit", false) and GameState.has_skill("gl_hollow"):
+		var v = hit.get("_victim")
+		if v is Enemy and ((v as Enemy).kind == "researcher" or bool((v as Enemy).def.get("organic", false))):
+			(v as Actor).apply_status("bleed")         # Gunline: Hollow Points
+
+
+## Kill credit (Actor.take_hit): the Gunline and Vanguard capstones.
+func on_kill(_victim: Node, hit: Dictionary) -> void:
+	var wt := String(hit.get("wtype", ""))
+	if wt != "" and wt != "melee" and GameState.has_skill("gl_unbroken"):
+		for k in cooldowns:
+			cooldowns[k] = maxf(0.0, float(cooldowns[k]) - 1.0)
+		var item := weapon(String(hit.get("slot", "primary")))
+		if not item.is_empty() and item["weapon"].has("mag"):
+			item["loaded"] = mini(mag_size(item), int(item.get("loaded", 0)) + 5)
+	if wt == "melee" and GameState.has_skill("vg_jugg") and jugg_cd <= 0.0:
+		jugg_t = 2.0
+		jugg_cd = 8.0
+		Fx.ring(get_parent(), Iso.sp(global_position, 12), 50.0, Color(1.0, 0.75, 0.3), 0.4, 6.0)
+		Fx.text(get_parent(), Iso.sp(global_position, 60), "JUGGERNAUT", Color(1.0, 0.8, 0.35), 1.0)
+
+
+## Magazine size with the Gunline's Quick Hands (+20%).
+func mag_size(item: Dictionary) -> int:
+	var m := int(item["weapon"].get("mag", 0))
+	return int(round(m * 1.2)) if GameState.has_skill("gl_quick") else m
+
+
+## Incoming damage after Doctrine effects: Battle Litany (+15% taken),
+## Unbreakable (-25% below 30% health), Juggernaut (-90% for 2 s).
+func _modify_incoming(amount: float, _hit: Dictionary) -> float:
+	if litany_t > 0.0:
+		amount *= 1.15
+	if GameState.has_skill("vg_unbreak") and hp < max_hp * 0.3:
+		amount *= 0.75
+	if jugg_t > 0.0:
+		amount *= 0.1
+	return amount
+
+
+func apply_status(sname: String, power: float = 1.0) -> void:
+	if litany_t > 0.0 and sname == "stun":
+		return                                         # Battle Litany: can't be stunned
+	super.apply_status(sname, power)
 
 
 func die() -> void:
@@ -814,6 +965,23 @@ func _render() -> void:
 	aim_dir = wa
 	if recall_t > 0.0:
 		_render_recall()
+	_render_doctrine_auras()
+
+
+## Battle Litany (red), Juggernaut (gold), Deadeye (gold sight) around the operative.
+func _render_doctrine_auras() -> void:
+	var pulse := 0.5 + 0.5 * sin(death_t + Time.get_ticks_msec() * 0.008)
+	if litany_t > 0.0 or jugg_t > 0.0:
+		Iso.ground(cv)
+		if litany_t > 0.0:
+			cv.draw_arc(Vector2.ZERO, 22.0 + 2.0 * pulse, 0, TAU, 24, Color(0.95, 0.25, 0.2, 0.5 + 0.3 * pulse), 2.5)
+		if jugg_t > 0.0:
+			cv.draw_circle(Vector2.ZERO, 26.0, Color(1.0, 0.75, 0.3, 0.18))
+			cv.draw_arc(Vector2.ZERO, 26.0, 0, TAU, 24, Color(1.0, 0.8, 0.35, 0.9), 2.0)
+		cv.draw_set_transform(Vector2.ZERO)
+	if deadeye_shots > 0:
+		for k in deadeye_shots:
+			cv.draw_circle(Vector2(-10 + k * 4.0, -66), 1.5, Color(0.95, 0.85, 0.45))
 
 
 ## Recall channel: a column of blue light, and a ring on the floor closing in.

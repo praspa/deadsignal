@@ -95,14 +95,28 @@ func _ready() -> void:
 		"revive":
 			await frames(150)
 		"doctrines":
-			GameState.level = 12
-			for id in ["sb_concussion", "sb_blast", "sb_semtex"]:
+			GameState.level = 25
+			for id in ["overcharge", "gl_steady", "gl_mark", "pulse", "vg_iron", "sb_concussion"]:
 				GameState.learn_skill(id)
 			await frames(5)
 			game._toggle(game.doctrine_ui)
 			await frames(10)
 			game.doctrine_ui._show("sb_shrapnel")
 			await frames(5)
+		"gl_vg":
+			GameState.level = 25
+			GameState.skills = ["overcharge", "gl_steady", "gl_mark", "gl_quick", "gl_deadeye", "pulse", "vg_iron", "vg_charge", "vg_litany"]
+			GameState.slots = ["gl_mark", "gl_deadeye", "vg_litany"]
+			var tgt2 := p.global_position + Vector2(150, -40)
+			var en := lvl.spawn_enemy("heavy", tgt2, "") as Enemy
+			p.aim_override = tgt2
+			await frames(10)
+			GameState.energy = GameState.max_energy()
+			p.use_ability("gl_mark")
+			p.use_ability("gl_deadeye")
+			GameState.energy = GameState.max_energy()
+			p.use_ability("vg_litany")
+			await frames(20)
 		"sb_fire", "sb_strike":
 			GameState.level = 40
 			for id in ["sb_concussion", "sb_blast", "sb_semtex", "sb_shrapnel", "sb_incendiary", "sb_chain", "sb_strike"]:

@@ -475,6 +475,14 @@ func _render_body() -> void:
 
 
 func _draw_overlay() -> void:
+	if marked_t > 0.0:
+		# Marked Target: a red reticle over the enemy
+		var mt := _top() - 22.0
+		var rr := 9.0 + sin(anim_t * 6.0)
+		cv.draw_arc(Vector2(0, mt), rr, 0, TAU, 16, Color(1.0, 0.2, 0.15, 0.9), 1.5)
+		for k in 4:
+			var dv := Vector2.from_angle(k * PI * 0.5)
+			cv.draw_line(Vector2(0, mt) + dv * (rr - 3.0), Vector2(0, mt) + dv * (rr + 4.0), Color(1.0, 0.2, 0.15, 0.9), 1.5)
 	var sc := status_color()
 	if sc.a > 0.0:
 		cv.draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, 0.45))

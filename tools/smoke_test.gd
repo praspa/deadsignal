@@ -699,6 +699,7 @@ func run() -> void:
 	await _kessar_tests()
 
 	await _doctrine_tests()
+	await _gunline_vanguard_tests()
 
 	print("== autosave on quit")
 	GameState.travel("ship")
@@ -1046,7 +1047,6 @@ func _doctrine_tests() -> void:
 	check(GameState.doctrine_points_earned() == 0 and GameState.next_doctrine_level() == 2, "no Doctrine points at level 1 (first at level 2)")
 	GameState.level = 5
 	check(GameState.doctrine_points_free() == 2, "two Doctrine points by level 5")
-	check(GameState.learn_block("gl_steady").contains("Not available"), "Gunline / Vanguard skills (beyond the tier 1 actives) are listed but not built yet")
 	check(GameState.learn_block("overcharge") == "" and GameState.learn_block("pulse") == "", "Overcharge (Gunline) and Disruptor Pulse (Vanguard) are tier 1 skills")
 	check(GameState.learn_skill("sb_concussion"), "learn a tier 1 Siegebreaker skill")
 	check(GameState.learn_block("sb_semtex").contains("Needs 2"), "tier 2 needs 2 points in the Doctrine")
@@ -1074,6 +1074,8 @@ func _doctrine_tests() -> void:
 	var spot := player.global_position + Vector2(180, 0)
 	var a := lvl.spawn_enemy("heavy", spot, "") as Enemy
 	await frames(2)
+	a.max_hp = 5000.0   # survive the blast so the daze can be checked
+	a.hp = 5000.0
 	GameState.energy = GameState.max_energy()
 	player.aim_override = spot
 	await frames(2)
@@ -1146,6 +1148,109 @@ func _doctrine_tests() -> void:
 	GameState.skills = keep_skills
 	GameState.slots = keep_slots
 	player.aim_override = null
+
+
+func _gunline_vanguard_tests() -> void:
+	print("== the Gunline and the Vanguard")
+	var keep_lv := GameState.level
+	var keep_skills := GameState.skills.duplicate()
+	GameState.level = 20
+	main.call("_on_game_request", "travel:kharon")
+	await frames(8)
+	game = main.get("current")
+	var player := game.player
+	var lvl := game.level
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if (e as Node2D).global_position.distance_to(player.global_position) < 1200.0:
+			e.queue_free()
+	await frames(2)
+	var rifle: Dictionary = ItemDB.generate("assault_rifle", 0, 1)
+	GameState.equipment["primary"] = rifle
+	GameState.skills = []
+	var sp0 := GameState.spread_mult()
+	var dm0 := player.damage_mult(rifle)
+	var mag0 := player.mag_size(rifle)
+	var hp_max0 := GameState.max_hp()
+	var ar0 := GameState.armor()
+	GameState.skills = ["overcharge", "gl_steady", "gl_mark", "gl_quick", "gl_deadeye", "gl_hollow", "gl_unbroken", "pulse", "vg_iron"]
+	check(GameState.spread_mult() < sp0 * 0.8 and player.damage_mult(rifle) > dm0 * 1.05, "Steady Hands: tighter spread, more firearm damage")
+	check(player.mag_size(rifle) == int(round(mag0 * 1.2)), "Quick Hands: +20%% magazine (%d -> %d)" % [mag0, player.mag_size(rifle)])
+	rifle["loaded"] = 0
+	player.reload_t["primary"] = 0.0
+	player.start_reload("primary")
+	check(player.reload_t["primary"] < float(rifle["weapon"]["reload"]) * 0.75, "Quick Hands: faster reloads")
+	player.reload_t["primary"] = 0.0
+	rifle["loaded"] = player.mag_size(rifle)
+	check(GameState.max_hp() > hp_max0 * 1.05 and GameState.armor() > ar0 * 1.1, "Iron Hide: more armour and health")
+	var spot := player.global_position + Vector2(160, 0)
+	var a := lvl.spawn_enemy("researcher", spot, "") as Enemy
+	var b := lvl.spawn_enemy("researcher", spot + Vector2(0, 90), "") as Enemy
+	await frames(2)
+	player.aim_override = spot
+	await frames(2)
+	GameState.energy = GameState.max_energy()
+	player.use_ability("gl_mark")
+	check(a.marked_t > 0.0 and a.is_in_group("marked"), "Marked Target tags the enemy under the cursor")
+	var ha := a.hp
+	var hb := b.hp
+	var mh := Combat.make_hit(10.0, player, false)
+	mh["pierce_armor"] = true
+	a.take_hit(mh.duplicate())
+	b.take_hit(mh.duplicate())
+	check(is_equal_approx(ha - a.hp, (hb - b.hp) * 1.35), "a marked enemy takes +35% from you")
+	GameState.energy = GameState.max_energy()
+	player.use_ability("gl_deadeye")
+	check(player.deadeye_shots == 6 and bool(player._base_hit(rifle)["crit"]), "Deadeye: guaranteed crits")
+	var ch := Combat.make_hit(5.0, player, true)
+	ch["wtype"] = "rifle"
+	ch["_victim"] = b
+	player.on_dealt_damage(5.0, ch)
+	check(b.has_status("bleed"), "Hollow Points: crits make organics bleed")
+	player.cooldowns["pulse"] = 5.0
+	rifle["loaded"] = 10
+	player.on_kill(a, {"wtype": "rifle", "slot": "primary"})
+	check(is_equal_approx(float(player.cooldowns["pulse"]), 4.0) and int(rifle["loaded"]) == 15, "Gunline Unbroken: firearm kills cut cooldowns and refund rounds")
+	a.queue_free()
+	b.queue_free()
+	player.deadeye_shots = 0
+	GameState.skills = ["pulse", "vg_iron", "vg_charge", "vg_blood", "vg_litany", "vg_unbreak", "vg_jugg"]
+	var c := lvl.spawn_enemy("researcher", player.global_position + Vector2(90, 0), "") as Enemy
+	await frames(2)
+	c.max_hp = 5000.0   # survive the hit, so the stun can be checked (and no Juggernaut kill)
+	c.hp = 5000.0
+	c.set_physics_process(false)   # a still target: the test checks the charge, not the dodge
+	player.aim_override = c.global_position
+	await frames(2)
+	var hc := c.hp
+	var p0 := player.global_position
+	GameState.energy = GameState.max_energy()
+	player.use_ability("vg_charge")
+	await frames(24)
+	check(c.hp < hc and c.is_stunned() and player.global_position.distance_to(p0) > 30.0, "Shoulder Charge: dash, damage, stun")
+	c.queue_free()
+	player.hp = player.max_hp * 0.5
+	var h0 := player.hp
+	player.on_dealt_damage(100.0, {"wtype": "melee"})
+	check(is_equal_approx(player.hp, h0 + 5.0), "Bloodletter: melee hits heal 5%")
+	var maul := {"weapon": {"type": "melee"}, "stats": {}}
+	var md0 := player.damage_mult(maul)
+	GameState.energy = GameState.max_energy()
+	player.use_ability("vg_litany")
+	player.apply_status("stun")
+	check(player.litany_t > 0.0 and player.damage_mult(maul) > md0 * 1.4 and not player.is_stunned(), "Battle Litany: +50% melee, can't be stunned")
+	check(is_equal_approx(player._modify_incoming(100.0, {}), 115.0), "Battle Litany: you take 15% more")
+	player.litany_t = 0.0
+	player.hp = player.max_hp * 0.2
+	check(is_equal_approx(player._modify_incoming(100.0, {}), 75.0), "Unbreakable: 25% less damage below 30% health")
+	player.hp = player.max_hp
+	player.on_kill(null, {"wtype": "melee"})
+	check(player.jugg_t > 0.0 and is_equal_approx(player._modify_incoming(100.0, {}), 10.0), "Juggernaut: a melee kill gives 90% damage reduction")
+	player.jugg_t = 0.0
+	player.on_kill(null, {"wtype": "melee"})
+	check(player.jugg_t == 0.0, "Juggernaut: at most once every 8 s")
+	player.aim_override = null
+	GameState.level = keep_lv
+	GameState.skills = keep_skills
 
 
 func _crew(id: String) -> CrewNpc:

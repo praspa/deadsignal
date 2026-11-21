@@ -775,7 +775,7 @@ Rewards: OVERWATCH bounty, loot from the Lieutenant (good odds of Rare), the gov
 
 New work: city wall / floor style (buildings, streets, signs, a western palette), street-and-block map generator, spaceport and Civic Hall maps, Brood Lieutenant (champion), quest-item pickup + flag-locked door, governors (cocoon interactable + dialogue), Wall Crawler and Infested Militia, mission data, re-slot Kharon (retune to area level 1–2, debrief unlocks Last Water) and Kessar IV (area levels up, briefing after Last Water).
 
-15.14 Combat Specialist Doctrines (skill trees)                [framework, the Siegebreaker, Overcharge and Disruptor Pulse DONE — rest of Gunline and Vanguard to do]
+15.14 Combat Specialist Doctrines (skill trees)                [DONE — all three Doctrines, 21 skills]
 
 Three skill trees in the spirit of Borderlands 2, called Doctrines: the Combat Specialist's schools of war. Kept deliberately small. New abilities arrive rarely, like Diablo II's big skill breakpoints: a choice is something you live with for a long stretch, and no single playthrough can have everything, so the build is a real trade-off. Most characters will invest in two Doctrines and never finish the third.
 
@@ -855,7 +855,7 @@ Controls: K opens the Doctrine screen (also in the pause menu). Ability slots: Q
 8. Linked zones and landing beacons: beacon interactable, landing point choice on the star map, Kessar IV hive beacon; locked-node reasons on the star map; intel / access-code unlocks.   [DONE; exits in data + physical links later]
 9. Acts: act data on galaxy nodes, current act on the HUD / pause menu, act gate flag unlocking the next galaxy, star map focused on the current act. Then act 1 content: Belt Claim 7, Halcyon Prime, Relay Station 9 finale.
 10. Act 1 order: Kharon (intro, retuned) -> Last Water (new) -> Kessar IV (re-slotted). Last Water as in 15.13.   [first cut DONE]
-11. Combat Specialist Doctrines: Doctrine tab on the character sheet, doctrine points at levels 2/5/10/.../40, slots (2, third at level 20) set aboard the ship, the 21 skills (Siegebreaker brings concussion grenades, semtex charges, incendiaries and the orbital strike, all as abilities), data/doctrines.json, respec at the Medic.
+11. Combat Specialist Doctrines: Doctrine tab on the character sheet, doctrine points at levels 2/5/10/.../40, slots (2, third at level 20) set aboard the ship, the 21 skills (Siegebreaker brings concussion grenades, semtex charges, incendiaries and the orbital strike, all as abilities), data/doctrines.json, respec at the Medic.   [DONE]
 
 
 ## Target platform
