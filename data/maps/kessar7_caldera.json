@@ -1,0 +1,12 @@
+{
+ "name": "the King's Caldera",
+ "rooms": {
+  "arena": [
+   6,
+   6,
+   38,
+   38
+  ]
+ },
+ "dirs": {}
+}

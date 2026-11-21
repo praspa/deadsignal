@@ -11,11 +11,12 @@ const WALL_H := 58.0
 const CUTAWAY_ALPHA := 0.22
 const MAP_DIR := "res://data/maps/"   # outpost_<n>.txt + .json, see tools/gen_maps.py
 
-const SOLID_PROPS := "opgtinqx&"
+const SOLID_PROPS := "opgtinqx&^$?+([]}"
 const ENEMY_CHARS := {"d": "drone", "r": "researcher", "h": "heavy", "B": "boss",
 	"w": "swarmling", "y": "spitter", "G": "broodguard", "m": "miner", "u": "burrower", "e": "egg", "K": "queen",
 	"a": "militia", "s": "crawler", "A": "lieutenant"}
-const BROOD := ["swarmling", "spitter", "broodguard", "miner", "burrower", "egg", "militia", "crawler", "lieutenant"]
+const BROOD := ["swarmling", "spitter", "broodguard", "miner", "burrower", "egg", "militia", "crawler", "lieutenant",
+	"stalker", "gibberer", "thornback", "elder_thornback"]   # (Kessar VII's primates use the same behaviours)
 const COCOON_CHAR := "O"      # a captive governor, cocooned in resin (Last Water)
 const HIVE_HOLE_CHAR := "H"   # Kessar sinkhole between the surface and the hive
 const TELEPORT_CHAR := "W"    # ship's teleport pad (returns to the recall beacon)
@@ -37,6 +38,7 @@ var _faded: Dictionary = {}     # Vector2i -> true (walls currently fading / fad
 var player_start := Vector2.ZERO
 var revive_point := Vector2.ZERO   # in front of the Lazarus Cradle (ship only)
 var hive_hole: HiveHole = null
+var enemy_chars: Dictionary = {}    # map char -> enemy kind (ENEMY_CHARS + the location's "enemy_chars")
 var exits: Dictionary = {}          # map char -> ZoneExit (zone transitions from data/locations.json)
 var exit_points: Dictionary = {}    # map char -> world position (arrivals)
 var teleport_pad: TeleportPad = null
@@ -61,6 +63,7 @@ const LIGHT_FLOOR := 2   # light layer for the floor: lit by lamps and the playe
 
 func build(p_world: Node2D) -> void:
 	world = p_world
+	add_to_group("level")
 	var ldef := GameState.location_def()
 	powered = bool(ldef.get("powered", false)) or GameState.has_flag(String(ldef.get("powered_flag", "-")))
 	baker = Baker.new()
@@ -80,7 +83,7 @@ func build(p_world: Node2D) -> void:
 		lamp_color = Color(float(lc[0]), float(lc[1]), float(lc[2]))
 	steady_lights = bool(ldef.get("steady_lights", false))
 	WallTile.ship_style = String(ldef.get("wall_style", "")) == "ship"
-	WallTile.natural = String(ldef.get("wall_style", "")) if String(ldef.get("wall_style", "")) in ["rock", "hive", "city"] else ""
+	WallTile.natural = String(ldef.get("wall_style", "")) if String(ldef.get("wall_style", "")) in ["rock", "hive", "city", "jungle"] else ""
 	_load_map()
 	floor_layer = Node2D.new()
 	floor_layer.name = "Floor"
@@ -99,7 +102,10 @@ func build(p_world: Node2D) -> void:
 				chunks.append(chunk)
 			else:
 				chunk.free()
+	enemy_chars = ENEMY_CHARS.duplicate()
+	enemy_chars.merge(GameState.location_def().get("enemy_chars", {}), true)
 	_build_walls()
+	_build_water()
 	_build_occluders()
 	_build_astar()
 	_spawn_entities()
@@ -251,7 +257,7 @@ func _build_occluders() -> void:
 	for y in h:
 		for x in w:
 			var c := ch(x, y)
-			if "ogtinqx&".contains(c) or c == "C":
+			if "ogtinqx&$?+[]}".contains(c) or c == "C":
 				_add_occluder(occ_root, Rect2(x * T + 3, y * T + 3, T - 6, T - 6))
 
 
@@ -265,6 +271,31 @@ func _add_occluder(parent: Node, r: Rect2) -> void:
 
 
 # ---------------------------------------------------------------- walls
+
+## Water ('~'): its own collision layer, so it stops the operative and enemies
+## but bullets and sight pass over it.
+func _build_water() -> void:
+	var body := StaticBody2D.new()
+	body.name = "WaterCollision"
+	body.collision_layer = Combat.LAYER_WATER
+	body.collision_mask = 0
+	add_child(body)
+	for y in h:
+		var x := 0
+		while x < w:
+			if ch(x, y) == "~":
+				var x0 := x
+				while x < w and ch(x, y) == "~":
+					x += 1
+				var cs := CollisionShape2D.new()
+				var r := RectangleShape2D.new()
+				r.size = Vector2((x - x0) * T, T)
+				cs.shape = r
+				cs.position = Vector2(x0 * T + (x - x0) * T * 0.5, y * T + T * 0.5)
+				body.add_child(cs)
+			else:
+				x += 1
+
 
 func _build_walls() -> void:
 	var body := StaticBody2D.new()
@@ -307,10 +338,19 @@ func _build_astar() -> void:
 	for y in h:
 		for x in w:
 			var c := ch(x, y)
-			if c == "#" or c == " " or SOLID_PROPS.contains(c) or c.is_valid_int() or c == "c" or c == "C" or c == NAV_CHAR or c == STASH_CHAR or c == CRADLE_CHAR or c == KESSAR_LOG_CHAR or c == COCOON_CHAR or CREW_CHARS.contains(c):
+			if c == "#" or c == " " or c == "~" or SOLID_PROPS.contains(c) or (c.is_valid_int() and not enemy_chars.has(c)) or c == "c" or c == "C" or c == NAV_CHAR or c == STASH_CHAR or c == CRADLE_CHAR or c == KESSAR_LOG_CHAR or c == COCOON_CHAR or CREW_CHARS.contains(c):
 				astar.set_point_solid(Vector2i(x, y), true)
 			elif DOOR_REQ.has(c):
 				astar.set_point_solid(Vector2i(x, y), not GameState.has_flag(door_flag(x, y)))
+
+
+## The Brood King smashes a stone pillar ('+'): it becomes rubble you can walk over.
+func break_pillar(cell: Vector2i) -> void:
+	for n in world.get_children():
+		if n is Prop and (n as Prop).cell == cell and (n as Prop).kind == "+":
+			(n as Prop).shatter()
+			astar.set_point_solid(cell, false)
+			return
 
 
 func set_cell_solid(cell: Vector2i, solid: bool) -> void:
@@ -342,9 +382,9 @@ func _spawn_entities() -> void:
 			var sid := "%d,%d" % [x, y]
 			if c == "@":
 				player_start = pos
-			elif ENEMY_CHARS.has(c):
+			elif enemy_chars.has(c):
 				if not GameState.has_flag(GameState.area_flag("k:" + sid)):
-					var e := spawn_enemy(ENEMY_CHARS[c], pos, sid)
+					var e := spawn_enemy(enemy_chars[c], pos, sid)
 					if c == "K":
 						(e as BroodQueen).arena_rect = Rect2(rooms["queen"].position * T, rooms["queen"].size * T).grow(-T) if rooms.has("queen") else Rect2()
 					if c == "B":
@@ -408,7 +448,7 @@ func _spawn_entities() -> void:
 				var box := LootContainer.new()
 				box.setup(self, Vector2i(x, y), c == "C")
 				world.add_child(box)
-			elif SOLID_PROPS.contains(c) or c in ["l", "v", "z", "j", "f", "%", "*"]:
+			elif SOLID_PROPS.contains(c) or c in ["l", "v", "z", "j", "f", "%", "*", '"', "!", ")", "{"]:
 				var p := Prop.new()
 				p.setup(self, Vector2i(x, y), c)
 				world.add_child(p)
@@ -434,6 +474,8 @@ func spawn_enemy(kind: String, pos: Vector2, sid: String) -> Enemy:
 		e = Boss.new()
 	elif kind == "queen":
 		e = BroodQueen.new()
+	elif kind == "brood_king":
+		e = BroodKing.new()
 	elif kind in BROOD:
 		e = BroodEnemy.new()
 	else:

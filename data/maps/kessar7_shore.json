@@ -1,0 +1,14 @@
+{
+ "name": "the Shoreline",
+ "rooms": {
+  "beach": [
+   16,
+   14,
+   30,
+   28
+  ]
+ },
+ "dirs": {
+  "jungle_dir": "east"
+ }
+}

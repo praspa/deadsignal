@@ -86,6 +86,20 @@
       ],
       "locked_reason": "Awaiting OVERWATCH clearance"
     },
+    "kessar_vii": {
+      "parent": "kessar",
+      "type": "planet",
+      "name": "Kessar VII",
+      "description": "An ocean world nobody settled. One island of steaming jungle and black rock, and on it, something enormous moving.",
+      "landing": "kessar7_shore",
+      "beacons": [
+        "kessar7_caldera"
+      ],
+      "requires": [
+        "kessar7_open"
+      ],
+      "locked_reason": "Coordinates unknown"
+    },
     "kessar_belt": {
       "parent": "kessar",
       "type": "station",

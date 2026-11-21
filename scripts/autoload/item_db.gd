@@ -6,6 +6,7 @@ const RARITY_COMMON := 0
 const RARITY_UNCOMMON := 1
 const RARITY_RARE := 2
 const RARITY_EXPERIMENTAL := 3
+const RARITY_UNIQUE := 4        # hand-designed items with fixed stats (data/items.json "uniques")
 
 var data: Dictionary = {}
 var bases: Dictionary = {}
@@ -39,7 +40,8 @@ func _ready() -> void:
 	crew = load_json("res://data/crew.json")
 	starmap = load_json("res://data/starmap.json")
 	doctrines = load_json("res://data/doctrines.json")
-	missions = {"kharon": mission, "lastwater": load_json("res://data/missions/lastwater.json"), "kessar": load_json("res://data/missions/kessar.json")}
+	missions = {"kharon": mission, "lastwater": load_json("res://data/missions/lastwater.json"), "kessar": load_json("res://data/missions/kessar.json"),
+		"king": load_json("res://data/missions/brood_king.json")}   # mission id "king" (flags king:*)
 
 
 static func load_json(path: String) -> Dictionary:
@@ -58,7 +60,7 @@ static func load_json(path: String) -> Dictionary:
 # One place to tune the economy (requirements 15.2.7).
 
 const VALUE_BASE := 20.0
-const VALUE_RARITY := [1.0, 2.5, 6.0, 15.0]
+const VALUE_RARITY := [1.0, 2.5, 6.0, 15.0, 25.0]
 const SELL_RATE := 0.25
 const SUPPLIES := {
 	"rifle": {"name": "Rifle ammo (30 rounds)", "price": 15, "ammo": "rifle", "amount": 30},
@@ -74,7 +76,7 @@ const FENCE_ODDS := [50.0, 33.0, 14.0, 3.0]   # Common / Uncommon / Rare / Exper
 
 
 func item_value(item: Dictionary) -> int:
-	var r := clampi(int(item.get("rarity", 0)), 0, 3)
+	var r := clampi(int(item.get("rarity", 0)), 0, 4)
 	var il := float(item.get("ilvl", 1))
 	var n_aff := float((item.get("affixes", []) as Array).size()) if item.has("affixes") else float((item.get("stats", {}) as Dictionary).size())
 	return roundi(VALUE_BASE * float(VALUE_RARITY[r]) * (1.0 + 0.15 * (il - 1.0)) * (1.0 + 0.1 * n_aff))
@@ -118,6 +120,23 @@ func roll_weighted(weights: Array) -> int:
 		if r <= 0.0:
 			return i
 	return 0
+
+
+## A Unique item by id (e.g. "kings_crest"): fixed name, stats and special.
+func generate_unique(uid_name: String, ilvl: int) -> Dictionary:
+	var u: Dictionary = data.get("uniques", {}).get(uid_name, {})
+	if u.is_empty():
+		return {}
+	var item := generate(String(u["base"]), RARITY_UNIQUE, ilvl)
+	item["name"] = String(u["name"])
+	item["unique"] = uid_name
+	var ar: Array = u.get("armor", [0, 0])
+	item["armor"] = int(ar[0]) + int(ar[1]) * ilvl
+	item["stats"] = (u.get("stats", {}) as Dictionary).duplicate()
+	item["special"] = String(u.get("special", ""))
+	item["special_text"] = String(u.get("special_text", ""))
+	item["lore"] = String(u.get("lore", ""))
+	return item
 
 
 func rarity_color(r: int) -> Color:
@@ -273,6 +292,8 @@ func describe(item: Dictionary) -> String:
 		s += "[color=#%s]%s%s %s[/color]\n" % [col, "+" if v >= 0 else "", fmt_num(v), stat_label(k)]
 	if String(item.get("special", "")) != "":
 		s += "[color=#c25cff]%s[/color]\n" % item.get("special_text", "")
+	if String(item.get("lore", "")) != "":
+		s += "[color=#a08060][i]%s[/i][/color]\n" % String(item["lore"])
 	return s
 
 

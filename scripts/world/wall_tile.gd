@@ -142,6 +142,9 @@ func _paint_natural(a: Vector2, b: Vector2, c: Vector2, d: Vector2, up: Vector2,
 	if natural == "city":
 		_paint_building(a, b, c, d, hsh, south_open, east_open)
 		return
+	if natural == "jungle":
+		_paint_treeline(a, b, c, d, hsh, south_open, east_open)
+		return
 	var hive := natural == "hive"
 	var lit := Color(0.2, 0.18, 0.16).lerp(Color(0.24, 0.21, 0.18), v) if not hive else Color(0.17, 0.15, 0.16).lerp(Color(0.21, 0.18, 0.19), v)
 	var dark := lit.darkened(0.4)
@@ -162,6 +165,33 @@ func _paint_natural(a: Vector2, b: Vector2, c: Vector2, d: Vector2, up: Vector2,
 	ci.draw_polygon(PackedVector2Array([a2, b2, c2, d2]), PackedColorArray([top.lightened(0.06), top, top.darkened(0.25), top.lightened(0.03)]))
 	if hsh % 3 == 0:
 		ci.draw_circle((a2 + c2) * 0.5 + Vector2(float(hsh % 7) - 3.0, 0), 4.0 + float(hsh % 4), top.lightened(0.1))
+
+
+## Kessar VII's jungle walls: a dense line of trunks under a heavy canopy.
+func _paint_treeline(a: Vector2, b: Vector2, c: Vector2, d: Vector2, hsh: int, south_open: bool, east_open: bool) -> void:
+	var H := 46.0 + float(Level.hash2(cx / 2, cy / 2) % 3) * 6.0
+	var up := Vector2(0, -H)
+	var bark := Color(0.2, 0.16, 0.12)
+	var undergrowth := Color(0.1, 0.2, 0.09)
+	if south_open or east_open:
+		# trunks and undergrowth on the open faces
+		for k in 3:
+			var f := 0.2 + 0.3 * k + float((hsh >> k) % 3) * 0.04
+			var base := (d.lerp(c, f) if south_open else c.lerp(b, f))
+			ci.draw_line(base, base + Vector2(float((hsh >> (k + 2)) % 5) - 2.0, -H * 0.85), bark.lightened(0.05 * k), 5.0 + float(k % 2) * 2.0)
+			ci.draw_line(base + Vector2(-2, 0), base + Vector2(-1, -H * 0.85), bark.darkened(0.3), 1.0)
+		var face := PackedVector2Array([d, c, c + Vector2(0, -14), d + Vector2(0, -14)]) if south_open else PackedVector2Array([c, b, b + Vector2(0, -14), c + Vector2(0, -14)])
+		ci.draw_colored_polygon(face, undergrowth)
+		for k in 4:
+			var p0 := (d.lerp(c, 0.15 + k * 0.23) if south_open else c.lerp(b, 0.15 + k * 0.23))
+			ci.draw_colored_polygon(PackedVector2Array([p0 + Vector2(-6, 0), p0 + Vector2(6, 0), p0 + Vector2(float(k % 3) - 1.0, -14 - float((hsh >> k) % 6))]), undergrowth.lightened(0.12))
+	# the canopy: overlapping leaf masses over the whole block
+	var top := (a + c) * 0.5 + up
+	var cols := [Color(0.11, 0.23, 0.09), Color(0.14, 0.28, 0.11), Color(0.09, 0.2, 0.08)]
+	for k in 5:
+		var o := Vector2(float((hsh >> (k * 2)) % 21) - 10.0, float((hsh >> (k * 2 + 1)) % 11) - 5.0)
+		ci.draw_circle(top + o, 15.0 + float(k % 3) * 3.0, cols[(hsh + k) % 3])
+	ci.draw_circle(top + Vector2(-4, -6), 10.0, Color(0.18, 0.33, 0.14))
 
 
 ## Last Water's buildings: sun-bleached adobe / prefab blocks with windows,

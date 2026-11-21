@@ -63,7 +63,7 @@ var input_grace := 0.0             # ignore actions briefly after a menu closes 
 func _ready() -> void:
 	add_to_group("player")
 	collision_layer = Combat.LAYER_PLAYER
-	collision_mask = Combat.LAYER_WORLD | Combat.LAYER_ENEMY
+	collision_mask = Combat.LAYER_WORLD | Combat.LAYER_ENEMY | Combat.LAYER_WATER
 	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
 	var shape := CollisionShape2D.new()
 	var c := CircleShape2D.new()
@@ -251,11 +251,14 @@ func _handle_movement(delta: float) -> void:
 		if trail.size() > 6:
 			trail.pop_front()
 		if roll_t <= 0.0:
-			collision_mask = Combat.LAYER_WORLD | Combat.LAYER_ENEMY
+			collision_mask = Combat.LAYER_WORLD | Combat.LAYER_ENEMY | Combat.LAYER_WATER
 	else:
 		if not trail.is_empty():
 			trail.pop_front()
 		var spd := BASE_SPEED * GameState.move_mult() * slow_factor()
+		var lv := get_tree().get_first_node_in_group("level") as Level
+		if lv != null and lv.ch(lv.world_to_cell(global_position).x, lv.world_to_cell(global_position).y) == ":":
+			spd *= 0.6                                    # wading through a ford
 		if is_stunned():
 			spd = 0.0
 		velocity = input.limit_length(1.0) * spd
@@ -636,7 +639,7 @@ func _try_roll() -> void:
 	roll_dir = mv.normalized() if mv.length() > 0.2 else aim_dir
 	roll_t = ROLL_TIME
 	invuln_t = ROLL_TIME + 0.08
-	collision_mask = Combat.LAYER_WORLD
+	collision_mask = Combat.LAYER_WORLD | Combat.LAYER_WATER
 	trail.clear()
 	Fx.burst(get_parent(), Iso.sp(global_position), Color(0.5, 0.5, 0.5, 0.6), 8, 90.0, -roll_dir, 0.8, 3.0, 0.4)
 	Audio.play("dodge", global_position)
@@ -892,6 +895,10 @@ func _modify_incoming(amount: float, _hit: Dictionary) -> float:
 		amount *= 0.75
 	if jugg_t > 0.0:
 		amount *= 0.1
+	if GameState.has_special("dread_crown"):
+		var src = _hit.get("source")
+		if src is Node2D and is_instance_valid(src) and (src as Node2D).global_position.distance_to(global_position) < 170.0:
+			amount *= 0.9                              # the King's Crest: Dread Crown
 	return amount
 
 

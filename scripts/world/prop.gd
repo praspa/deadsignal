@@ -7,6 +7,9 @@ extends StaticBody2D
 ##  i boulder (Kessar)   j resin growth (decor)   f glowing fungus (light)
 ##  n wrecked vehicle   q barricade   x water tower   % rubble   * smouldering fire
 ##  & the desecrated Last Water fountain (Last Water)
+##  Kessar VII jungle: ^ palm  $ giant tree  " fern  ! glowing flowers  ? carved stone head
+##  + stone pillar (the Brood King smashes them)  ( fallen log  ) bones  [ primate hut
+##  ] skull totem  { the King's tracks  } wrecked boat
 
 var level: Level
 var cell := Vector2i.ZERO
@@ -17,6 +20,7 @@ var powered := false
 var t := 0.0
 var flicker := 1.0
 var cv: IsoView
+var broken := false   # a smashed pillar
 
 const T := 32
 
@@ -35,7 +39,7 @@ func _ready() -> void:
 	collision_mask = 0
 	t = randf() * 10.0
 	cv = IsoView.attach(self, false)
-	if kind == "v" or kind == "j" or kind == "%":
+	if kind in ["v", "j", "%", ")", "{"]:
 		cv.z_index = -1   # floor grate / resin crust
 	if Level.SOLID_PROPS.contains(kind):
 		var cs := CollisionShape2D.new()
@@ -97,6 +101,17 @@ func _ready() -> void:
 			p.color_ramp = g
 			p.z_index = 10
 			cv.add_child(p)
+		"!":
+			light = PointLight2D.new()
+			light.range_item_cull_mask = 3
+			light.height = 150.0
+			light.texture = LightUtil.radial(128)
+			light.texture_scale = 1.3
+			light.position = Vector2(0, -8)
+			light.color = [Color(0.9, 0.4, 1.0), Color(0.4, 1.0, 0.8), Color(1.0, 0.7, 0.3)][variant]
+			light.energy = 0.8
+			light.scale = Vector2(1.0, 0.6)
+			cv.add_child(light)
 		"*":
 			light = PointLight2D.new()
 			light.range_item_cull_mask = 3
@@ -186,7 +201,7 @@ func set_powered(on: bool) -> void:
 
 func _process(delta: float) -> void:
 	t += delta
-	if (kind in ["t", "g", "l", "f", "*", "&"]) and cv != null:
+	if (kind in ["t", "g", "l", "f", "*", "&", "^", "\"", "!"]) and cv != null:
 		cv.redraw_if_visible()
 	if light == null:
 		return
@@ -239,6 +254,30 @@ func _render() -> void:
 			_draw_fire()
 		"&":
 			_draw_fountain()
+		"^":
+			_draw_palm()
+		"$":
+			_draw_giant_tree()
+		'"':
+			_draw_fern()
+		"!":
+			_draw_flowers()
+		"?":
+			_draw_stone_head()
+		"+":
+			_draw_pillar_stone()
+		"(":
+			_draw_log()
+		")":
+			_draw_bones()
+		"[":
+			_draw_hut()
+		"]":
+			_draw_totem()
+		"{":
+			_draw_tracks()
+		"}":
+			_draw_boat()
 		"q":
 			_draw_barricade()
 		"x":
@@ -247,6 +286,157 @@ func _render() -> void:
 			cv.draw_rect(Rect2(-12, -30, 24, 10), Color(0.12, 0.11, 0.1))
 			cv.draw_line(Vector2(-10, -25), Vector2(10, -25), Color(0.4, 0.3, 0.15), 2.0)
 			cv.draw_line(Vector2(4, -20), Vector2(7, -8), Color(0.08, 0.08, 0.08), 2.0)
+
+
+# ---------------------------------------------------------------- Kessar VII jungle
+
+func shatter() -> void:
+	broken = true
+	for c in get_children():
+		if c is CollisionShape2D:
+			(c as CollisionShape2D).set_deferred("disabled", true)
+	Fx.burst(get_parent(), Iso.sp(global_position, 20), Color(0.45, 0.42, 0.38), 26, 260.0)
+	Audio.play("explosion", global_position, 0.8, -4.0)
+	if cv != null:
+		cv.queue_redraw()
+
+
+func _leaf(c: Vector2, r: float, col: Color, ang: float) -> void:
+	var tip := c + Vector2.from_angle(ang) * r
+	var n := Vector2.from_angle(ang + PI * 0.5) * r * 0.22
+	cv.draw_colored_polygon(PackedVector2Array([c, c.lerp(tip, 0.5) + n, tip, c.lerp(tip, 0.5) - n]), col)
+
+
+func _draw_palm() -> void:
+	var hsh := Level.hash2(cell.x, cell.y)
+	var lean := float(hsh % 9) - 4.0
+	var top := Vector2(lean * 2.0, -62)
+	for i in 7:
+		var p0 := Vector2(lean * 2.0 * i / 7.0, -i * 9.0)
+		cv.draw_line(p0, p0 + Vector2(lean * 0.3, -9), Color(0.36, 0.28, 0.2).lerp(Color(0.46, 0.36, 0.26), float(i % 2)), 5.0)
+	for k in 7:
+		var a := -PI * 0.5 + (k - 3) * 0.55 + sin(t * 0.8 + k) * 0.04
+		_leaf(top, 30.0, Color(0.16, 0.36, 0.14).lerp(Color(0.24, 0.46, 0.18), float(k % 2)), a + (PI if k % 2 == 0 and k > 3 else 0.0) * 0.0)
+	for k in 3:
+		cv.draw_circle(top + Vector2(-3 + k * 3, 4), 2.5, Color(0.35, 0.25, 0.12))
+
+
+func _draw_giant_tree() -> void:
+	# an ancient jungle giant: buttress roots, a massive trunk, a dark canopy
+	var bark := Color(0.26, 0.2, 0.15)
+	for k in 5:
+		var a := k * TAU / 5.0 + 0.3
+		var root := Iso.to_screen(Vector2.from_angle(a) * 20.0)
+		cv.draw_line(Vector2(0, -12), root, bark.darkened(0.2), 6.0)
+	Iso.box(cv, Vector2.ZERO, Vector2(9, 9), 70.0, bark.lightened(0.05), bark, bark.darkened(0.4))
+	for i in 4:
+		cv.draw_line(Vector2(-6 + i * 4, -6), Vector2(-5 + i * 4, -66), bark.darkened(0.35), 1.0)
+	var top := Vector2(0, -80)
+	for k in 9:
+		var o := Vector2.from_angle(k * TAU / 9.0) * 22.0 * Vector2(1.0, 0.55)
+		Shade.ball(cv, top + o, 18.0, Color(0.12, 0.26, 0.1).lerp(Color(0.18, 0.34, 0.14), float(k % 3) / 2.0))
+	Shade.ball(cv, top + Vector2(0, -8), 20.0, Color(0.17, 0.33, 0.13))
+	cv.draw_line(top + Vector2(10, 10), top + Vector2(14, 50), Color(0.2, 0.35, 0.15), 1.5)   # hanging vine
+
+
+func _draw_fern() -> void:
+	var col := Color(0.18, 0.38, 0.15).lerp(Color(0.26, 0.45, 0.18), float(variant) / 2.0)
+	for k in 6:
+		var a := -PI * 0.5 + (k - 2.5) * 0.45 + sin(t * 1.2 + k) * 0.05
+		_leaf(Vector2(0, -2), 16.0 + float(k % 3) * 3.0, col.darkened(0.15 * float(k % 2)), a)
+
+
+func _draw_flowers() -> void:
+	var col: Color = [Color(0.9, 0.4, 1.0), Color(0.4, 1.0, 0.8), Color(1.0, 0.7, 0.3)][variant]
+	var pulse := 0.75 + 0.25 * sin(t * 1.7 + float(cell.x))
+	for k in 4:
+		var b := Vector2((k - 1.5) * 6.0, (k % 2) * 3.0)
+		cv.draw_line(b, b + Vector2(0, -10 - k * 2), Color(0.2, 0.36, 0.16), 1.5)
+		cv.draw_circle(b + Vector2(0, -11 - k * 2), 3.0, Color(col.r, col.g, col.b, pulse))
+		cv.draw_circle(b + Vector2(0, -11 - k * 2), 1.2, Color(1, 1, 0.9))
+
+
+func _draw_stone_head() -> void:
+	# a carved head of the vanished island people, moss in the cracks
+	var st := Color(0.4, 0.4, 0.36)
+	Iso.box(cv, Vector2.ZERO, Vector2(12, 10), 40.0, st.lightened(0.1), st, st.darkened(0.35))
+	Iso.face(cv, Vector2(-12, 10), Vector2.RIGHT)
+	cv.draw_rect(Rect2(4, -32, 6, 4), Color(0.08, 0.08, 0.07))
+	cv.draw_rect(Rect2(15, -32, 6, 4), Color(0.08, 0.08, 0.07))
+	cv.draw_rect(Rect2(10, -24, 4, 9), st.darkened(0.25))
+	cv.draw_rect(Rect2(6, -12, 13, 3), Color(0.1, 0.1, 0.09))
+	cv.draw_set_transform(Vector2.ZERO)
+	cv.draw_circle(Vector2(-8, -40), 5.0, Color(0.2, 0.36, 0.16, 0.8))
+
+
+func _draw_pillar_stone() -> void:
+	var st := Color(0.34, 0.32, 0.3)
+	if broken:
+		for i in 4:
+			Iso.box(cv, Vector2((i % 2) * 8.0 - 4.0, (i / 2) * 7.0 - 3.0), Vector2(5, 4), 6.0 + i, st.lightened(0.05), st, st.darkened(0.3))
+		return
+	Iso.box(cv, Vector2.ZERO, Vector2(10, 10), 64.0, st.lightened(0.1), st, st.darkened(0.35), Color(0.5, 0.48, 0.42))
+	Iso.box(cv, Vector2.ZERO, Vector2(12, 12), 6.0, st.lightened(0.15), st.lightened(0.05), st.darkened(0.25), Color(0, 0, 0, 0), 64.0)
+	cv.draw_line(Vector2(-6, -50), Vector2(2, -30), st.darkened(0.5), 1.0)
+
+
+func _draw_log() -> void:
+	var bark := Color(0.3, 0.22, 0.15)
+	Iso.box(cv, Vector2.ZERO, Vector2(15, 5), 9.0, bark.lightened(0.08), bark, bark.darkened(0.35))
+	cv.draw_circle(Iso.to_screen(Vector2(15, 0)) + Vector2(0, -5), 5.0, Color(0.5, 0.38, 0.25))
+	cv.draw_circle(Iso.to_screen(Vector2(15, 0)) + Vector2(0, -5), 2.5, Color(0.36, 0.26, 0.16))
+	cv.draw_circle(Vector2(-4, -11), 3.0, Color(0.2, 0.36, 0.16, 0.8))
+
+
+func _draw_bones() -> void:
+	var b := Color(0.75, 0.72, 0.62)
+	Iso.ground(cv)
+	var hsh := Level.hash2(cell.x, cell.y)
+	for k in 4:
+		var a := float((hsh >> (k * 3)) % 7)
+		cv.draw_line(Vector2(-8 + k * 4, -4 + a), Vector2(-2 + k * 4, 2 + a * 0.5), b, 2.0)
+	if hsh % 2 == 0:
+		cv.draw_circle(Vector2(6, -6), 3.5, b)   # a skull
+	cv.draw_set_transform(Vector2.ZERO)
+
+
+func _draw_hut() -> void:
+	# a primate nest-hut: woven branches and a thatched cone
+	var wood := Color(0.36, 0.27, 0.17)
+	Iso.box(cv, Vector2.ZERO, Vector2(12, 12), 12.0, wood.lightened(0.05), wood, wood.darkened(0.35))
+	cv.draw_colored_polygon(PackedVector2Array([Vector2(-20, -12), Vector2(20, -12), Vector2(0, -44)]), Color(0.45, 0.38, 0.2))
+	for i in 4:
+		cv.draw_line(Vector2(-16 + i * 9, -12), Vector2(0, -42), Color(0.32, 0.26, 0.14), 1.0)
+	cv.draw_rect(Rect2(-4, -12, 8, 9), Color(0.06, 0.05, 0.04))
+
+
+func _draw_totem() -> void:
+	# skulls on a stick: this is troop ground
+	cv.draw_line(Vector2(0, 0), Vector2(0, -44), Color(0.34, 0.26, 0.16), 3.0)
+	for k in 3:
+		cv.draw_circle(Vector2(0, -16 - k * 11), 5.0, Color(0.76, 0.72, 0.62))
+		cv.draw_circle(Vector2(-2, -17 - k * 11), 1.2, Color(0.08, 0.07, 0.06))
+		cv.draw_circle(Vector2(2, -17 - k * 11), 1.2, Color(0.08, 0.07, 0.06))
+	cv.draw_line(Vector2(-8, -48), Vector2(8, -40), Color(0.6, 0.2, 0.15), 2.0)   # a red rag
+
+
+func _draw_tracks() -> void:
+	# the Brood King's footprint, pressed deep into the jungle floor
+	Iso.ground(cv)
+	var ang := float(Level.hash2(cell.x, cell.y) % 6) * 0.5
+	cv.draw_set_transform_matrix(Transform2D(Iso.M.x, Iso.M.y, Vector2.ZERO) * Transform2D(ang, Vector2.ZERO))
+	cv.draw_circle(Vector2.ZERO, 7.0, Color(0.06, 0.05, 0.03, 0.55))
+	for k in 3:
+		cv.draw_line(Vector2(4, (k - 1) * 4.0), Vector2(13, (k - 1) * 6.0), Color(0.06, 0.05, 0.03, 0.55), 3.0)
+	cv.draw_set_transform(Vector2.ZERO)
+
+
+func _draw_boat() -> void:
+	# the survey team's boat, wrecked on the beach
+	var hull := Color(0.42, 0.4, 0.38)
+	Iso.box(cv, Vector2.ZERO, Vector2(15, 8), 12.0, hull.lightened(0.08), hull, hull.darkened(0.35), Color(0.7, 0.35, 0.15))
+	cv.draw_line(Vector2(-4, -12), Vector2(-2, -40), Color(0.3, 0.28, 0.26), 2.5)   # snapped mast
+	cv.draw_colored_polygon(PackedVector2Array([Vector2(-2, -40), Vector2(14, -28), Vector2(-1, -24)]), Color(0.6, 0.56, 0.48, 0.7))
 
 
 func _draw_rubble() -> void:
